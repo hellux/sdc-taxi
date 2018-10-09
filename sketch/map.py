@@ -8,20 +8,19 @@ class NodeType:
 
 class Node:
     def __init__(self, node_type)
-        self.type = node_type
+        self.type = node_type # NodeType
+        self.exits = []
 
-class Roundabout(Node):
-    def __init__(self, neighbours):
-        super().__init__(ROUNDABOUT)
-        self.neighbours = neighbours;
+    def addExit(destination, distance)
+        self.exits += (destination, distance)
 
-class Arc:
-    def __init__(self, src, dst, distance):
-        self.src = src
-        self.dst = dst
-        self.distance = distance
+A = Node(STOPLINE);
+B = Node(STOPLINE);
+R = Node(ROUNDABOUT);
 
-class Map:
-    def __init__(self, nodes, arcs):
-        self.nodes = nodes
-        self.arcs = arcs
+course = [A, B, R]
+
+A.addExit(R, 5)
+R.addExit(A, 5)
+B.addExit(R, 10)
+R.addExit(B, 10)
