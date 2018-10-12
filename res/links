@@ -25,3 +25,10 @@
         http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-42718-ATmega1284_Datasheet.pdf
         atmega16
         http://ww1.microchip.com/downloads/en/DeviceDoc/doc2466.pdf
+
+# seriella protokoll
+    i2c:
+        https://www.exploreembedded.com/wiki/Basics_of_I2C_with_AVR#PIC
+        https://robot-electronics.co.uk/i2c-tutorial
+    spi:
+        http://maxembedded.com/2013/11/the-spi-of-the-avr/
