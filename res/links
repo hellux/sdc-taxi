@@ -18,6 +18,9 @@
     avr:
         avrdude+bp
         http://dangerousprototypes.com/docs/Bus_Pirate_AVR_Programming
+# Raspberry Pi 3
+    GPIO:
+        https://www.raspberrypi.org/documentation/usage/gpio/README.md
 
 # datablad
     avr:
