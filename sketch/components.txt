@@ -2,11 +2,6 @@ Styrmodul:
 
 ATMega16, AVR
 
-L293 H-brygga, (för att driva motorn)
-
-Servostyrning, (för att svänga, vet inte om det är en komponent)
-(https://docs.isy.liu.se/pub/VanHeden/DataSheets/servostyrning.pdf)
-
 JTAG Ice, (för att kunna debugga on-chip utan att skicka grejer genom
 mikrokontrollern)
 
@@ -16,25 +11,17 @@ IQEXO-3, Kristalloscillator (klockpuls)
 
 Sensormodul:
 
-SRF04, Avståndsmätare med ultraljud
-
 S9702, Analog RGB-sensor
 
 ATMega16, AVR
 
-Reflexsensor, Denna sensor används bla som tejpsensor för kamprobotar, (kan
-användas för att mäta hastigheten på bilen genom att tejpa ett däck med vit och
-svart färg, en pulsgivare kan byggas)
-
-LSM303DLHC, 3D magnetometer. (För att avgöra distans genom att t.ex. sätta en
-magnet på ett hjul och räkna varv som hjulet snurrar)
+Reflexsensor
 
 LCD JM162A, 2 rader × 16 tecken. 
 
 GP2D120, Optisk avståndsmätare 4-30 cm (för sidan av bilen)
 
-GP2Y0A41SK, Optisk avståndsmätare 4-30 cm (för sidan av bilen)
-
+GP2Y0A02YK, Optisk avståndsmätare 20-150 cm
 
 Kommunkationsmodul:
 
