@@ -1,30 +1,22 @@
 Styrmodul:
-
-ATMega16, AVR
-
-JTAG Ice, (för att kunna debugga on-chip utan att skicka grejer genom
-mikrokontrollern)
-
-IQEXO-3, Kristalloscillator (klockpuls)
-
-
+    -ATMega16, AVR
+    -Motor (med chassi)
+    -Servo (med chassi)
+    -IQEXO-3, Kristalloscillator (klockpuls) # bara till styrmodul?
+    -JTAG Ice, (för att kunna debugga on-chip utan att skicka grejer genom
+    mikrokontrollern)
 
 Sensormodul:
-
-S9702, Analog RGB-sensor
-
-ATMega16, AVR
-
-Reflexsensor
-
-LCD JM162A, 2 rader × 16 tecken. 
-
-GP2D120, Optisk avståndsmätare 4-30 cm (för sidan av bilen)
-
-GP2Y0A02YK, Optisk avståndsmätare 20-150 cm
+    -ATMega16, AVR
+    -Reflexsensor
+    -GP2D120, Optisk avståndsmätare 4-30 cm (höger)
+    -GP2Y0A02YK, Optisk avståndsmätare 20-150 cm (framåt)
+    -Halleffektsensor (med chassi)
 
 Kommunkationsmodul:
+    -Raspberry Pi 3 (med chassi)
+    -Raspberry Pi Camera V2 Video Module
+    -LD33V, Spänningsregulator, +5 -> +3.3V
 
-LD33V, Spänningsregulator, +5 → +3.3V
-
-Raspberry Pi Camera V2 Video Module
+Gemensamt
+    -LCD JM162A, 2 rader x 16 tecken. 
