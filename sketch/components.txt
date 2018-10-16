@@ -1,22 +1,33 @@
-Styrmodul:
-    -ATMega16, AVR
-    -Motor (med chassi)
-    -Servo (med chassi)
-    -IQEXO-3, Kristalloscillator (klockpuls) # bara till styrmodul?
-    -JTAG Ice, (för att kunna debugga on-chip utan att skicka grejer genom
-    mikrokontrollern)
-
 Sensormodul:
     -ATMega16, AVR
+        http://ww1.microchip.com/downloads/en/DeviceDoc/doc2466.pdf
     -Reflexsensor
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/reflex_sensor.pdf
     -GP2D120, Optisk avståndsmätare 4-30 cm (höger)
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/gp2d120.pdf
     -GP2Y0A02YK, Optisk avståndsmätare 20-150 cm (framåt)
-    -Halleffektsensor (med chassi)
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/gp2y0a02_e.pdf
+    -Halleffektsensor (medföljer chassi)
+    -LCD JM162A, 2 rader x 16 tecken
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/jm162a.pdf
 
 Kommunkationsmodul:
-    -Raspberry Pi 3 (med chassi)
+    -Raspberry Pi 3 (medföljer chassi)
+        https://www.raspberrypi.org/documentation/hardware/raspberrypi/README.md
     -Raspberry Pi Camera V2 Video Module
-    -LD33V, Spänningsregulator, +5 -> +3.3V
+        https://www.raspberrypi.org/documentation/hardware/camera/README.md
+    -Raspberry Pi GPIO
+        https://www.raspberrypi.org/documentation/hardware/raspberrypi/gpio/README.md
+    -BSS138 Logic level converter
+        https://www.adafruit.com/product/757
 
-Gemensamt
-    -LCD JM162A, 2 rader x 16 tecken. 
+Styrmodul:
+    -ATMega16, AVR
+    -Motor (medföljer chassi)
+    -Servo (medföljer chassi)
+    -JTAG ICE (debug/flashning)
+    -LCD JM162A
+
+Gemensamt:
+    -IQEXO-3, Kristalloscillator
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/exo3.pdf
