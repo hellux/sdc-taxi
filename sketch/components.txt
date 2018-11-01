@@ -1,8 +1,6 @@
 Sensormodul:
     -ATMega16, AVR
         http://ww1.microchip.com/downloads/en/DeviceDoc/doc2466.pdf
-    -Reflexsensor
-        https://docs.isy.liu.se/pub/VanHeden/DataSheets/reflex_sensor.pdf
     -GP2D120, Optisk avståndsmätare 4-30 cm (höger)
         https://docs.isy.liu.se/pub/VanHeden/DataSheets/gp2d120.pdf
     -GP2Y0A02YK, Optisk avståndsmätare 20-150 cm (framåt)
@@ -18,8 +16,8 @@ Kommunkationsmodul:
         https://www.raspberrypi.org/documentation/hardware/camera/README.md
     -Raspberry Pi GPIO
         https://www.raspberrypi.org/documentation/hardware/raspberrypi/gpio/README.md
-    -BSS138 Logic level converter
-        https://www.adafruit.com/product/757
+    -TXB0104 Level Shifter (2st)
+        https://www.adafruit.com/product/1875
 
 Styrmodul:
     -ATMega16, AVR

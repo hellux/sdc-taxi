@@ -39,6 +39,10 @@
     spi:
         http://maxembedded.com/2013/11/the-spi-of-the-avr/
 
+# guides
+    network guide med c
+        http://beej.us/guide/bgnet/html/multi/index.html
+
 # i2c
     raspberry pi, python:
         smbus:
