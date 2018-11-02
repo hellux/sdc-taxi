@@ -10,6 +10,8 @@ class Node:
     def __init__(self, node_type)
         self.type = node_type # NodeType
         self.exits = []
+        self.dijkstra_checked = false
+        self.node_cost = 0
 
     def addExit(destination, distance)
         self.exits += (destination, distance)
