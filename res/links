@@ -18,6 +18,7 @@
     avr:
         avrdude+bp
         http://dangerousprototypes.com/docs/Bus_Pirate_AVR_Programming
+
 # Raspberry Pi 3
     GPIO:
         https://www.raspberrypi.org/documentation/usage/gpio/README.md
@@ -37,3 +38,18 @@
         https://robot-electronics.co.uk/i2c-tutorial
     spi:
         http://maxembedded.com/2013/11/the-spi-of-the-avr/
+
+# guides
+    network guide med c
+        http://beej.us/guide/bgnet/html/multi/index.html
+
+# i2c
+    raspberry pi, python:
+        smbus:
+            https://www.instructables.com/id/Raspberry-Pi-I2C-Python/
+            https://learn.sparkfun.com/tutorials/raspberry-pi-spi-and-i2c-tutorial/all
+    avr, c:
+        master:
+            https://github.com/g4lvanix/I2C-master-lib
+        slave:
+            https://github.com/thegouger/avr-i2c-slave
