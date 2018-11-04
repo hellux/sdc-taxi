@@ -1,6 +1,6 @@
 Sensormodul:
     -ATMega1284, AVR
-        http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-42718-ATmega1284_Datasheet.pdf
+        http://ww1.microchip.com/downloads/en/DeviceDoc/doc8059.pdf
     -GP2D120, Optisk avståndsmätare 4-30 cm (höger)
         https://docs.isy.liu.se/pub/VanHeden/DataSheets/gp2d120.pdf
     -GP2Y0A02YK, Optisk avståndsmätare 20-150 cm (framåt)

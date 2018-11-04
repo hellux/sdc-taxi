@@ -26,7 +26,7 @@
 # datablad
     avr:
         atmega1284
-        http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-42718-ATmega1284_Datasheet.pdf
+        http://ww1.microchip.com/downloads/en/DeviceDoc/doc8059.pdf
         atmega16
         http://ww1.microchip.com/downloads/en/DeviceDoc/doc2466.pdf
 
