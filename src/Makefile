@@ -1,8 +1,8 @@
-OBJS_COMM = comm/main.c
+OBJS_COMM = comm/main.c comm/bus.c comm/server.c comm/img_proc.c
 OBJS_SENS = sens/main.c
 OBJS_CTRL = ctrl/main.c
 
-LFLAGS_COMM = -lm -ldl `pkg-config --libs --cflags opencv`
+LFLAGS_COMM = -lpthread -lm -ldl `pkg-config --libs --cflags opencv`
 LFLAGS_SENS =
 LFLAGS_CTRL =
 
