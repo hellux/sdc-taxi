@@ -8,29 +8,26 @@
 #include "server.h"
 #include "img_proc.h"
 
-void *bus_loop(void *quit) {
-
-    while (!*(bool*)quit) {
-        bus_run();
-    }
-    pthread_exit(NULL);
-}
-
 int main(int argc, char* args[]) {
     bool quit = false;
+    bus_t *bus = bus_create();
 
-    pthread_t thread_bus;
-    pthread_create(&thread_bus, NULL, bus_loop, (void*)(&quit));
-
-    srv_init();
-    ip_process();
+    bus_sens_t sens_data;
+    bus_ctrl_t ctrl_data;
 
     while (!quit) {
-        char c = getchar();
-        if (c == 'q') quit = true;
-        printf("hej från main\n");
+        bus_get_sens(bus, &sens_data);
+        printf("rotations: %d\n", sens_data.rotations);
+
+        char str[100];
+        scanf("%s", str);
+        if (str[0] == 'q') quit = true;
+        ctrl_data.err_vel = str[0];
+        bus_receive_sens(bus);
+        bus_transmit_ctrl(bus, &ctrl_data);
     }
 
-    pthread_exit(NULL);
+    bus_destroy(bus);
+
     return EXIT_SUCCESS;
 }
