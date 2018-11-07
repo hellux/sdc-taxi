@@ -53,3 +53,9 @@
             https://github.com/g4lvanix/I2C-master-lib
         slave:
             https://github.com/thegouger/avr-i2c-slave
+
+#Standard C library for AVR-GCC
+    http://www.nongnu.org/avr-libc/user-manual/pages.html
+
+#PWM    
+    https://www.avrfreaks.net/forum/tut-c-pwm-complete-idiots
