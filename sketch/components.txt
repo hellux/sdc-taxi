@@ -1,13 +1,14 @@
 Sensormodul:
     -ATMega1284, AVR
         http://ww1.microchip.com/downloads/en/DeviceDoc/doc8059.pdf
-    -GP2D120, Optisk avståndsmätare 4-30 cm (höger)
-        https://docs.isy.liu.se/pub/VanHeden/DataSheets/gp2d120.pdf
+    -GP2Y0A41SK, Optisk avståndsmätare 4-30 cm (höger)
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/sharp-GP2Y0A41SK0F.pdf
     -GP2Y0A02YK, Optisk avståndsmätare 20-150 cm (framåt)
         https://docs.isy.liu.se/pub/VanHeden/DataSheets/gp2y0a02_e.pdf
     -Halleffektsensor (medföljer chassi)
     -LCD JM162A, 2 rader x 16 tecken
         https://docs.isy.liu.se/pub/VanHeden/DataSheets/jm162a.pdf
+        https://docs.isy.liu.se/pub/VanHeden/DataSheets/hd44780_komplett.pdf
 
 Kommunkationsmodul:
     -Raspberry Pi 3 (medföljer chassi)
