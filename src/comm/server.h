@@ -1,4 +1,5 @@
-#include <sys/types.h>
-#include <sys/socket.h>
+typedef struct server srv_t;
 
-void srv_init();
+srv_t *srv_create(void);
+void srv_destroy(srv_t *server);
+void srv_listen(srv_t *server);
