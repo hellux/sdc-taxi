@@ -26,11 +26,11 @@ class Command:
     EXIT = 'exit'
 
 class Node:
-    def __init__(self, node_type=STOPLINE)
+    def __init__(self, node_type=NodeType.STOPLINE):
         self.type = node_type
         self.exits = []
 
-    def addExit(destination, distance)
+    def addExit(destination, distance):
         self.exits += (destination, distance)
 
 def closest_path(course, src, dst):
@@ -42,10 +42,10 @@ def closest_path(course, src, dst):
 
 def create_mission(path):
     node, rest = path[0], path[1:]
-    if node.type == STOPLINE:
-        return [IGNORE if rest else STOP] + create_mission(rest)
-    elif node.type == PARKING:
-        return [IGNORE if path[1:] else PARK] + create_mission(rest)
+    if node.type is NodeType.STOPLINE:
+        return ([IGNORE] if rest else [STOP]) + create_mission(rest)
+    elif node.type is NodeType.PARKING:
+        return ([IGNORE] if rest else [PARK]) + create_mission(rest)
     else: # ROUNDABOUT
         src, dst = 0, 0
         exit_count = len(node.exits)
