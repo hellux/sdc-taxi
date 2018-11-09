@@ -37,8 +37,8 @@ void srv_listen(srv_t *server) {
     FD_ZERO(&set);
     FD_SET(server->socket,&set);
     struct timeval timeout = {0};
-    select(&server->socket,&set,NULL,NULL,&timeout);
-
+    int rv = select(1,&set,NULL,NULL,&timeout);
+    //printf("rv=%d\n",rv);
     struct sockaddr_storage sout;
     socklen_t addrlen;
     int socket = accept(server->socket, (struct sockaddr*)&sout, &addrlen);

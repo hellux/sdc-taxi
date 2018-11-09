@@ -32,6 +32,7 @@ int main(int argc, char* args[]) {
 
         srv_listen(srv);
         sleep(1);
+       // printf("hej\n");
     }
 
     bus_destroy(bus);
