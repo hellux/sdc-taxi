@@ -33,6 +33,12 @@ void srv_destroy(srv_t *server) {
 }
 
 void srv_listen(srv_t *server) {
+    fd_set set;
+    FD_ZERO(&set);
+    FD_SET(server->socket,&set);
+    struct timeval timeout = {0};
+    select(&server->socket,&set,NULL,NULL,&timeout);
+
     struct sockaddr_storage sout;
     socklen_t addrlen;
     int socket = accept(server->socket, (struct sockaddr*)&sout, &addrlen);

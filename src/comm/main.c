@@ -31,6 +31,7 @@ int main(int argc, char* args[]) {
         bus_transmit_ctrl(bus, &ctrl_data);
 
         srv_listen(srv);
+        sleep(1);
     }
 
     bus_destroy(bus);
