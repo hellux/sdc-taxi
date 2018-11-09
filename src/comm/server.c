@@ -8,21 +8,24 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #define BUF_SIZE 50
 
 struct server {
     int listen_fd; /* fd for socket that is listened to */
-    int conn_fd; /* fd for connection */
+    int conn_fd; /* fd for connection, -1 if no connection */
 };
 
 /* internal functions */
 
 void accept_connection(srv_t *srv) {
     int conn_fd = accept(srv->listen_fd, NULL, NULL);
-    if (conn_fd >= 0)
+    if (conn_fd >= 0) {
+        close(srv->conn_fd);
         srv->conn_fd = conn_fd;
     }
+}
 
 char *receive(srv_t *srv) {
     int bufsize = BUF_SIZE;
@@ -75,12 +78,14 @@ srv_t *srv_create(const char *addr, int port){
 }
 
 void srv_destroy(srv_t *srv) {
+    close(srv->listen_fd);
+    close(srv->conn_fd);
     free(srv);
 }
 
 void srv_listen(srv_t *srv) {
     accept_connection(srv);
-    char *data = receive(srv);
 
+    char *data = receive(srv);
     if (data) printf("received: \"%s\"\n", data);
 }
