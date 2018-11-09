@@ -11,7 +11,7 @@
 int main(int argc, char* args[]) {
     bool quit = false;
     bus_t *bus = bus_create();
-    srv_t *srv = srv_create("10.121.162.1", 5000);
+    srv_t *srv = srv_create("127.0.0.1", 5000);
 
     bus_sens_t sens_data;
     bus_ctrl_t ctrl_data;
@@ -31,8 +31,6 @@ int main(int argc, char* args[]) {
         bus_transmit_ctrl(bus, &ctrl_data);
 
         srv_listen(srv);
-        sleep(1);
-       // printf("hej\n");
     }
 
     bus_destroy(bus);

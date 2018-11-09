@@ -8,44 +8,79 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+
+#define BUF_SIZE 50
+
 struct server {
-    int socket;
+    int listen_fd; /* fd for socket that is listened to */
+    int conn_fd; /* fd for connection */
 };
 
+/* internal functions */
+
+void accept_connection(srv_t *srv) {
+    int conn_fd = accept(srv->listen_fd, NULL, NULL);
+    if (conn_fd >= 0)
+        srv->conn_fd = conn_fd;
+    }
+
+char *receive(srv_t *srv) {
+    int bufsize = BUF_SIZE;
+    char *buf = malloc(bufsize*sizeof(char));
+    int length = 0;
+
+    if (srv->conn_fd >= 0) {
+        int max_receive;
+        int received = 0;
+
+        do {
+            if (length >= bufsize) {
+                bufsize *= 2;
+                buf = realloc(buf, bufsize+1);
+            }
+            max_receive = bufsize-length;
+            received = recv(srv->conn_fd, buf+length, max_receive, 0);
+            length += received;
+        } while (received == max_receive);
+    }
+
+    if (length == 0) {
+        free(buf);
+        buf = NULL;
+    } else {
+        buf[length] = '\0';
+    }
+
+    return buf;
+}
+
+/* external api functions */
 srv_t *srv_create(const char *addr, int port){
-    srv_t *server = calloc(1, sizeof(struct server));
-    server->socket = socket(AF_INET, SOCK_STREAM, 0);
-    fcntl(server->socket, F_SETFL, O_NONBLOCK); 
+    srv_t *srv = calloc(1, sizeof(srv_t));
+    srv->conn_fd = -1;
+
+    srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    fcntl(srv->listen_fd, F_SETFL, O_NONBLOCK); 
+
     struct sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     inet_pton(AF_INET, addr, &address.sin_addr);
 
-    bind(server->socket, (struct sockaddr*)&address, sizeof(address));
-    listen(server->socket, 100);
+    bind(srv->listen_fd, (struct sockaddr*)&address, sizeof(address));
+
+    listen(srv->listen_fd, 10);
     
-    return server;
+    return srv;
 }
 
-void srv_destroy(srv_t *server) {
-    printf("förstör\n");
-    free(server);
+void srv_destroy(srv_t *srv) {
+    free(srv);
 }
 
-void srv_listen(srv_t *server) {
-    fd_set set;
-    FD_ZERO(&set);
-    FD_SET(server->socket,&set);
-    struct timeval timeout = {0};
-    int rv = select(1,&set,NULL,NULL,&timeout);
-    //printf("rv=%d\n",rv);
-    struct sockaddr_storage sout;
-    socklen_t addrlen;
-    int socket = accept(server->socket, (struct sockaddr*)&sout, &addrlen);
-    char buf[101];
-    int size = recv(socket, buf, 100, MSG_DONTWAIT);
-    if (size > 0) {
-        buf[size] = 0;
-        printf("%d, \"%s\"\n", size, buf );
-    }
+void srv_listen(srv_t *srv) {
+    accept_connection(srv);
+    char *data = receive(srv);
+
+    if (data) printf("received: \"%s\"\n", data);
 }
