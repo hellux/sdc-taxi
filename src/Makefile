@@ -1,14 +1,21 @@
-OBJS_COMM_C = comm/main.c comm/bus.c comm/server.c
-OBJS_COMM_CPP = comm/img_proc.cpp
-OBJS_SENS = sens/main.c
-OBJS_CTRL = ctrl/main.c
+COMM_OBJS_SRV = comm/server.c
+COMM_OBJS_BUS = comm/bus.c
+COMM_OBJS_C = $(COMM_OBJS_BUS) $(COMM_OBJS_SRV)
+COMM_MAIN = comm/main.c 
+COMM_SRV = dbg/server.c
+COMM_BUS = dbg/bus.c
+COMM_OBJS_CPP = comm/img_proc.cpp
+COMM_LFLAGS = -lpthread # -lm -ldl `pkg-config --libs --cflags opencv`
 
-LFLAGS_COMM = -lpthread # -lm -ldl `pkg-config --libs --cflags opencv`
-LFLAGS_SENS =
-LFLAGS_CTRL =
+SENS_OBJS = sens/main.c
+SENS_LFLAGS =
 
+CTRL_OBJS = ctrl/main.c
+CTRL_LFLAGS =
+
+CXXC = g++
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -g
 
 # cross compilation
 AVR_CFLAGS = -Wall -static -Og
@@ -18,16 +25,22 @@ AVR_CC = avr-gcc
 # ignore same-named folders
 .PHONY: comm sens ctrl 
 
-comm: $(OBJS_COMM)
-	g++ -c $(OBJS_COMM_CPP)
-	$(CC) -c $(OBJS_COMM_C) $(CFLAGS) $(LFLAGS_COMM)
-	g++ -o bcomm *.o $(LFLAGS_COMM)
+comm: $(COMM_OBJS)
+	$(CXXC) -c $(CFLAGS) $(COMM_OBJS_CPP)
+	$(CC) -c $(COMM_MAIN) $(COMM_OBJS_C) $(CFLAGS) $(COMM_LFLAGS)
+	$(CXXC) -o bcomm *.o $(CFLAGS) $(COMM_LFLAGS)
 
-sens: $(OBJS_SENS)
-	$(AVR_CC) $(AVR_ARCH) $(OBJS_SENS) $(AVR_CFLAGS) $(LFLAGS_SENS) -o bsens
+comm_srv: $(COMM_SRV) $(COMM_OBJS)
+	$(CC) -o bcomm_srv $(COMM_SRV) $(COMM_OBJS_SRV) $(CFLAGS) $(COMM_LFLAGS)
 
-ctrl: $(OBJS_CTRL)
-	$(AVR_CC) $(AVR_ARCH) $(OBJS_CTRL) $(AVR_CFLAGS) $(LFLAGS_CTRL) -o bctrl
+comm_bus: $(COMM_BUS) $(COMM_OBJS)
+	$(CC) -o bcomm_bus $(COMM_BUS) $(COMM_OBJS_BUS) $(CFLAGS) $(COMM_LFLAGS)
+
+sens: $(SENS_OBJS)
+	$(AVR_CC) $(AVR_ARCH) $(SENS_OBJS) $(AVR_CFLAGS) $(SENS_LFLAGS) -o bsens
+
+ctrl: $(CTRL_OBJS)
+	$(AVR_CC) $(AVR_ARCH) $(CTRL_OBJS) $(AVR_CFLAGS) $(CTRL_LFLAGS) -o bctrl
 
 clean:
 	rm -f *.o
