@@ -21,12 +21,7 @@ int main(int argc, char* args[]) {
 
     while (!quit) {
         bus_get_sens(bus, &sens_data);
-        //printf("rotations: %d\n", sens_data.rotations);
 
-        char str[100];
-        //scanf("%s", str);
-        if (str[0] == 'q') quit = true;
-        ctrl_data.err_vel = str[0];
         bus_receive_sens(bus);
         bus_transmit_ctrl(bus, &ctrl_data);
 

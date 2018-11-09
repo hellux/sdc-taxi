@@ -1,1 +1,1 @@
-void ip_process();
+void ip_process(void);
