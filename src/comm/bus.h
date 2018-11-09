@@ -5,14 +5,14 @@
 typedef struct bus bus_t;
 
 typedef struct {
-    uint8_t dist_front;
-    uint8_t dist_right;
-    unsigned rotations; 
+    uint8_t dist_front; //distance to object in front
+    uint8_t dist_right; //distance to object to the right
+    unsigned rotations; //wheel rotations
 } bus_sens_t; 
 
 typedef struct {
-    int8_t err_vel;
-    int8_t err_rot;
+    int8_t err_vel;     //velocity error
+    int8_t err_rot;     //rotation error
 } bus_ctrl_t;
 
 /* allocate resources and start bus thread */
