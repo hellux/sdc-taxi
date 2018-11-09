@@ -33,6 +33,17 @@ uint8_t spi_slave_recieve(){
     return SPDR;
 }    
 
+void init_lcdports(){
+    //Set ouput ports to LCD
+    DDRA |= (1<<PA4)|(1<<PA5)|(1<<PA6)|(1<<PA7);
+    DDRB |= (1<<PB0)|(1<<PB1);
+}
+
+void init_jtagport(){
+    //Set TDO to output
+    DDRC |= (1<<PC4);
+}
+
 int main(int argc, char* args[]) {
     uint8_t duty_v;
     uint8_t duty_r;
@@ -40,6 +51,7 @@ int main(int argc, char* args[]) {
     //printf("ctrl module hej hej\n");
     pwm_init();
     spi_init_slave();
+    init_lcdports();
 
     while(1){
         OCR1A = duty_r;
