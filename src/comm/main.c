@@ -11,7 +11,7 @@
 int main(int argc, char* args[]) {
     bool quit = false;
     bus_t *bus = bus_create();
-    srv_t *srv = srv_create();
+    srv_t *srv = srv_create("10.121.162.1", 5000);
 
     bus_sens_t sens_data;
     bus_ctrl_t ctrl_data;
@@ -21,10 +21,10 @@ int main(int argc, char* args[]) {
 
     while (!quit) {
         bus_get_sens(bus, &sens_data);
-        printf("rotations: %d\n", sens_data.rotations);
+        //printf("rotations: %d\n", sens_data.rotations);
 
         char str[100];
-        scanf("%s", str);
+        //scanf("%s", str);
         if (str[0] == 'q') quit = true;
         ctrl_data.err_vel = str[0];
         bus_receive_sens(bus);
