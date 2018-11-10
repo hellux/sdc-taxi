@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define BUF_SIZE 50
 
@@ -59,10 +60,16 @@ char *receive(srv_t *srv) {
 
 /* external api functions */
 srv_t *srv_create(const char *addr, int port){
+    int succ;
+
     srv_t *srv = calloc(1, sizeof(srv_t));
     srv->conn_fd = -1;
 
     srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (srv->listen_fd == -1) {
+        perror("failed to create unbound socket");
+        return NULL;
+    }
     fcntl(srv->listen_fd, F_SETFL, O_NONBLOCK); 
 
     struct sockaddr_in address;
@@ -70,10 +77,18 @@ srv_t *srv_create(const char *addr, int port){
     address.sin_port = htons(port);
     inet_pton(AF_INET, addr, &address.sin_addr);
 
-    bind(srv->listen_fd, (struct sockaddr*)&address, sizeof(address));
+    succ = bind(srv->listen_fd, (struct sockaddr*)&address, sizeof(address));
+    if (succ == -1) {
+        perror("failed to bind socket");
+        return NULL;
+    }
 
-    listen(srv->listen_fd, 10);
-    
+    succ = listen(srv->listen_fd, 10);
+    if (succ == -1) {
+        perror("failed to listen to socket");
+        return NULL;
+    }
+
     return srv;
 }
 
