@@ -8,10 +8,10 @@ COMM_BUS = dbg/bus.c
 COMM_IP = dbg/ip.c
 COMM_LFLAGS = -lpthread # -lm -ldl `pkg-config --libs --cflags opencv`
 
-SENS_OBJS = sens/main.c
+SENS_OBJS = avr/sens.c
 SENS_LFLAGS =
 
-CTRL_OBJS = ctrl/main.c
+CTRL_OBJS = avr/ctrl.c
 CTRL_LFLAGS =
 
 CXXC = g++

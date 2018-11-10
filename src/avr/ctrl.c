@@ -1,10 +1,8 @@
-//#include <stdlib.h>
-//#include <stdio.h>
+#include "const.h"
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>
-
 
 void pwm_init(){
     
@@ -45,10 +43,9 @@ void init_jtagport(){
 }
 
 int main(int argc, char* args[]) {
-    uint8_t duty_v;
-    uint8_t duty_r;
+    uint8_t duty_v = 0;
+    uint8_t duty_r = 0;
 
-    //printf("ctrl module hej hej\n");
     pwm_init();
     spi_init_slave();
     init_lcdports();
@@ -58,5 +55,5 @@ int main(int argc, char* args[]) {
         OCR1B = duty_v;
     }
     
-    //return EXIT_SUCCESS;
+    return 0;
 }
