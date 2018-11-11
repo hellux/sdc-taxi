@@ -62,3 +62,7 @@
 
 # mixa c++ och c
     https://isocpp.org/wiki/faq/mixing-c-and-cpp
+
+# opencv
+    hämta bilder från kamera
+        https://www.opencv-srf.com/2017/12/play-video-from-file-or-camera.html
