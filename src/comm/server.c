@@ -11,7 +11,8 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define BUF_SIZE 50
+/* starting size of buffer for received messages */
+#define BUF_SIZE 100
 
 struct server {
     int listen_fd; /* fd for socket that is listened to */
@@ -28,6 +29,7 @@ void accept_connection(srv_t *srv) {
     }
 }
 
+/* string returned must be freed by caller */
 char *receive(srv_t *srv) {
     int bufsize = BUF_SIZE;
     char *buf = malloc(bufsize*sizeof(char));
@@ -58,6 +60,10 @@ char *receive(srv_t *srv) {
     return buf;
 }
 
+void parse_commands(const char *str) {
+    /* TODO */
+}
+
 /* external api functions */
 srv_t *srv_create(const char *addr, int port){
     int succ;
@@ -68,8 +74,10 @@ srv_t *srv_create(const char *addr, int port){
     srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (srv->listen_fd == -1) {
         perror("failed to create unbound socket");
-        return NULL;
+        goto fail;
     }
+
+    /* ensure no blocking when accepting connections */
     fcntl(srv->listen_fd, F_SETFL, O_NONBLOCK); 
 
     struct sockaddr_in address;
@@ -80,21 +88,24 @@ srv_t *srv_create(const char *addr, int port){
     succ = bind(srv->listen_fd, (struct sockaddr*)&address, sizeof(address));
     if (succ == -1) {
         perror("failed to bind socket");
-        return NULL;
+        goto fail;
     }
 
     succ = listen(srv->listen_fd, 10);
     if (succ == -1) {
         perror("failed to listen to socket");
-        return NULL;
+        goto fail;
     }
 
     return srv;
+fail:
+    srv_destroy(srv);
+    return NULL;
 }
 
 void srv_destroy(srv_t *srv) {
-    close(srv->listen_fd);
-    close(srv->conn_fd);
+    if (srv->listen_fd > 0) close(srv->listen_fd);
+    if (srv->conn_fd > 0) close(srv->conn_fd);
     free(srv);
 }
 
@@ -103,4 +114,5 @@ void srv_listen(srv_t *srv) {
 
     char *data = receive(srv);
     if (data) printf("received: \"%s\"\n", data);
+    free(data);
 }
