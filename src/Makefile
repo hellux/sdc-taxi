@@ -2,7 +2,7 @@ OBJDIR = build
 
 CXXC = g++
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
 AVRCFLAGS = -mmcu=atmega1284p -Wall -static -Og
@@ -10,7 +10,7 @@ AVRCFLAGS = -mmcu=atmega1284p -Wall -static -Og
 COMM_SRC_CPP_FILES = img_proc.cpp
 COMM_SRC_C_FILES = server.c bus.c
 COMM_MAIN = comm/main
-COMM_LFLAGS = -lpthread -lm #`pkg-config --libs --cflags opencv`
+COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_SRC_C = $(addprefix comm/, $(COMM_SRC_C_FILES))
 COMM_SRC_CPP = $(addprefix comm/ip/, $(COMM_SRC_CPP_FILES))
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \

@@ -1,9 +1,23 @@
 #include <iostream>
 
-// TODO include opencv
+#include <opencv2/opencv.hpp>
+
+using namespace cv;
 
 extern "C" void ip_process(void);
 
 void ip_process(void) {
     std::cout << "hej från c++" << std::endl;
+
+    Mat image;
+    image = imread("img.png");
+
+    if (image.data) {
+        namedWindow("Display Image", WINDOW_AUTOSIZE );
+        imshow("Display Image", image);
+        waitKey(0);
+    } else {
+        printf("No image data \n");
+    }
 }
+
