@@ -1,18 +1,20 @@
 OBJDIR = build
+BINDIR = bin
+
+CC = gcc
+CFLAGS = -Wall
 
 CXXC = g++
-CC = gcc
-CFLAGS = -Wall -g `pkg-config --cflags opencv`
+CXXFLAGS = -Wall `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
-AVRCFLAGS = -mmcu=atmega1284p -Wall -static -Og
+AVRARCH = -mmcu=atmega1284p
+AVRCFLAGS = -Wall -static -Og
 
-COMM_SRC_CPP_FILES = img_proc.cpp
-COMM_SRC_C_FILES = server.c bus.c
 COMM_MAIN = comm/main
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
-COMM_SRC_C = $(addprefix comm/, $(COMM_SRC_C_FILES))
-COMM_SRC_CPP = $(addprefix comm/ip/, $(COMM_SRC_CPP_FILES))
+COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
+COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
 
@@ -26,41 +28,55 @@ CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 
-# ignore same-named folders
-.PHONY: comm sens ctrl 
+# ignore existing folder
+.PHONY: comm
 
 ## build targets
 
-# replace main example: make comm main=dbg/server
-comm: init $(COMM_OBJS) $(if $(main),$(main),$(COMM_MAIN)).o
-	$(eval main=$(if $(main),$(main),$(COMM_MAIN)))
-	$(CXXC) $(main).o $(COMM_OBJS) $(CFLAGS) $(COMM_LFLAGS) -o $(OBJDIR)/b$@
+# main.c can be replaced with another file for debugging
+# 	for example, to use dbg/server.c instead of comm/main.c:
+# 		make comm main=dbg/server
+comm: init $(BINDIR)/comm
 
-sens: init $(SENS_OBJS)
-	$(AVRCC) $(SENS_OBJS) $(AVRCFLAGS) $(SENS_LFLAGS) -o $(OBJDIR)/b$@
+sens: init $(BINDIR)/sens
 
-ctrl: init $(CTRL_OBJS)
-	$(AVRCC) $(CTRL_OBJS) $(AVRCFLAGS) $(CTRL_LFLAGS) -o $(OBJDIR)/b$@
+ctrl: init $(BINDIR)/ctrl
 
 clean:
 	rm -rf $(OBJDIR)
+	rm -rf $(BINDIR)
 
 ## helper rules
 
 init:
-	mkdir -p $(OBJDIR)
-	mkdir -p $(OBJDIR)/comm
-	mkdir -p $(OBJDIR)/comm/ip
-	mkdir -p $(OBJDIR)/avr
+	@mkdir -p $(BINDIR)
+	@mkdir -p $(OBJDIR)
+	@mkdir -p $(OBJDIR)/dbg
+	@mkdir -p $(OBJDIR)/comm
+	@mkdir -p $(OBJDIR)/comm/ip
+	@mkdir -p $(OBJDIR)/avr
 
 # compile objects for comm c files
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c | $(OBJDIR)/comm/
 	$(CC) -c $(CFLAGS) $< -o $@
 
 # compile objects for comm cpp files (only ip files)
 $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
-	$(CXXC) -c $(CFLAGS) $< -o $@
+	$(CXXC) -c $(CXXFLAGS) $< -o $@
+
+# link comm to binary
+$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),$(COMM_MAIN)).o
+	$(eval main=$(OBJDIR)/$(if $(main),$(main),$(COMM_MAIN)))
+	$(CXXC) $(main).o $(COMM_OBJS) $(COMM_LFLAGS) -o $@ 
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
-	$(AVRCC) -c $(AVRCFLAGS) $< -o $@
+	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
+
+# link sens to binary
+$(BINDIR)/sens: $(SENS_OBJS)
+	$(AVRCC) $(SENS_OBJS) $(AVRARCH) $(SENS_LFLAGS) -o $@
+
+# link ctrl to binary
+$(BINDIR)/ctrl: $(BINDIR) $(CTRL_OBJS)
+	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
