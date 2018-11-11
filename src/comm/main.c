@@ -4,7 +4,7 @@
 
 #include "bus.h"
 #include "server.h"
-#include "img_proc.h"
+#include "ip/img_proc.h"
 
 #define SERVER_PORT 5000
 

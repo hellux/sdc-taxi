@@ -1,56 +1,66 @@
-COMM_OBJS_SRV = comm/server.c
-COMM_OBJS_BUS = comm/bus.c
-COMM_OBJS_IP = comm/img_proc.cpp
-COMM_OBJS_C = $(COMM_OBJS_BUS) $(COMM_OBJS_SRV)
-COMM_MAIN = comm/main.c 
-COMM_SRV = dbg/server.c
-COMM_BUS = dbg/bus.c
-COMM_IP = dbg/ip.c
-COMM_LFLAGS = -lpthread # -lm -ldl `pkg-config --libs --cflags opencv`
-
-SENS_OBJS = avr/sens.c
-SENS_LFLAGS =
-
-CTRL_OBJS = avr/ctrl.c
-CTRL_LFLAGS =
+OBJDIR = build
 
 CXXC = g++
 CC = gcc
 CFLAGS = -Wall -g
 
-# cross compilation
-AVR_CFLAGS = -Wall -static -Og
-AVR_ARCH = -mmcu=atmega1284p
-AVR_CC = avr-gcc
+AVRCC = avr-gcc
+AVRCFLAGS = -mmcu=atmega1284p -Wall -static -Og
+
+COMM_SRC_CPP_FILES = img_proc.cpp
+COMM_SRC_C_FILES = server.c bus.c
+COMM_MAIN = comm/main
+COMM_LFLAGS = -lpthread -lm #`pkg-config --libs --cflags opencv`
+COMM_SRC_C = $(addprefix comm/, $(COMM_SRC_C_FILES))
+COMM_SRC_CPP = $(addprefix comm/ip/, $(COMM_SRC_CPP_FILES))
+COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
+		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
+
+SENS_SRC_FILES = sens.c
+SENS_LFLAGS =
+SENS_SRC = $(addprefix avr/, $(SENS_SRC_FILES))
+SENS_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(SENS_SRC))
+
+CTRL_SRC_FILES = ctrl.c
+CTRL_LFLAGS =
+CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
+CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 
 # ignore same-named folders
 .PHONY: comm sens ctrl 
 
-comm: $(COMM_OBJS)
-	make clean
-	$(CXXC) -c $(COMM_OBJS_IP) $(CFLAGS)
-	$(CC) -c $(COMM_MAIN) $(COMM_OBJS_C) $(CFLAGS) $(COMM_LFLAGS)
-	$(CXXC) -o bcomm *.o $(CFLAGS) $(COMM_LFLAGS)
-	make clean
+## build targets
 
-comm_srv: $(COMM_SRV) $(COMM_OBJS)
-	$(CC) -o bcomm_srv $(COMM_SRV) $(COMM_OBJS_SRV) $(CFLAGS) $(COMM_LFLAGS)
+# replace main example: make comm main=dbg/server
+comm: init $(COMM_OBJS) $(if $(main),$(main),$(COMM_MAIN)).o
+	$(eval main=$(if $(main),$(main),$(COMM_MAIN)))
+	$(CXXC) $(main).o $(COMM_OBJS) $(CFLAGS) $(COMM_LFLAGS) -o $(OBJDIR)/b$@
 
-comm_bus: $(COMM_BUS) $(COMM_OBJS)
-	$(CC) -o bcomm_bus $(COMM_BUS) $(COMM_OBJS_BUS) $(CFLAGS) $(COMM_LFLAGS)
+sens: init $(SENS_OBJS)
+	$(AVRCC) $(SENS_OBJS) $(AVRCFLAGS) $(SENS_LFLAGS) -o $(OBJDIR)/b$@
 
-comm_ip: $(COMM_BUS) $(COMM_OBJS)
-	make clean
-	$(CXXC) -c $(COMM_OBJS_IP) $(CFLAGS) 
-	$(CC) -c $(COMM_IP) $(CFLAGS) $(COMM_LFLAGS)
-	$(CXXC) -o bcomm_ip *.o $(CFLAGS) $(COMM_LFLAGS)
-	make clean
-
-sens: $(SENS_OBJS)
-	$(AVR_CC) $(AVR_ARCH) $(SENS_OBJS) $(AVR_CFLAGS) $(SENS_LFLAGS) -o bsens
-
-ctrl: $(CTRL_OBJS)
-	$(AVR_CC) $(AVR_ARCH) $(CTRL_OBJS) $(AVR_CFLAGS) $(CTRL_LFLAGS) -o bctrl
+ctrl: init $(CTRL_OBJS)
+	$(AVRCC) $(CTRL_OBJS) $(AVRCFLAGS) $(CTRL_LFLAGS) -o $(OBJDIR)/b$@
 
 clean:
-	rm -f *.o
+	rm -rf $(OBJDIR)
+
+## helper rules
+
+init:
+	mkdir -p $(OBJDIR)
+	mkdir -p $(OBJDIR)/comm
+	mkdir -p $(OBJDIR)/comm/ip
+	mkdir -p $(OBJDIR)/avr
+
+# compile objects for comm c files
+$(OBJDIR)/%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+# compile objects for comm cpp files (only ip files)
+$(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
+	$(CXXC) -c $(CFLAGS) $< -o $@
+
+# compile objects for avr c files
+$(OBJDIR)/avr/%.o: avr/%.c
+	$(AVRCC) -c $(AVRCFLAGS) $< -o $@
