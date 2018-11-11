@@ -1,5 +1,5 @@
 OBJDIR = build
-BINDIR = bin
+BINDIR = $(OBJDIR)/bin
 
 CC = gcc
 CFLAGS = -Wall
@@ -11,7 +11,6 @@ AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
 AVRCFLAGS = -Wall -static -Og
 
-COMM_MAIN = comm/main
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
@@ -28,10 +27,8 @@ CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 
-# ignore existing folder
 .PHONY: comm
-
-## build targets
+.SILENT: init
 
 # main.c can be replaced with another file for debugging
 # 	for example, to use dbg/server.c instead of comm/main.c:
@@ -46,15 +43,13 @@ clean:
 	rm -rf $(OBJDIR)
 	rm -rf $(BINDIR)
 
-## helper rules
-
 init:
-	@mkdir -p $(BINDIR)
-	@mkdir -p $(OBJDIR)
-	@mkdir -p $(OBJDIR)/dbg
-	@mkdir -p $(OBJDIR)/comm
-	@mkdir -p $(OBJDIR)/comm/ip
-	@mkdir -p $(OBJDIR)/avr
+	mkdir -p $(OBJDIR)
+	mkdir -p $(OBJDIR)/dbg
+	mkdir -p $(OBJDIR)/comm
+	mkdir -p $(OBJDIR)/comm/ip
+	mkdir -p $(OBJDIR)/avr
+	mkdir -p $(BINDIR)
 
 # compile objects for comm c files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)/comm/
@@ -65,8 +60,8 @@ $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
 	$(CXXC) -c $(CXXFLAGS) $< -o $@
 
 # link comm to binary
-$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),$(COMM_MAIN)).o
-	$(eval main=$(OBJDIR)/$(if $(main),$(main),$(COMM_MAIN)))
+$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),comm/main).o
+	$(eval main=$(OBJDIR)/$(if $(main),$(main),comm/main))
 	$(CXXC) $(main).o $(COMM_OBJS) $(COMM_LFLAGS) -o $@ 
 
 # compile objects for avr c files
