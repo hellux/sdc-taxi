@@ -62,7 +62,7 @@ $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
 # link comm to binary
 $(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),comm/main).o
 	$(eval main=$(if $(main),$(main),comm/main))
-	$(CXXC) $(main).o $(COMM_OBJS) $(COMM_LFLAGS) -o $@
+	$(CXXC) $(OBJDIR)/$(main).o $(COMM_OBJS) $(COMM_LFLAGS) -o $@
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
