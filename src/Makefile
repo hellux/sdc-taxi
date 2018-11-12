@@ -12,7 +12,7 @@ AVRARCH = -mmcu=atmega1284p
 AVRCFLAGS = -Wall -static -Og
 
 PROG_CONF = prog.conf
-PROG_DBG = jtag2
+PROG_DBG = jtag1
 PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
