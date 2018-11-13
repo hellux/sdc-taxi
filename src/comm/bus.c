@@ -21,7 +21,7 @@ struct bus {
     bool terminate;
 };
 
- /* internal thread functions */
+/* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {
     /* TODO receive from sens via SPI */
@@ -30,7 +30,7 @@ void receive_sens(bus_t *bus, bus_sens_t *data) {
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
     /* TODO transmit to ctrl via SPI */
-    // printf("sending to ctrl: %c\n", data->err_vel);
+    printf("sending to ctrl: %c\n", data->err_vel);
 }
 
 /* separate thread for bus */
