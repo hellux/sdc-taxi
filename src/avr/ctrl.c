@@ -49,6 +49,10 @@ void init_jtagport(){
     DDRC |= (1<<PC4);
 }
 
+ISR(SPI_STC_vect){
+    //Set recieved data to corresponding value
+}
+
 float pd_ctrl(pd_values *v){
     float proportion;
     float derivative;
@@ -83,6 +87,8 @@ int main(int argc, char* args[]) {
 
         OCR1A = duty_rad;
         OCR1B = duty_vel;
+
+        _delay_ms(20);
     }
     
     return 0;
