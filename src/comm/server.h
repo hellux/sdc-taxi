@@ -4,8 +4,8 @@ typedef struct {
     char *name;
     bool has_response;
     union {
-        char **action_response;
-        void *action;
+        char* (*action_response)(char *args);
+        void (*action)(char *args);
     }; 
 } srv_command_t;
 
