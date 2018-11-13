@@ -43,6 +43,10 @@ sens: init $(BINDIR)/sens
 
 ctrl: init $(BINDIR)/ctrl
 
+comm.server: init
+	$(CC) dbg/server.c comm/server.c -o $(BINDIR)/srv
+	./$(BINDIR)/srv
+
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
 	avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$<

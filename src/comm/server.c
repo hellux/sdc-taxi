@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -24,6 +25,7 @@ struct server {
 void accept_connection(srv_t *srv) {
     int conn_fd = accept(srv->listen_fd, NULL, NULL);
     if (conn_fd >= 0) {
+        printf("accepted new connection, overwrite previous\n");
         close(srv->conn_fd);
         srv->conn_fd = conn_fd;
     }
@@ -58,6 +60,10 @@ char *receive(srv_t *srv) {
     }
 
     return buf;
+}
+
+void send_data(srv_t *srv, char *data) {
+    send(srv->conn_fd, data, strlen(data), 0);
 }
 
 void parse_commands(const char *str) {
@@ -113,6 +119,17 @@ void srv_listen(srv_t *srv) {
     accept_connection(srv);
 
     char *data = receive(srv);
-    if (data) printf("received: \"%s\"\n", data);
+    if (data) {
+        printf("received: \"%s\"\n", data);
+        char *command = data;
+        char data_re[100];
+
+        sprintf(data_re, "ditt kommando var: %s", data);
+        printf("%s, %d\n", data, strncmp("get", data, 3));
+        if (!strncmp(data, "get", 3)) {
+            send_data(srv, data_re);
+        }
+    }
+
     free(data);
 }
