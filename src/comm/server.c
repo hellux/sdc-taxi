@@ -121,7 +121,7 @@ void srv_listen(srv_t *srv) {
     char *data = receive(srv);
     if (data) {
         printf("received: \"%s\"\n", data);
-        int *command = parse_commands(srv, data);
+        char *command = data;
         char data_re[100];
 
         sprintf(data_re, "ditt kommando var: %s", data);

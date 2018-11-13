@@ -6,7 +6,8 @@ class Command:
     GET_DATA = 'get_sensor_data'
     GET_MISSION = 'get_mission_status'
     SET_MISSION = 'set_mission'
-    SET_MSTATE = 'set_mission_state'
+    EXECUTE = 'set_mission'
+    CANCEL = 'cancel_mission'
     SET_SPEED = 'set_speed_delta'
     SET_TURN = 'set_turn_delta'
     SET_SPEED_PARAMS = 'set_speed_params'
@@ -28,7 +29,7 @@ class Client():
                 self.socket.sendall(string.encode())
                 sent = True;
             except BrokenPipeError:
-                self.connect()
+                self.socket.connect()
 
     def receive(self):
         while True:
@@ -41,6 +42,6 @@ class Client():
             if command[0:3] == "get":
                 response = ''
                 try: response = self.receive()
-                except Exception as e: print('failed:', e)
+                except e: print('failed:', e)
                 print(response)
             successful = True
