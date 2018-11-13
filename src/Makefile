@@ -2,7 +2,7 @@ OBJDIR = build
 BINDIR = $(OBJDIR)/bin
 
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -std=c99
 
 CXXC = g++
 CXXFLAGS = -Wall `pkg-config --cflags opencv`
@@ -10,6 +10,10 @@ CXXFLAGS = -Wall `pkg-config --cflags opencv`
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
 AVRCFLAGS = -Wall -static -Og
+
+PROG_CONF = prog.conf
+PROG_DBG = jtag1
+PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
@@ -38,6 +42,18 @@ comm: init $(BINDIR)/comm
 sens: init $(BINDIR)/sens
 
 ctrl: init $(BINDIR)/ctrl
+
+# program via debugger
+%.prog: init $(BINDIR)/%.hex
+	avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$<
+
+# program via linux GPIO interface (on RPi)
+# (use predefined programmers gpio_X from conf file)
+%.gpio: init $(BINDIR)/%.hex
+	$(MAKE) $*.prog PROG_DBG=gpio_$*
+
+comm.run: comm
+	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 
 clean:
 	rm -rf $(OBJDIR)
@@ -75,3 +91,7 @@ $(BINDIR)/sens: $(SENS_OBJS)
 # link ctrl to binary
 $(BINDIR)/ctrl: $(BINDIR) $(CTRL_OBJS)
 	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
+
+# create hex from binary
+%.hex: %
+	avr-objcopy -R .fuse -R .lock -R .eeprom -O ihex $< $@

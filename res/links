@@ -54,8 +54,11 @@
         slave:
             https://github.com/thegouger/avr-i2c-slave
 
-#Standard C library for AVR-GCC
-    http://www.nongnu.org/avr-libc/user-manual/pages.html
+# avr crosscompile/prog
+    compiling:
+        http://www.nongnu.org/avr-libc/user-manual/install_tools.html
+    programmera med RPi:
+        https://learn.adafruit.com/program-an-avr-or-arduino-using-raspberry-pi-gpio-pins/overview
 
 #PWM    
     https://www.avrfreaks.net/forum/tut-c-pwm-complete-idiots
@@ -66,3 +69,4 @@
 # opencv
     hämta bilder från kamera
         https://www.opencv-srf.com/2017/12/play-video-from-file-or-camera.html
+

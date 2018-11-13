@@ -22,7 +22,6 @@ int main() {
 
         bus_receive_sens(bus);
         bus_transmit_ctrl(bus, &ctrl_data);
-
     }
 
     bus_destroy(bus);
