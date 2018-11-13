@@ -18,8 +18,6 @@
 struct server {
     int listen_fd; /* fd for socket that is listened to */
     int conn_fd; /* fd for connection, -1 if no connection */
-    srv_command_t *comms;
-    int commc;
 };
 
 /* internal functions */
@@ -64,18 +62,12 @@ char *receive(srv_t *srv) {
     return buf;
 }
 
-void send_data(srv_t *srv, char *data, size_t length) {
-    send(srv->conn_fd, data, length, 0);
+void send_data(srv_t *srv, char *data) {
+    send(srv->conn_fd, data, strlen(data), 0);
 }
 
-int parse_command(srv_t *srv, const char *str, int *argc, char *args[]) {
-    char *copy;
-    /* TODO parse:
-     *  -command index
-     *  -argcount
-     *  -list of args
-     */
-    return 0;
+void parse_commands(const char *str) {
+    /* TODO */
 }
 
 /* external api functions */
@@ -128,16 +120,15 @@ void srv_listen(srv_t *srv) {
 
     char *data = receive(srv);
     if (data) {
-        char *response;
+        printf("received: \"%s\"\n", data);
+        int *command = parse_commands(srv, data);
+        char data_re[100];
 
-        char **args;
-        int argc;
-        int comm_i = parse_command(srv, data, &argc, args);
-        srv_command_t *command = srv->comms+comm_i;
-
-        /* TODO create response */
-
-        send_data(srv, response, strlen(response));
+        sprintf(data_re, "ditt kommando var: %s", data);
+        printf("%s, %d\n", data, strncmp("get", data, 3));
+        if (!strncmp(data, "get", 3)) {
+            send_data(srv, data_re);
+        }
     }
 
     free(data);
