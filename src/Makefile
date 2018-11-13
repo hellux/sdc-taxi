@@ -15,7 +15,7 @@ PROG_CONF = prog.conf
 PROG_DBG = jtag1
 PROG_PNO = m1284p
 
-COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
+COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv` -lwiringPi
 COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
