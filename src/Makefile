@@ -53,7 +53,7 @@ ctrl: init $(BINDIR)/ctrl
 	$(MAKE) $*.prog PROG_DBG=gpio_$*
 
 comm.run: comm
-	$(BINDIR)/comm $(shell ip -br addr show dev wlp2s0 | tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
+	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 
 clean:
 	rm -rf $(OBJDIR)
