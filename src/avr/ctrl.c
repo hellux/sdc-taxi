@@ -12,7 +12,6 @@ typedef struct {
 } pd_values;
 
 void pwm_init(){
-    
     //Initialize to phase and frequency correct PWM
     TCCR1A |= (1<<WGM10)|(1<<COM1A1)|(1<<COM1B1);
     TCCR1B |= (1<<WGM13)|(1<<CS10);
