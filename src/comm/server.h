@@ -1,3 +1,14 @@
+#include <stdbool.h>
+
+typedef struct {
+    char *name;
+    bool has_response;
+    union {
+        char **action_response;
+        void *action;
+    }; 
+} srv_command_t;
+
 typedef struct server srv_t;
 
 srv_t *srv_create(const char *addr, int port);

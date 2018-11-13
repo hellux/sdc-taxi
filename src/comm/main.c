@@ -9,6 +9,22 @@
 #define SERVER_PORT 5000
 #define F_SPI 4000000
 
+enum command {
+    GET_DATA;
+    GET_MISSION;
+    SET_MISSION;
+    SET_MSTATE;
+    SET_SPEED_DELTA;
+    SET_TURN_DELTA;
+    SET_SPEED_PARAMS;
+    SET_TURN_PARAMS;
+    COMMAND_COUNT;
+}
+
+srv_command_t commands[2] = {
+    {"set_mission", NULL, false},
+}
+
 int main(int argc, char* args[]) {
     bool quit = false;
 
