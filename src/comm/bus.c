@@ -6,6 +6,13 @@
 
 #include <pthread.h>
 
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
+
+#define CHANNEL 0
+#define SS1 10 //sens, port 10
+#define SS2 11 //ctrl, port 11
+
 struct bus {
     bus_sens_t sens;
     bus_ctrl_t ctrl;
@@ -19,18 +26,23 @@ struct bus {
     bool receive_sens;
 
     bool terminate;
+
+    int freq;
+    int channel;
 };
 
 /* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {
-    /* TODO receive from sens via SPI */
-    data->rotations++;
+    digitalWrite(SS1, 0); //wiringPi function
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_sens_t));
+    digitalWrite(SS1, 1);
 }
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
-    /* TODO transmit to ctrl via SPI */
-    //printf("sending to ctrl: %c\n", data->err_vel);
+    digitalWrite(SS2, 0);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_ctrl_t));
+    digitalWrite(SS2, 1);
 }
 
 /* separate thread for bus */
@@ -74,18 +86,20 @@ void *bus_thread(void *bus_ptr) {
 
 /* external API functions */
 
-bus_t *bus_create() {
+bus_t *bus_create(int freq) {
     bus_t *bus = calloc(1, sizeof(struct bus));
     bus->terminate = false;
+    bus->freq = freq;
     
     /* init synchronization */
     pthread_mutex_init(&bus->lock, NULL);
     pthread_mutex_init(&bus->idle_mutex, NULL);
     pthread_cond_init(&bus->idle_cond, NULL);
 
+    /* setup spi */
+    wiringPiSPISetup(CHANNEL, freq);
     /* start bus thread */
     pthread_create(&bus->thread, NULL, bus_thread, (void*)(bus));
-
     return bus;
 }
 
