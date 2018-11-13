@@ -1,5 +1,7 @@
 import socket
 
+BUFSIZE = 4096
+
 class Command:
     GET_DATA = 'get_sensor_data'
     GET_MISSION = 'get_mission_status'
@@ -14,10 +16,32 @@ class Command:
 class Client():
     def __init__(self, addr, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((addr, port))
+        self.addr = addr
+        self.port = port
+
+    def connect(self):
+        self.socket.connect((self.addr, self.port))
+
+    def send(self, string):
+        sent = False
+        while not sent:
+            try:
+                self.socket.sendall(string.encode())
+                sent = True;
+            except BrokenPipeError:
+                self.socket.connect()
+
+    def receive(self):
+        while True:
+            return self.socket.recv(BUFSIZE).decode()
         
     def send_command(self, command, args=[]):
-        data = ":".join([command, ','.join(map(str, args))])
-        #self.socket.sendall(data.encode())
-        for i in range(10):
-            self.socket.sendall("din wpm: {}".format(i).encode())
+        successful = False
+        while not successful:
+            self.send(':'.join([command, ','.join(map(str, args))])+';')
+            if command[0:3] == "get":
+                response = ''
+                try: response = self.receive()
+                except e: print('failed:', e)
+                print(response)
+            successful = True
