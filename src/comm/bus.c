@@ -11,7 +11,7 @@ struct bus {
     bus_ctrl_t ctrl;
 
     pthread_t thread;
-    pthread_rwlock_t lock;
+    pthread_mutex_t lock;
     pthread_mutex_t idle_mutex;
     pthread_cond_t idle_cond;
 
@@ -30,7 +30,7 @@ void receive_sens(bus_t *bus, bus_sens_t *data) {
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
     /* TODO transmit to ctrl via SPI */
-    // printf("sending to ctrl: %c\n", data->err_vel);
+    printf("sending to ctrl: %c\n", data->err_vel);
 }
 
 /* separate thread for bus */
@@ -48,20 +48,20 @@ void *bus_thread(void *bus_ptr) {
         bool transmit = false;
         bool receive = false;
 
-        pthread_rwlock_rdlock(&bus->lock);
+        pthread_mutex_lock(&bus->lock);
 
         quit = bus->terminate;
         transmit = bus->transmit_ctrl;
         receive = bus->receive_sens;
         if (transmit) ctrl_local = bus->ctrl;
 
-        pthread_rwlock_unlock(&bus->lock);
+        pthread_mutex_unlock(&bus->lock);
 
         if (receive) {
             receive_sens(bus, &sens_local);
-            pthread_rwlock_wrlock(&bus->lock);
+            pthread_mutex_lock(&bus->lock);
             bus->sens = sens_local;
-            pthread_rwlock_unlock(&bus->lock);
+            pthread_mutex_unlock(&bus->lock);
         }
 
         if (transmit) {
@@ -79,7 +79,7 @@ bus_t *bus_create() {
     bus->terminate = false;
     
     /* init synchronization */
-    pthread_rwlock_init(&bus->lock, NULL);
+    pthread_mutex_init(&bus->lock, NULL);
     pthread_mutex_init(&bus->idle_mutex, NULL);
     pthread_cond_init(&bus->idle_cond, NULL);
 
@@ -91,11 +91,11 @@ bus_t *bus_create() {
 
 void bus_destroy(bus_t *bus) {
     /* schedule bus thread for termination */
-    pthread_rwlock_wrlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     bus->terminate = true;
     bus->transmit_ctrl = false;
     bus->receive_sens = false;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 
     /* wake up bus thread if sleeping */
     pthread_cond_broadcast(&bus->idle_cond);
@@ -104,33 +104,32 @@ void bus_destroy(bus_t *bus) {
     pthread_join(bus->thread, NULL);
 
     /* free resources */
-    pthread_mutex_destroy(&bus->idle_mutex);
-    pthread_rwlock_destroy(&bus->lock);
+    pthread_mutex_destroy(&bus->lock);
     pthread_cond_destroy(&bus->idle_cond);
     free(bus);
 }
 
 void bus_transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
     /* store new data, schedule new transmit of data */
-    pthread_rwlock_wrlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     bus->ctrl = *data;
     bus->transmit_ctrl = true;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 
     /* wake up bus thread if sleeping */
     pthread_cond_broadcast(&bus->idle_cond);
 }
 
 void bus_receive_sens(bus_t *bus) {
-    pthread_rwlock_rdlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     bus->receive_sens = true;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 
     pthread_cond_broadcast(&bus->idle_cond);
 }
 
 void bus_get_sens(bus_t *bus, bus_sens_t *data) {
-    pthread_rwlock_rdlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     *data = bus->sens;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 }

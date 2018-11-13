@@ -2,7 +2,7 @@ OBJDIR = build
 BINDIR = $(OBJDIR)/bin
 
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -std=c99
 
 CXXC = g++
 CXXFLAGS = -Wall `pkg-config --cflags opencv`
