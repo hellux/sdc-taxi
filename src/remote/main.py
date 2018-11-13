@@ -1,8 +1,24 @@
+import sys
+
 from course import Node, NodeType
 from remote import Command, Client
 
+CONN_PORT = 5000
+
 def main():
-    client = Client('10.121.162.1', 5000)
+    if len(sys.argv) < 2:
+        sys.stderr.write('error: no IP address specified\n')
+        return 1
+
+    inet_addr = sys.argv[1]
+
+    client = Client()
+    try:
+        client.connect(inet_addr, CONN_PORT)
+    except OSError as e:
+        sys.stderr.write('failed to connect to comm -- {}\n'.format(e))
+        return 1
+
     client.send_command(Command.SET_MISSION, [1.8, 'kör', 'ööö'])
 
 if __name__ == '__main__':
