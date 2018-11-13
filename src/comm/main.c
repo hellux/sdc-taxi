@@ -7,6 +7,7 @@
 #include "ip/img_proc.h"
 
 #define SERVER_PORT 5000
+#define F_SPI 4000000
 
 int main(int argc, char* args[]) {
     bool quit = false;
@@ -17,7 +18,7 @@ int main(int argc, char* args[]) {
         return EXIT_FAILURE;
     }
 
-    bus_t *bus = bus_create();
+    bus_t *bus = bus_create(F_SPI);
     if (!bus) return EXIT_FAILURE;
     bus_sens_t sens_data;
     bus_ctrl_t ctrl_data;

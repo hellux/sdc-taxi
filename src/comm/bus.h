@@ -16,7 +16,7 @@ typedef struct {
 } bus_ctrl_t;
 
 /* allocate resources and start bus thread */
-bus_t *bus_create();
+bus_t *bus_create(int freq);
 
 /* deallocate resources and terminate thread, may block */
 void bus_destroy(bus_t *bus);
