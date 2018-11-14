@@ -39,9 +39,7 @@ int main(int argc, char *argv[])
 	avr_vcd_add_signal(&vcd_file,
 		avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('A'), IOPORT_IRQ_PIN_ALL), 8,
 		"OCR1A" );
-	avr_vcd_add_signal(&vcd_file,
-		avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('A'), IOPORT_IRQ_PIN_ALL), 8,
-		"PORTD" );
+    avr_vcd_add_signal(&vcd_file, avr_get_interrupt_irq(avr, 18), 8, "PORTD" );
 
     avr_vcd_start(&vcd_file);
 

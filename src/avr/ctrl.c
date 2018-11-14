@@ -1,10 +1,13 @@
-#include "bus.h"
-
 #include "const.h"
+#include "bus.h"
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>
+
+#ifdef SIM
+#include "../dbg/sim/ctrl_header.h"
+#endif
 
 typedef struct {
     float kp;           //Constant Pro

@@ -11,6 +11,7 @@ CXXFLAGS = -Wall `pkg-config --cflags opencv`
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
 AVRCFLAGS = -Wall -static -Og
+DSIM =
 
 PROG_CONF = prog.conf
 PROG_DBG = jtag1
@@ -55,9 +56,9 @@ comm.ip: init
 	./$(BINDIR)/ip
 
 # simulate avr
-%.sim: $(SIMDIR)/%
-	make $(BINDIR)/$* AVRCFLAGS = $(AVRCFLAGS) -DSIM
-	./$<
+%.sim: SIM=-DSIM
+%.sim: init $(SIMDIR)/% $(BINDIR)/%
+	./$(SIMDIR)/$*
 
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
@@ -103,7 +104,7 @@ $(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),comm/main).o
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
-	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) -I/home/noah/build-repos/simavr/include $< -o $@
+	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $(SIM) $< -o $@
 
 # link sens to binary
 $(BINDIR)/sens: $(SENS_OBJS)
