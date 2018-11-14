@@ -1,5 +1,6 @@
 OBJDIR = build
 BINDIR = $(OBJDIR)/bin
+SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
 CFLAGS = -Wall -g -std=c99
@@ -21,12 +22,12 @@ COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
 
-SENS_SRC_FILES = sens.c
+SENS_SRC_FILES = sens.c bus.c
 SENS_LFLAGS =
 SENS_SRC = $(addprefix avr/, $(SENS_SRC_FILES))
 SENS_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(SENS_SRC))
 
-CTRL_SRC_FILES = ctrl.c
+CTRL_SRC_FILES = ctrl.c bus.c
 CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
@@ -49,9 +50,13 @@ comm.server: init
 
 comm.ip: init
 	$(CC) -c dbg/ip.c -o $(OBJDIR)/dbg/ip.o
-	$(CXXC) -c $(CXXFLAGS) comm/ip/img_proc.cpp -o $(OBJDIR)/comm/ip/img_proc.o
+	$(CXXC) -O3 -c $(CXXFLAGS) comm/ip/img_proc.cpp -o $(OBJDIR)/comm/ip/img_proc.o
 	$(CXXC) $(OBJDIR)/comm/ip/img_proc.o $(OBJDIR)/dbg/ip.o -lm `pkg-config --libs opencv` -o $(BINDIR)/ip
 	./$(BINDIR)/ip
+
+# simulate avr
+%.sim: $(SIMDIR)/% init $(BINDIR)/%
+	./$<
 
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
@@ -72,10 +77,15 @@ clean:
 init:
 	mkdir -p $(OBJDIR)
 	mkdir -p $(OBJDIR)/dbg
+	mkdir -p $(OBJDIR)/sim
 	mkdir -p $(OBJDIR)/comm
 	mkdir -p $(OBJDIR)/comm/ip
 	mkdir -p $(OBJDIR)/avr
 	mkdir -p $(BINDIR)
+
+# compile simulator bench
+$(SIMDIR)/%: dbg/sim/%.c
+	$(CC) -lsimavr $< -o $@
 
 # compile objects for comm c files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)/comm/
