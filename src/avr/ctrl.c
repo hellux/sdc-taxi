@@ -1,3 +1,5 @@
+#include "bus.h"
+
 #include "const.h"
 
 #include <avr/interrupt.h>
@@ -9,7 +11,7 @@ typedef struct {
     float kd;           //Constant Der
     float err;          //Error
     float last_err;     //Previous error
-} pd_values;
+} pd_values_t;
 
 void pwm_init(){
     //Initialize to phase and frequency correct PWM
@@ -20,22 +22,6 @@ void pwm_init(){
     DDRD |= (1<<PD4)|(1<<PD5);
 }
 
-void spi_init_slave(){
-    //Set MISO as output
-    DDRB |= (1<<PB6);
-
-    //Enable SPI Interrupt & SPI    
-    SPCR |= (1<<SPIE)|(1<<SPE);
-
-    //Clear SPI Data
-    SPDR = 0;
-}
-
-uint8_t spi_slave_recieve(){
-    //Wait for completed
-    while (!(SPSR & (1<<SPIF)));
-    return SPDR;
-}    
 
 void init_lcdports(){
     //Set ouput ports to LCD
@@ -52,11 +38,11 @@ ISR(SPI_STC_vect){
     //Set recieved data to corresponding value
 }
 
-float pd_ctrl(pd_values *v){
+float pd_ctrl(pd_values_t *v){
     float proportion;
     float derivative;
     proportion = v->err                 * v->kp;
-    derivative = v->err - v->last_err   * v->kd;
+    derivative = (v->err - v->last_err)   * v->kd;
     v->last_err = v->err;
 
     return proportion + derivative;
@@ -66,8 +52,8 @@ int main(int argc, char* args[]) {
     uint8_t duty_vel = 0;
     uint8_t duty_rad = 0;
 
-    pd_values vel;
-    pd_values rad;
+    pd_values_t vel;
+    pd_values_t rad;
 
     pwm_init();
     spi_init_slave();
@@ -75,7 +61,7 @@ int main(int argc, char* args[]) {
 
     //Enable interrupt
     sei();
-    
+    1<<SPIF
     while(1){
         
         //vel->err = value sent from comm Velocity
@@ -86,8 +72,6 @@ int main(int argc, char* args[]) {
 
         OCR1A = duty_rad;
         OCR1B = duty_vel;
-
-        _delay_ms(20);
     }
     
     return 0;
