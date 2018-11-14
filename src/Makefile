@@ -10,7 +10,7 @@ CXXFLAGS = -Wall `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
-AVRCFLAGS = -Wall -static -Og
+AVRCFLAGS = -Wall -static -Og -DF_CPU=16000000
 DSIM =
 
 PROG_CONF = prog.conf

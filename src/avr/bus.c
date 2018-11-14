@@ -1,7 +1,5 @@
 #include "bus.h"
 
-#include "const.h"
-
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>

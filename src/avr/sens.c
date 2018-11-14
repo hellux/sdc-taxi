@@ -1,7 +1,3 @@
-#include "bus.h"
-
-#include "const.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <avr/io.h>

@@ -1,4 +1,3 @@
-#include "const.h"
 #include "bus.h"
 
 #include <avr/interrupt.h>
