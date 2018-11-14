@@ -61,7 +61,6 @@ int main(int argc, char* args[]) {
 
     //Enable interrupt
     sei();
-    1<<SPIF
     while(1){
         
         //vel->err = value sent from comm Velocity

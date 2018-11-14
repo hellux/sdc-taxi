@@ -4,7 +4,6 @@
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
-
 #include <avr/io.h>
 
 void spi_init_slave(){
@@ -26,5 +25,5 @@ uint8_t spi_slave_recieve(){
 
 uint8_t spi_slave_transfer(){
     //TODO fixa slave transfer
-    printf("hejhej fixa spi_slave_transfer\n");
+    return 0;
 }
