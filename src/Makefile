@@ -55,7 +55,8 @@ comm.ip: init
 	./$(BINDIR)/ip
 
 # simulate avr
-%.sim: $(SIMDIR)/% init $(BINDIR)/%
+%.sim: $(SIMDIR)/%
+	make $(BINDIR)/$* AVRCFLAGS = $(AVRCFLAGS) -DSIM
 	./$<
 
 # program via debugger
