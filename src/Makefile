@@ -87,7 +87,7 @@ init:
 
 # compile simulator bench
 $(SIMDIR)/%: dbg/sim/%.c
-	$(CC) -lsimavr $< -o $@
+	$(CC) -lelf -lsimavr $< -o $@
 
 # compile objects for comm c files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)/comm/
