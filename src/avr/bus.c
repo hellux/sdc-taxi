@@ -22,8 +22,9 @@ uint8_t spi_slave_recieve(){
     //Wait for completed
     while (!(SPSR & (1<<SPIF)));
     return SPDR;
-}    
+}
 
-int main(int argc, char* args[]) {
-    return EXIT_SUCCESS;
+uint8_t spi_slave_transfer(){
+    //TODO fixa slave transfer
+    printf("hejhej fixa spi_slave_transfer\n");
 }
