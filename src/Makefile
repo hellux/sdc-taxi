@@ -47,6 +47,12 @@ comm.server: init
 	$(CC) dbg/server.c comm/server.c -o $(BINDIR)/srv
 	./$(BINDIR)/srv
 
+comm.ip: init
+	$(CC) -c dbg/ip.c -o $(OBJDIR)/dbg/ip.o
+	$(CXXC) -c $(CXXFLAGS) comm/ip/img_proc.cpp -o $(OBJDIR)/comm/ip/img_proc.o
+	$(CXXC) $(OBJDIR)/comm/ip/img_proc.o $(OBJDIR)/dbg/ip.o -lm `pkg-config --libs opencv` -o $(BINDIR)/ip
+	./$(BINDIR)/ip
+
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
 	avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$<
@@ -86,7 +92,7 @@ $(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),comm/main).o
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
-	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
+	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) -I/home/noah/build-repos/simavr/include $< -o $@
 
 # link sens to binary
 $(BINDIR)/sens: $(SENS_OBJS)
@@ -94,7 +100,7 @@ $(BINDIR)/sens: $(SENS_OBJS)
 
 # link ctrl to binary
 $(BINDIR)/ctrl: $(BINDIR) $(CTRL_OBJS)
-	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
+	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) -I/home/noah/build-repos/simavr/include $(CTRL_LFLAGS) -o $@
 
 # create hex from binary
 %.hex: %
