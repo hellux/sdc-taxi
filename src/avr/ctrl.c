@@ -9,7 +9,7 @@ typedef struct {
     float kd;           //Constant Der
     float err;          //Error
     float last_err;     //Previous error
-} pd_values;
+} pd_values_t;
 
 void pwm_init(){
     //Initialize to phase and frequency correct PWM
@@ -52,11 +52,11 @@ ISR(SPI_STC_vect){
     //Set recieved data to corresponding value
 }
 
-float pd_ctrl(pd_values *v){
+float pd_ctrl(pd_values_t *v){
     float proportion;
     float derivative;
     proportion = v->err                 * v->kp;
-    derivative = v->err - v->last_err   * v->kd;
+    derivative = (v->err - v->last_err)   * v->kd;
     v->last_err = v->err;
 
     return proportion + derivative;
@@ -66,8 +66,8 @@ int main(int argc, char* args[]) {
     uint8_t duty_vel = 0;
     uint8_t duty_rad = 0;
 
-    pd_values vel;
-    pd_values rad;
+    pd_values_t vel;
+    pd_values_t rad;
 
     pwm_init();
     spi_init_slave();
