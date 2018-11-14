@@ -1,3 +1,5 @@
+#include "bus.h"
+
 #include "const.h"
 
 #include <avr/interrupt.h>
@@ -20,22 +22,6 @@ void pwm_init(){
     DDRD |= (1<<PD4)|(1<<PD5);
 }
 
-void spi_init_slave(){
-    //Set MISO as output
-    DDRB |= (1<<PB6);
-
-    //Enable SPI Interrupt & SPI    
-    SPCR |= (1<<SPIE)|(1<<SPE);
-
-    //Clear SPI Data
-    SPDR = 0;
-}
-
-uint8_t spi_slave_recieve(){
-    //Wait for completed
-    while (!(SPSR & (1<<SPIF)));
-    return SPDR;
-}    
 
 void init_lcdports(){
     //Set ouput ports to LCD
@@ -75,7 +61,7 @@ int main(int argc, char* args[]) {
 
     //Enable interrupt
     sei();
-    
+    1<<SPIF
     while(1){
         
         //vel->err = value sent from comm Velocity
@@ -86,8 +72,6 @@ int main(int argc, char* args[]) {
 
         OCR1A = duty_rad;
         OCR1B = duty_vel;
-
-        _delay_ms(20);
     }
     
     return 0;
