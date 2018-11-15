@@ -34,15 +34,17 @@ struct bus {
 /* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {
-    digitalWrite(SS1, 0); //wiringPi function
+    digitalWrite(SS1, 1);   // SS high - synch with slave
+    digitalWrite(SS1, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_sens_t));
-    digitalWrite(SS1, 1);
+    digitalWrite(SS1, 1);   // SS high - end transmission
 }
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
-    digitalWrite(SS2, 0);
+    digitalWrite(SS2, 1);   // SS high - synch with slave
+    digitalWrite(SS2, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_ctrl_t));
-    digitalWrite(SS2, 1);
+    digitalWrite(SS2, 1);   // SS high - end transmission
 }
 
 /* separate thread for bus */
