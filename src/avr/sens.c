@@ -11,6 +11,12 @@
 
 #define ADC_PRESCALER_128 0x07
 
+#define DIST_FRONT_MUL 17391
+#define DIST_FRONT_EXP 1.071
+
+#define DIST_RIGHT_MUL 2680
+#define DIST_RIGHT_EXP 1.018
+
 struct sens_values {
     uint16_t dist_front;    // distance to object (front)
     uint16_t dist_side;    // distance to object (side)
@@ -55,13 +61,9 @@ ISR(SPI_STC_vect)
 
 /*
 	Convert voltage to distance (front sensor)
-
-	Formula GP2Y0A02YK:
-	d = 30431*x^(-1.169)
-	d = distance, x = converted value from adc
 */
 float ir_front_sensor(uint16_t adc_val){
-	return 30431*pow(adc_val, -1.169);
+	return DIST_FRONT_EXP*pow(adc_val, -DIST_FRONT_EXP);
 }
 
 /*
