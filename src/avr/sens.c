@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
@@ -12,7 +13,7 @@
 
 struct sens_values {
     uint16_t dist_front;    // distance to object (front)
-    uint16_t dist_side;     // distance to object (side)
+    uint16_t dist_side;    // distance to object (side)
     uint8_t rotations;      // Wheel rotations since last tranceive
 };
 
@@ -52,8 +53,31 @@ ISR(SPI_STC_vect)
     // is complete.
 }
 
+/*
+	Convert voltage to distance (front sensor)
+
+	Formula GP2Y0A02YK:
+	d = 30431*x^(-1.169)
+	d = distance, x = converted value from adc
+*/
+float ir_front_sensor(uint16_t adc_val){
+	return 30431*pow(adc_val, -1.169);
+}
+
+/*
+	other formula:
+	d = (1/a) / (ADC + B) - k, where
+	d - dist in cm,
+	k - corrective constant,
+	ADC - digitalized value of voltage,
+	a - linear member (value determined by the trend line equation),
+	b - free memebr (value determined by the trend line equation)
+*/
+
+
+
 int main(void) {
-    volatile struct sens_values values = {0};
+    volatile struct sens_values *values = {0};
 
 	unsigned channel = MUX0;
 
