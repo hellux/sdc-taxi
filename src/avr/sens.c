@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
@@ -49,7 +50,7 @@ uint16_t adc_read(uint8_t channel) {
 //ISR(SPI_STC_vect){}
 
 int main(void) {
-    struct sens_values values = {0};
+    volatile struct sens_values values = {0};
 
 	unsigned channel = MUX0;
 

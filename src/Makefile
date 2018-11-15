@@ -23,12 +23,12 @@ COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
 
-SENS_SRC_FILES = sens.c bus.c
+SENS_SRC_FILES = sens.c bus.c jtag.c lcd.c
 SENS_LFLAGS =
 SENS_SRC = $(addprefix avr/, $(SENS_SRC_FILES))
 SENS_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(SENS_SRC))
 
-CTRL_SRC_FILES = ctrl.c bus.c
+CTRL_SRC_FILES = ctrl.c bus.c jtag.c lcd.c
 CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
