@@ -1,10 +1,11 @@
 #include "../comm/server.h"
+#include <unistd.h>
 
 int main(int argc, char* args[]) {
-    srv_t *srv = srv_create("127.0.0.1", 5000);
+    srv_t *srv = srv_create("127.0.0.1", 9849);
 
     while (1) {
-        srv_listen(srv);
+        sleep(1);
     }
 
     srv_destroy(srv);

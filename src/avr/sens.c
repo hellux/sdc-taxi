@@ -1,8 +1,27 @@
+#include "bus.h"
+#include "lcd.h"
+#include "jtag.h"
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
+
+#include <avr/interrupt.h>
 #include <avr/io.h>
 
-ADC_PRESCALER_128 = 0x07;
+#define ADC_PRESCALER_128 0x07
+
+#define DIST_FRONT_MUL 17391
+#define DIST_FRONT_EXP 1.071
+
+#define DIST_RIGHT_MUL 2680
+#define DIST_RIGHT_EXP 1.018
+
+struct sens_values {
+    uint16_t dist_front;    // distance to object (front)
+    uint16_t dist_side;    // distance to object (side)
+    uint8_t rotations;      // Wheel rotations since last tranceive
+};
 
 void adc_init() {
 	//mux init
@@ -32,22 +51,53 @@ uint16_t adc_read(uint8_t channel) {
 	return (ADC); //ADCL-ADCH
 }
 
-//Interrupt SPI vectorwill
-//Trigger after SPI-tansmission
-//ISR(SPI_STC_vect){}
+// SPI Transmission/reception complete ISR
+ISR(SPI_STC_vect)
+{
+    // Code to execute
+    // whenever transmission/reception
+    // is complete.
+}
+
+/*
+	Convert voltage to distance (front sensor)
+*/
+float ir_front_sensor(uint16_t adc_val){
+	return DIST_FRONT_EXP*pow(adc_val, -DIST_FRONT_EXP);
+}
+
+/*
+	other formula:
+	d = (1/a) / (ADC + B) - k, where
+	d - dist in cm,
+	k - corrective constant,
+	ADC - digitalized value of voltage,
+	a - linear member (value determined by the trend line equation),
+	b - free memebr (value determined by the trend line equation)
+*/
+
+
 
 int main(void) {
-	//ports_init?
+    volatile struct sens_values *values = {0};
 
 	unsigned channel = MUX0;
 
 	adc_init();
 
-	//spi conf?
+	//spi conf
+    spi_init_slave();
+    //port conf
+    init_jtagport();
+    init_lcdports();
 
 	// Enable global interrupts
 	sei();
 
 	// Setup A/D-converter
 	adc_init();
+
+    while(1){
+    }
+    return 0;
 }

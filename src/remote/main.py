@@ -3,7 +3,7 @@ import sys
 from course import Node, NodeType
 from remote import Command, Client
 
-CONN_PORT = 5000
+CONN_PORT = 9849
 
 def main():
     if len(sys.argv) < 2:

@@ -14,7 +14,7 @@ AVRCFLAGS = -Wall -static -Og -DF_CPU=16000000
 DSIM =
 
 PROG_CONF = prog.conf
-PROG_DBG = jtag1
+PROG_DBG = atmelice
 PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv` -lwiringPi
@@ -23,12 +23,12 @@ COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
 
-SENS_SRC_FILES = sens.c bus.c
+SENS_SRC_FILES = sens.c bus.c jtag.c lcd.c
 SENS_LFLAGS =
 SENS_SRC = $(addprefix avr/, $(SENS_SRC_FILES))
 SENS_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(SENS_SRC))
 
-CTRL_SRC_FILES = ctrl.c bus.c
+CTRL_SRC_FILES = ctrl.c bus.c jtag.c lcd.c
 CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
@@ -46,7 +46,7 @@ sens: init $(BINDIR)/sens
 ctrl: init $(BINDIR)/ctrl
 
 comm.server: init
-	$(CC) dbg/server.c comm/server.c -o $(BINDIR)/srv
+	$(CC) dbg/server.c comm/server.c -lpthread -o $(BINDIR)/srv
 	./$(BINDIR)/srv
 
 comm.ip: init
@@ -62,7 +62,7 @@ comm.ip: init
 
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
-	avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$<
+	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
 
 # program via linux GPIO interface (on RPi)
 # (use predefined programmers gpio_X from conf file)

@@ -1,4 +1,6 @@
 #include "bus.h"
+#include "lcd.h"
+#include "jtag.h"
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -27,23 +29,12 @@ void pwm_init(){
     DDRD |= (1<<PD4)|(1<<PD5);
 }
 
-void init_lcdports(){
-    //Set ouput ports to LCD
-    DDRA |= (1<<PA4)|(1<<PA5)|(1<<PA6)|(1<<PA7);
-    DDRB |= (1<<PB0)|(1<<PB1);
-}
-
-void init_jtagport(){
-    //Set TDO to output
-    DDRC |= (1<<PC4);
-}
-
 ISR(SPI_STC_vect){
     //Run SPI Recive function 
 
 }
 
-float pd_ctrl(pd_values_t *v){
+float pd_ctrl(volatile pd_values_t *v){
     float proportion;
     float derivative;
     proportion = v->err                 * v->kp;
@@ -59,10 +50,12 @@ int main(int argc, char* args[]) {
 
     pwm_init();
     spi_init_slave();
+    init_jtagport();
     init_lcdports();
 
-    //Enable interrupt
+    //Enable global interrupts
     sei();
+
     while(1){
         
         duty_vel = pd_ctrl(&vel);

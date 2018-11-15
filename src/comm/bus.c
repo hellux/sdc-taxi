@@ -27,22 +27,23 @@ struct bus {
 
     bool terminate;
 
-    int freq;
     int channel;
 };
 
 /* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {
-    digitalWrite(SS1, 0); //wiringPi function
+    digitalWrite(SS1, 1);   // SS high - synch with slave
+    digitalWrite(SS1, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_sens_t));
-    digitalWrite(SS1, 1);
+    digitalWrite(SS1, 1);   // SS high - end transmission
 }
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
-    digitalWrite(SS2, 0);
+    digitalWrite(SS2, 1);   // SS high - synch with slave
+    digitalWrite(SS2, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_ctrl_t));
-    digitalWrite(SS2, 1);
+    digitalWrite(SS2, 1);   // SS high - end transmission
 }
 
 /* separate thread for bus */
@@ -89,7 +90,6 @@ void *bus_thread(void *bus_ptr) {
 bus_t *bus_create(int freq) {
     bus_t *bus = calloc(1, sizeof(struct bus));
     bus->terminate = false;
-    bus->freq = freq;
     
     /* init synchronization */
     pthread_mutex_init(&bus->lock, NULL);
@@ -98,8 +98,10 @@ bus_t *bus_create(int freq) {
 
     /* setup spi */
     wiringPiSPISetup(CHANNEL, freq);
+
     /* start bus thread */
     pthread_create(&bus->thread, NULL, bus_thread, (void*)(bus));
+
     return bus;
 }
 
