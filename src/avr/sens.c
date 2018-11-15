@@ -4,7 +4,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
@@ -72,7 +71,7 @@ int main(void) {
 	// Setup A/D-converter
 	adc_init();
 
-    while(true){
+    while(1){
     }
     return 0;
 }

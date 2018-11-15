@@ -2,8 +2,6 @@
 #include "lcd.h"
 #include "jtag.h"
 
-#include <stdbool.h>
-
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>
@@ -58,7 +56,7 @@ int main(int argc, char* args[]) {
     //Enable global interrupts
     sei();
 
-    while(true){
+    while(1){
         
         duty_vel = pd_ctrl(&vel);
         duty_rad = pd_ctrl(&rad);
