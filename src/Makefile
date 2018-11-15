@@ -14,7 +14,7 @@ AVRCFLAGS = -Wall -static -Og -DF_CPU=16000000
 DSIM =
 
 PROG_CONF = prog.conf
-PROG_DBG = jtag3
+PROG_DBG = atmelice
 PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv` -lwiringPi
@@ -62,7 +62,7 @@ comm.ip: init
 
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
-	avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
+	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
 
 # program via linux GPIO interface (on RPi)
 # (use predefined programmers gpio_X from conf file)
