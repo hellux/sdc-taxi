@@ -19,7 +19,7 @@ uint8_t spi_tranceiver(uint8_t data){
     // Load data into the buffer
     SPDR = data;
  
-    //Wait until transmission complete
+    // Wait until transmission complete
     while(!(SPSR & (1<<SPIF) ));
  
     // Return received data
