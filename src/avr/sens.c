@@ -45,9 +45,13 @@ uint16_t adc_read(uint8_t channel) {
 	return (ADC); //ADCL-ADCH
 }
 
-//Interrupt SPI vectorwill
-//Trigger after SPI-tansmission
-//ISR(SPI_STC_vect){}
+// SPI Transmission/reception complete ISR
+ISR(SPI_STC_vect)
+{
+    // Code to execute
+    // whenever transmission/reception
+    // is complete.
+}
 
 int main(void) {
     volatile struct sens_values values = {0};
