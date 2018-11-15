@@ -34,7 +34,7 @@ ISR(SPI_STC_vect){
 
 }
 
-float pd_ctrl(pd_values_t *v){
+float pd_ctrl(volatile pd_values_t *v){
     float proportion;
     float derivative;
     proportion = v->err                 * v->kp;
