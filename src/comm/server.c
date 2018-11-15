@@ -20,7 +20,7 @@
 #define MSG_BUF_SIZE 2048
 
 struct comm_item {
-    srv_command_t command;
+    struct srv_command command;
     char **args;
     int argc;
     struct comm_link *next;
@@ -33,7 +33,7 @@ struct server {
 
     struct {
         bool terminate;
-        srv_command_t *comms;
+        struct srv_command *comms;
         int commc;
         struct comm_item queue;
     } shared;

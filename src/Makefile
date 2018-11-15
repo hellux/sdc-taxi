@@ -1,5 +1,6 @@
 OBJDIR = build
 BINDIR = $(OBJDIR)/bin
+SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
 CFLAGS = -Wall -g -std=c99
@@ -9,7 +10,8 @@ CXXFLAGS = -Wall `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
-AVRCFLAGS = -Wall -static -Og
+AVRCFLAGS = -Wall -static -Og -DF_CPU=16000000
+DSIM =
 
 PROG_CONF = prog.conf
 PROG_DBG = jtag1
@@ -21,12 +23,12 @@ COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
 
-SENS_SRC_FILES = sens.c
+SENS_SRC_FILES = sens.c bus.c
 SENS_LFLAGS =
 SENS_SRC = $(addprefix avr/, $(SENS_SRC_FILES))
 SENS_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(SENS_SRC))
 
-CTRL_SRC_FILES = ctrl.c
+CTRL_SRC_FILES = ctrl.c bus.c
 CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
@@ -47,6 +49,17 @@ comm.server: init
 	$(CC) dbg/server.c comm/server.c -lpthread -o $(BINDIR)/srv
 	./$(BINDIR)/srv
 
+comm.ip: init
+	$(CC) -c dbg/ip.c -o $(OBJDIR)/dbg/ip.o
+	$(CXXC) -O3 -c $(CXXFLAGS) comm/ip/img_proc.cpp -o $(OBJDIR)/comm/ip/img_proc.o
+	$(CXXC) $(OBJDIR)/comm/ip/img_proc.o $(OBJDIR)/dbg/ip.o -lm `pkg-config --libs opencv` -o $(BINDIR)/ip
+	./$(BINDIR)/ip
+
+# simulate avr
+%.sim: SIM=-DSIM
+%.sim: init $(SIMDIR)/% $(BINDIR)/%
+	./$(SIMDIR)/$*
+
 # program via debugger
 %.prog: init $(BINDIR)/%.hex
 	avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$<
@@ -66,10 +79,15 @@ clean:
 init:
 	mkdir -p $(OBJDIR)
 	mkdir -p $(OBJDIR)/dbg
+	mkdir -p $(OBJDIR)/sim
 	mkdir -p $(OBJDIR)/comm
 	mkdir -p $(OBJDIR)/comm/ip
 	mkdir -p $(OBJDIR)/avr
 	mkdir -p $(BINDIR)
+
+# compile simulator bench
+$(SIMDIR)/%: dbg/sim/%.c
+	$(CC) -lelf -lsimavr $< -o $@
 
 # compile objects for comm c files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)/comm/
@@ -86,7 +104,7 @@ $(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),comm/main).o
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
-	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
+	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $(SIM) $< -o $@
 
 # link sens to binary
 $(BINDIR)/sens: $(SENS_OBJS)
@@ -94,7 +112,7 @@ $(BINDIR)/sens: $(SENS_OBJS)
 
 # link ctrl to binary
 $(BINDIR)/ctrl: $(BINDIR) $(CTRL_OBJS)
-	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
+	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) -I/home/noah/build-repos/simavr/include $(CTRL_LFLAGS) -o $@
 
 # create hex from binary
 %.hex: %
