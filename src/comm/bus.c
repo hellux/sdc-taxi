@@ -27,7 +27,6 @@ struct bus {
 
     bool terminate;
 
-    int freq;
     int channel;
 };
 
@@ -89,7 +88,6 @@ void *bus_thread(void *bus_ptr) {
 bus_t *bus_create(int freq) {
     bus_t *bus = calloc(1, sizeof(struct bus));
     bus->terminate = false;
-    bus->freq = freq;
     
     /* init synchronization */
     pthread_mutex_init(&bus->lock, NULL);
@@ -98,8 +96,10 @@ bus_t *bus_create(int freq) {
 
     /* setup spi */
     wiringPiSPISetup(CHANNEL, freq);
+
     /* start bus thread */
     pthread_create(&bus->thread, NULL, bus_thread, (void*)(bus));
+
     return bus;
 }
 

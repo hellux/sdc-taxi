@@ -41,30 +41,16 @@ struct server {
 
 /* internal functions */
 
-int accept_connection(int listen_fd, int conn_fd_prev, fd_set *fds) {
-    int conn_fd = accept(listen_fd, NULL, NULL);
-    if (conn_fd >= 0) {
-        printf("accepted new connection %d, overwrite %d\n",
-               conn_fd_prev, conn_fd);
-        close(conn_fd_prev);
-        FD_CLR(conn_fd_prev, fds);
-        FD_SET(conn_fd, fds);
-    } else {
-        conn_fd = conn_fd_prev;
-    }
-    return conn_fd;
-}
-
 /* string returned must be freed by caller */
 char *receive(int conn_fd) {
     int bufsize = MSG_BUF_SIZE;
     char *buf = malloc(bufsize*sizeof(char));
     int length = 0;
 
-    if (conn_fd >= 0) {
-        int max_receive;
-        int received = 0;
+    int max_receive;
+    int received = 0;
 
+    if (conn_fd >= 0) {
         do {
             if (length >= bufsize) {
                 bufsize *= 2;
@@ -101,17 +87,21 @@ void *srv_thread(void *server) {
     int conn_fd = -1;
 
     fd_set rfds;
-    FD_ZERO(&rfds);
-    FD_SET(srv->listen_fd, &rfds);
     
     while (!quit) {
-        /* sleep until connect or receive request */
+        /* sleep until connection or receive request */
+        FD_ZERO(&rfds);
+        FD_SET(srv->listen_fd, &rfds);
+        if (conn_fd >= 0) FD_SET(conn_fd, &rfds);
         int nfds = MAX(srv->listen_fd, conn_fd)+1;
-        select(nfds, &rfds, NULL, NULL, NULL);
-        printf("server woken up\n");
+        int s = select(nfds, &rfds, NULL, NULL, NULL);
 
-        /* accept if requested */
-        conn_fd = accept_connection(srv->listen_fd, conn_fd, &rfds);
+        /* accept new connection if requested */
+        int conn_fd_new = accept(srv->listen_fd, NULL, NULL);
+        if (conn_fd_new >= 0) {
+            close(conn_fd);
+            conn_fd = conn_fd_new;
+        }
 
         /* process command if received */
         char *msg = receive(conn_fd);
@@ -127,8 +117,16 @@ void *srv_thread(void *server) {
             send(conn_fd, "hej", 3, 0);
             
             printf("msg: %s\n", msg);
+
+            free(msg);
+        } else {
+            /* ensure remote still available */
+            int sent = send(conn_fd, "hb", 2, MSG_NOSIGNAL);
+            if (sent < 0) {
+                close(conn_fd);
+                conn_fd = -1;
+            }
         }
-        free(msg);
     }
 
     close(conn_fd);

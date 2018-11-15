@@ -44,7 +44,7 @@ sens: init $(BINDIR)/sens
 ctrl: init $(BINDIR)/ctrl
 
 comm.server: init
-	$(CC) dbg/server.c comm/server.c -o $(BINDIR)/srv
+	$(CC) dbg/server.c comm/server.c -lpthread -o $(BINDIR)/srv
 	./$(BINDIR)/srv
 
 # program via debugger
