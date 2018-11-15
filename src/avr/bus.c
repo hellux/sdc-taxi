@@ -15,13 +15,13 @@ void spi_init_slave(){
     SPDR = 0;
 }
 
-uint8_t spi_slave_recieve(){
-    //Wait for completed
-    while (!(SPSR & (1<<SPIF)));
-    return SPDR;
-}
-
-uint8_t spi_slave_transfer(){
-    //TODO fixa slave transfer
-    return 0;
+uint8_t spi_tranceiver(uint8_t data){
+    // Load data into the buffer
+    SPDR = data;
+ 
+    //Wait until transmission complete
+    while(!(SPSR & (1<<SPIF) ));
+ 
+    // Return received data
+    return(SPDR);
 }
