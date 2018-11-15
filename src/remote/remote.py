@@ -14,15 +14,19 @@ class Command:
 
 class Client():
     def __init__(self, addr, port):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = None
         self.addr = addr
         self.port = port
 
     def connect(self):
+        if self.socket: self.socket.close();
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.addr, self.port))
 
     def send(self, string):
         sent = False
+        if self.socket is None: self.connect()
+
         while not sent:
             try:
                 self.socket.sendall(string.encode())
