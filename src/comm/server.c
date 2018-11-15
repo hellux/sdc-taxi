@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <pthread.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -12,34 +14,54 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define MAX(A, B) ((A) > (B) ? (A) : (B))
+
 /* starting size of buffer for received messages */
-#define BUF_SIZE 100
+#define MSG_BUF_SIZE 2048
+
+struct comm_item {
+    srv_command_t command;
+    char **args;
+    int argc;
+    struct comm_link *next;
+};
 
 struct server {
     int listen_fd; /* fd for socket that is listened to */
-    int conn_fd; /* fd for connection, -1 if no connection */
-    srv_command_t *comms;
-    int commc;
+
+    pthread_t thread;
+
+    struct {
+        bool terminate;
+        srv_command_t *comms;
+        int commc;
+        struct comm_item queue;
+    } shared;
 };
 
 /* internal functions */
 
-void accept_connection(srv_t *srv) {
-    int conn_fd = accept(srv->listen_fd, NULL, NULL);
+int accept_connection(int listen_fd, int conn_fd_prev, fd_set *fds) {
+    int conn_fd = accept(listen_fd, NULL, NULL);
     if (conn_fd >= 0) {
-        printf("accepted new connection, overwrite previous\n");
-        close(srv->conn_fd);
-        srv->conn_fd = conn_fd;
+        printf("accepted new connection %d, overwrite %d\n",
+               conn_fd_prev, conn_fd);
+        close(conn_fd_prev);
+        FD_CLR(conn_fd_prev, fds);
+        FD_SET(conn_fd, fds);
+    } else {
+        conn_fd = conn_fd_prev;
     }
+    return conn_fd;
 }
 
 /* string returned must be freed by caller */
-char *receive(srv_t *srv) {
-    int bufsize = BUF_SIZE;
+char *receive(int conn_fd) {
+    int bufsize = MSG_BUF_SIZE;
     char *buf = malloc(bufsize*sizeof(char));
     int length = 0;
 
-    if (srv->conn_fd >= 0) {
+    if (conn_fd >= 0) {
         int max_receive;
         int received = 0;
 
@@ -49,7 +71,7 @@ char *receive(srv_t *srv) {
                 buf = realloc(buf, bufsize+1);
             }
             max_receive = bufsize-length;
-            received = recv(srv->conn_fd, buf+length, max_receive, 0);
+            received = recv(conn_fd, buf+length, max_receive, 0);
             length += received;
         } while (received == max_receive);
     }
@@ -64,26 +86,61 @@ char *receive(srv_t *srv) {
     return buf;
 }
 
-void send_data(srv_t *srv, char *data, size_t length) {
-    send(srv->conn_fd, data, length, 0);
-}
-
-int parse_command(srv_t *srv, const char *str, int *argc, char *args[]) {
+void parse_command(struct server *srv, char *unparsed, struct comm_item *ci) {
     char *copy;
     /* TODO parse:
      *  -command index
      *  -argcount
      *  -list of args
      */
-    return 0;
+}
+
+void *srv_thread(void *server) {
+    struct server *srv = (struct server*)server;
+    bool quit = false;
+    int conn_fd = -1;
+
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    FD_SET(srv->listen_fd, &rfds);
+    
+    while (!quit) {
+        /* sleep until connect or receive request */
+        int nfds = MAX(srv->listen_fd, conn_fd)+1;
+        select(nfds, &rfds, NULL, NULL, NULL);
+        printf("server woken up\n");
+
+        /* accept if requested */
+        conn_fd = accept_connection(srv->listen_fd, conn_fd, &rfds);
+
+        /* process command if received */
+        char *msg = receive(conn_fd);
+        if (msg) {
+            char **args;
+            int argc;
+            struct comm_item *ci;
+            parse_command(srv, msg, ci);
+            //srv_command_t command = ci->command;
+
+            /* TODO create response */
+            //char *response;
+            send(conn_fd, "hej", 3, 0);
+            
+            printf("msg: %s\n", msg);
+        }
+        free(msg);
+    }
+
+    close(conn_fd);
+    pthread_exit(NULL);
 }
 
 /* external api functions */
-srv_t *srv_create(const char *addr, int port){
+struct server *srv_create(const char *addr, int port){
     int succ;
 
-    srv_t *srv = calloc(1, sizeof(srv_t));
-    srv->conn_fd = -1;
+    struct server *srv = calloc(1, sizeof(struct server));
+    srv->shared.terminate = false;
 
     srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (srv->listen_fd == -1) {
@@ -111,34 +168,15 @@ srv_t *srv_create(const char *addr, int port){
         goto fail;
     }
 
+    pthread_create(&srv->thread, NULL, srv_thread, (void*)(srv));
+
     return srv;
 fail:
     srv_destroy(srv);
     return NULL;
 }
 
-void srv_destroy(srv_t *srv) {
+void srv_destroy(struct server *srv) {
     if (srv->listen_fd > 0) close(srv->listen_fd);
-    if (srv->conn_fd > 0) close(srv->conn_fd);
     free(srv);
-}
-
-void srv_listen(srv_t *srv) {
-    accept_connection(srv);
-
-    char *data = receive(srv);
-    if (data) {
-        char *response;
-
-        char **args;
-        int argc;
-        int comm_i = parse_command(srv, data, &argc, args);
-        srv_command_t *command = srv->comms+comm_i;
-
-        /* TODO create response */
-
-        send_data(srv, response, strlen(response));
-    }
-
-    free(data);
 }
