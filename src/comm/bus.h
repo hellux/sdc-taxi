@@ -6,7 +6,7 @@ typedef struct bus bus_t;
 
 typedef struct {
     uint8_t dist_front; //distance to object in front
-    uint8_t dist_right; //distance to object to the right
+    uint8_t dist_side;  //distance to object to the right
     unsigned rotations; //wheel rotations
 } bus_sens_t; 
 
@@ -16,7 +16,7 @@ typedef struct {
 } bus_ctrl_t;
 
 /* allocate resources and start bus thread */
-bus_t *bus_create();
+bus_t *bus_create(int freq);
 
 /* deallocate resources and terminate thread, may block */
 void bus_destroy(bus_t *bus);

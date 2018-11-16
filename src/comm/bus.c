@@ -6,12 +6,19 @@
 
 #include <pthread.h>
 
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
+
+#define CHANNEL 0
+#define SS1 10 //sens, port 10
+#define SS2 11 //ctrl, port 11
+
 struct bus {
     bus_sens_t sens;
     bus_ctrl_t ctrl;
 
     pthread_t thread;
-    pthread_rwlock_t lock;
+    pthread_mutex_t lock;
     pthread_mutex_t idle_mutex;
     pthread_cond_t idle_cond;
 
@@ -19,18 +26,24 @@ struct bus {
     bool receive_sens;
 
     bool terminate;
+
+    int channel;
 };
 
- /* internal thread functions */
+/* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {
-    /* TODO receive from sens via SPI */
-    data->rotations++;
+    digitalWrite(SS1, 1);   // SS high - synch with slave
+    digitalWrite(SS1, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_sens_t));
+    digitalWrite(SS1, 1);   // SS high - end transmission
 }
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
-    /* TODO transmit to ctrl via SPI */
-    // printf("sending to ctrl: %c\n", data->err_vel);
+    digitalWrite(SS2, 1);   // SS high - synch with slave
+    digitalWrite(SS2, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_ctrl_t));
+    digitalWrite(SS2, 1);   // SS high - end transmission
 }
 
 /* separate thread for bus */
@@ -48,20 +61,20 @@ void *bus_thread(void *bus_ptr) {
         bool transmit = false;
         bool receive = false;
 
-        pthread_rwlock_rdlock(&bus->lock);
+        pthread_mutex_lock(&bus->lock);
 
         quit = bus->terminate;
         transmit = bus->transmit_ctrl;
         receive = bus->receive_sens;
         if (transmit) ctrl_local = bus->ctrl;
 
-        pthread_rwlock_unlock(&bus->lock);
+        pthread_mutex_unlock(&bus->lock);
 
         if (receive) {
             receive_sens(bus, &sens_local);
-            pthread_rwlock_wrlock(&bus->lock);
+            pthread_mutex_lock(&bus->lock);
             bus->sens = sens_local;
-            pthread_rwlock_unlock(&bus->lock);
+            pthread_mutex_unlock(&bus->lock);
         }
 
         if (transmit) {
@@ -74,14 +87,17 @@ void *bus_thread(void *bus_ptr) {
 
 /* external API functions */
 
-bus_t *bus_create() {
+bus_t *bus_create(int freq) {
     bus_t *bus = calloc(1, sizeof(struct bus));
     bus->terminate = false;
     
     /* init synchronization */
-    pthread_rwlock_init(&bus->lock, NULL);
+    pthread_mutex_init(&bus->lock, NULL);
     pthread_mutex_init(&bus->idle_mutex, NULL);
     pthread_cond_init(&bus->idle_cond, NULL);
+
+    /* setup spi */
+    wiringPiSPISetup(CHANNEL, freq);
 
     /* start bus thread */
     pthread_create(&bus->thread, NULL, bus_thread, (void*)(bus));
@@ -91,11 +107,11 @@ bus_t *bus_create() {
 
 void bus_destroy(bus_t *bus) {
     /* schedule bus thread for termination */
-    pthread_rwlock_wrlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     bus->terminate = true;
     bus->transmit_ctrl = false;
     bus->receive_sens = false;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 
     /* wake up bus thread if sleeping */
     pthread_cond_broadcast(&bus->idle_cond);
@@ -104,33 +120,32 @@ void bus_destroy(bus_t *bus) {
     pthread_join(bus->thread, NULL);
 
     /* free resources */
-    pthread_mutex_destroy(&bus->idle_mutex);
-    pthread_rwlock_destroy(&bus->lock);
+    pthread_mutex_destroy(&bus->lock);
     pthread_cond_destroy(&bus->idle_cond);
     free(bus);
 }
 
 void bus_transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
     /* store new data, schedule new transmit of data */
-    pthread_rwlock_wrlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     bus->ctrl = *data;
     bus->transmit_ctrl = true;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 
     /* wake up bus thread if sleeping */
     pthread_cond_broadcast(&bus->idle_cond);
 }
 
 void bus_receive_sens(bus_t *bus) {
-    pthread_rwlock_rdlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     bus->receive_sens = true;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 
     pthread_cond_broadcast(&bus->idle_cond);
 }
 
 void bus_get_sens(bus_t *bus, bus_sens_t *data) {
-    pthread_rwlock_rdlock(&bus->lock);
+    pthread_mutex_lock(&bus->lock);
     *data = bus->sens;
-    pthread_rwlock_unlock(&bus->lock);
+    pthread_mutex_unlock(&bus->lock);
 }

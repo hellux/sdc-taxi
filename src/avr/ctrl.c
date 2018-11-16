@@ -1,58 +1,94 @@
-#include "const.h"
+#include "bus.h"
+#include "lcd.h"
+#include "jtag.h"
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>
 
+#ifdef SIM
+#include "../dbg/sim/ctrl_header.h"
+#endif
+
+#define PWM_T 0.020
+#define PWM_PSC 16
+#define PWM_TOP F_CPU*PWM_T/PWM_PSC
+
+typedef struct {
+    float kp;           //Constant Pro
+    float kd;           //Constant Der
+    float err;          //Error
+    float last_err;     //Previous error
+} pd_values_t;
+
+volatile pd_values_t vel;
+volatile pd_values_t rad;
+
 void pwm_init(){
-    
     //Initialize to phase and frequency correct PWM
-    TCCR1A |= (1<<WGM01)|(1<<WGM00)|(1<<COM1A1)|(1<<COM1B1);
-    TCCR1B |= (1<<WGM11)|(1<<CS00);
+    TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
+    TCCR1B |= (1<<WGM13)|(1<<CS11);
+    //TCNT1 = 0;
+    TIMSK1 |= (1 << TOIE1);
     
+    //Set TOP value
+    ICR1 = PWM_TOP;
+
     //Set PD4, PD5 to outputs
     DDRD |= (1<<PD4)|(1<<PD5);
 }
 
-void spi_init_slave(){
-    //Set MISO as output
-    DDRB |= (1<<PB6);
+ISR(SPI_STC_vect){
+    //Run SPI Recive function 
 
-    //Enable SPI    
-    SPCR |= (1<<SPIE)|(1<<SPE);
-
-    //Clear SPI Data
-    SPDR = 0;
 }
 
-uint8_t spi_slave_recieve(){
-    //Wait for completed
-    while (!(SPSR & (1<<SPIF)));
-    return SPDR;
-}    
+float pd_ctrl(volatile pd_values_t *v){
+    float proportion;
+    float derivative;
+    proportion = v->err                 * v->kp;
+    derivative = (v->err - v->last_err) * v->kd;
+    v->last_err = v->err;
 
-void init_lcdports(){
-    //Set ouput ports to LCD
-    DDRA |= (1<<PA4)|(1<<PA5)|(1<<PA6)|(1<<PA7);
-    DDRB |= (1<<PB0)|(1<<PB1);
-}
-
-void init_jtagport(){
-    //Set TDO to output
-    DDRC |= (1<<PC4);
+    return proportion + derivative;
 }
 
 int main(int argc, char* args[]) {
-    uint8_t duty_v = 0;
-    uint8_t duty_r = 0;
+    float duty_vel = 0;
+    float duty_rad = 0;
 
     pwm_init();
-    spi_init_slave();
-    init_lcdports();
+    //spi_init_slave();
+    //init_jtagport();
+    //init_lcdports();
+    
+    int counter= 0;
+
+    //Enable global interrupts
+    sei();
 
     while(1){
-        OCR1A = duty_r;
-        OCR1B = duty_v;
+        
+        //duty_vel = pd_ctrl(&vel);
+        //duty_rad = pd_ctrl(&rad);
+        
+        duty_vel = 0.075 * PWM_TOP;
+        duty_rad = 0.078 * PWM_TOP;
+
+        /*                
+        if(counter %2 == 0){
+            duty_rad = 0.079 * PWM_TOP;
+        }
+        else{
+            duty_rad = 0.071 * PWM_TOP;
+        }
+        counter++;
+        //_delay_ms(2000);        
+        */
+
+        OCR1A = duty_rad;
+        OCR1B = duty_vel;
+        
     }
     
     return 0;
