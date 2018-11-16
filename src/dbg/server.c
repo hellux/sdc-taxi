@@ -4,11 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-char *hej(int argc, char **args, void *data) {
-    char *str = "hej hej";
-    char *response = malloc(sizeof(str));
-    strcpy(response, str);
-    return response;
+bool hej(int argc, char **args, char *rsp_dst, void *d1, void *d2) {
+    rsp_dst = "hej hej";
+    return true;
 }
 
 void action_test(int argc, char **args, void *data) {
@@ -19,10 +17,9 @@ void action_test(int argc, char **args, void *data) {
 
 int main(int argc, char* args[]) {
     struct srv_cmd cmds[] = {
-        {"hej", 0, NULL, true, {response:*hej}},
-        {"make", 0, "hej hej", false, {action:*action_test}},
+        {"hej", 0, NULL, NULL, *hej},
     };
-    int cmdc = 2;
+    int cmdc = 1;
     printf("size: %ld, %ld\n", sizeof(cmds), sizeof(*cmds));
     srv_t *srv = srv_create("127.0.0.1", 9000, 10000, cmds, cmdc);
 
@@ -31,7 +28,6 @@ int main(int argc, char* args[]) {
        scanf("%s", cmd);
        if (cmd[0] == 'q')
            break;
-       srv_execute_cmds(srv);
     }
 
     srv_destroy(srv);

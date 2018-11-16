@@ -6,8 +6,10 @@
 
 #include <pthread.h>
 
+#ifdef PI
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
+#endif
 
 #define CHANNEL 0
 #define SS1 10 //sens, port 10
@@ -33,17 +35,21 @@ struct bus {
 /* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {
+#ifdef PI
     digitalWrite(SS1, 1);   // SS high - synch with slave
     digitalWrite(SS1, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_sens_t));
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(*data));
     digitalWrite(SS1, 1);   // SS high - end transmission
+#endif
 }
 
 void transmit_ctrl(bus_t *bus, bus_ctrl_t *data) {
+#ifdef PI
     digitalWrite(SS2, 1);   // SS high - synch with slave
     digitalWrite(SS2, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(bus_ctrl_t));
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)data, sizeof(*data));
     digitalWrite(SS2, 1);   // SS high - end transmission
+#endif
 }
 
 /* separate thread for bus */
@@ -97,7 +103,9 @@ bus_t *bus_create(int freq) {
     pthread_cond_init(&bus->idle_cond, NULL);
 
     /* setup spi */
+#ifdef PI
     wiringPiSPISetup(CHANNEL, freq);
+#endif
 
     /* start bus thread */
     pthread_create(&bus->thread, NULL, bus_thread, (void*)(bus));

@@ -6,46 +6,34 @@
 
 #include <pthread.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
-
-#define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 #define COMM_DELIM ":"
 #define ARG_DELIM ","
-#define ARG_BUF_SIZE 64
 
-#define RESP_VALID_SET "executing"
-#define RESP_INVALID "invalid"
+#define RSP_SUCCESS_PRE "success:"
+#define RSP_FAILURE_PRE "failure:"
+#define RSP_INVALID_ARG "invalid_arg"
+#define RSP_INVALID_CMD "invalid_cmd"
 
-/* starting size of buffer for received messages */
-#define MSG_BUF_SIZE 2048
+#define MSG_BUF_SIZE 2048   /* starting size for message length */
+#define RSP_BUF_SIZE 2048   /* max size for resp length */
+#define ARG_BUF_SIZE 64     /* starting size for arg count */
 
-struct cmd_item {
-    struct srv_cmd *cmd;
-    char *msg; /* string with arguments */
-    char **args; /* pointers to arguments in string */
-    int argc;
-    struct cmd_item *next;
-};
+#define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 struct server {
     int listen_fd; /* fd for socket that is listened to */
 
-    pthread_t thread;
     struct srv_cmd *cmds;
     int cmdc;
 
-    struct {
-        struct cmd_item *queue; /* linked list, first item first in queue */
-        bool terminate;
-    } shared;
-    pthread_mutex_t shared_mutex;
+    bool terminate;
+    pthread_t thread;
+    pthread_mutex_t lock;
 };
 
 /* internal functions */
@@ -84,7 +72,7 @@ char *receive(int conn_fd, int *msglen) {
 
 /* modifies msg */
 bool parse_cmd(struct server *srv, char *msg, int msglen,
-                   struct srv_cmd **cmd_dst, char ***args_dst, int *argc_dst) {
+               struct srv_cmd **cmd_dst, int *argc_dst, char ***args_dst) {
     char *saveptr;
     char *cmd_str = strtok_r(msg, COMM_DELIM, &saveptr);
     char *arg_str = strtok_r(NULL, ARG_DELIM, &saveptr);
@@ -139,7 +127,7 @@ void *srv_thread(void *server) {
         FD_SET(srv->listen_fd, &rfds);
         if (conn_fd >= 0) FD_SET(conn_fd, &rfds);
         int nfds = MAX(srv->listen_fd, conn_fd)+1;
-        int s = select(nfds, &rfds, NULL, NULL, NULL);
+        select(nfds, &rfds, NULL, NULL, NULL);
 
         /* accept new connection if requested */
         int conn_fd_new = accept(srv->listen_fd, NULL, NULL);
@@ -152,49 +140,43 @@ void *srv_thread(void *server) {
         int msglen;
         char *msg = receive(conn_fd, &msglen);
         if (msglen > 1) {
-            printf("msg: %s\n", msg);
-
-            struct cmd_item *ci = malloc(sizeof(struct cmd_item));
-            bool valid = parse_cmd(srv, msg, msglen,
-                                       &ci->cmd, &ci->args, &ci->argc);
+            struct srv_cmd *cmd;
+            int argc;
+            char **args;
+            bool valid = parse_cmd(srv, msg, msglen, &cmd, &argc, &args);
             if (valid) {
-                if (ci->cmd->has_response) {
-                    char *response = ci->cmd->func.response(
-                        ci->argc, ci->args, ci->cmd->data);
-                    send(conn_fd, response, strlen(response), 0);
-                    free(response);
-                    free(msg);
-                    free(ci);
+                char *response;
+                bool success = cmd->action(argc, args, &response,
+                                           cmd->data1, cmd->data2);
+                char* prefix = success ? RSP_SUCCESS_PRE : RSP_FAILURE_PRE;
+                char* msgrsp;
+                if (response) {
+                    int prefix_len = strlen(prefix);
+                    int response_len = strlen(response);
+                    msgrsp = malloc(prefix_len+response_len+1);
+                    strcpy(msgrsp, prefix);
+                    strcpy(msgrsp+prefix_len, response);
                 } else {
-                    /* add cmd to queue */
-                    char *response = RESP_VALID_SET;
-                    send(conn_fd, response, strlen(response), 0);
-                    ci->next = NULL;
-                    pthread_mutex_lock(&srv->shared_mutex);
-                    struct cmd_item *last = srv->shared.queue;
-                    if (last) {
-                        while (last->next)
-                            last = last->next;
-                        last->next = ci;
-                    } else {
-                        srv->shared.queue = ci;
-                    }
-                    pthread_mutex_unlock(&srv->shared_mutex);
+                    msgrsp = prefix;
                 }
+                send(conn_fd, msgrsp, strlen(msgrsp), 0);
             } else {
-                char* response = RESP_INVALID;
+                char* response = RSP_FAILURE_PRE RSP_INVALID_CMD;
                 send(conn_fd, response, strlen(response), 0);
-                free(msg);
-                free(ci);
             }
+            free(msg);
         } else {
             /* ensure remote still available, otherwise close socket */
-            int sent = send(conn_fd, "hb", 2, MSG_NOSIGNAL);
+            char *msg = "heartbeat";
+            int sent = send(conn_fd, msg, strlen(msg), MSG_NOSIGNAL);
             if (sent < 0) {
                 close(conn_fd);
                 conn_fd = -1;
             }
         }
+        pthread_mutex_lock(&srv->lock);
+        quit = srv->terminate;
+        pthread_mutex_unlock(&srv->lock);
     }
 
     close(conn_fd);
@@ -209,8 +191,8 @@ struct server *srv_create(const char *addr, int port_start, int port_end,
     struct server *srv = calloc(1, sizeof(struct server));
     srv->cmds = cmds;
     srv->cmdc = cmdc;
-    srv->shared.terminate = false;
-    pthread_mutex_init(&srv->shared_mutex, 0);
+    srv->terminate = false;
+    pthread_mutex_init(&srv->lock, 0);
 
     srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (srv->listen_fd == -1) {
@@ -255,26 +237,14 @@ fail:
 }
 
 void srv_destroy(struct server *srv) {
+    pthread_mutex_lock(&srv->lock);
+    srv->terminate = true;
+    pthread_mutex_unlock(&srv->lock);
+
+    pthread_join(srv->thread, NULL);
+
     if (srv->listen_fd > 0) close(srv->listen_fd);
-    pthread_mutex_destroy(&srv->shared_mutex);
+    pthread_mutex_destroy(&srv->lock);
+
     free(srv);
-}
-
-void srv_execute_cmds(struct server *srv) {
-    bool queue_empty = false;
-
-    while (!queue_empty) {
-        pthread_mutex_lock(&srv->shared_mutex);
-        queue_empty = (srv->shared.queue == NULL);
-        if (queue_empty) {
-            pthread_mutex_unlock(&srv->shared_mutex);
-        } else {
-            struct cmd_item *ci = srv->shared.queue;
-            struct cmd_item *next = ci->next;
-            srv->shared.queue = next;
-            pthread_mutex_unlock(&srv->shared_mutex);
-
-            ci->cmd->func.action(ci->argc, ci->args, ci->cmd->data);
-        }
-    }
 }
