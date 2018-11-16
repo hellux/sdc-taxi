@@ -28,8 +28,6 @@ void pwm_init(){
     //Initialize to phase and frequency correct PWM
     TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
     TCCR1B |= (1<<WGM13)|(1<<CS11);
-    //TCNT1 = 0;
-    TIMSK1 |= (1 << TOIE1);
     
     //Set TOP value
     ICR1 = PWM_TOP;
@@ -39,7 +37,21 @@ void pwm_init(){
 }
 
 ISR(SPI_STC_vect){
+    uint8_t data;
+
     //Run SPI Recive function 
+    data = spi_tranceive(0);
+
+    //First byte = FF if constant
+    if(data == 0xFF){
+        //Recieve all the bytes needed for the two constants (Kd, Kp)
+        //data = spi_tranceive(0);
+    }
+    //First byte = 00 if error
+    else if(data == 0x00){
+        //Recieve the two bytes needed for error
+        //data = spi_tranceive(0);
+    }
 
 }
 
@@ -62,7 +74,7 @@ int main(int argc, char* args[]) {
     //init_jtagport();
     //init_lcdports();
     
-    int counter= 0;
+    //int counter= 0;
 
     //Enable global interrupts
     sei();
@@ -73,21 +85,43 @@ int main(int argc, char* args[]) {
         //duty_rad = pd_ctrl(&rad);
         
         duty_vel = 0.075 * PWM_TOP;
-        duty_rad = 0.078 * PWM_TOP;
+        OCR1B = duty_vel;
+        //duty_rad = 0.078 * PWM_TOP;
 
         /*                
-        if(counter %2 == 0){
-            duty_rad = 0.079 * PWM_TOP;
+        if(counter %4 == 1){
+            duty_rad = 0.077 * PWM_TOP;
         }
-        else{
-            duty_rad = 0.071 * PWM_TOP;
+        else if(counter %4 == 2){
+            duty_rad = 0.075 * PWM_TOP;
+        }
+        else if(counter %4 == 3){
+            duty_rad = 0.073 * PWM_TOP;
+        }
+        else if(counter %4 == 0){
+            duty_rad = 0.075 * PWM_TOP;
         }
         counter++;
-        //_delay_ms(2000);        
         */
-
+        //_delay_ms(2000);        
+         
+        duty_rad = 0.078 * PWM_TOP;
         OCR1A = duty_rad;
-        OCR1B = duty_vel;
+        _delay_ms(2000);
+
+        duty_rad = 0.075 * PWM_TOP;
+        OCR1A = duty_rad;
+        _delay_ms(2000);
+
+        duty_rad = 0.072 * PWM_TOP;
+        OCR1A = duty_rad;
+        _delay_ms(2000);
+
+        duty_rad = 0.075 * PWM_TOP;
+        OCR1A = duty_rad;
+        _delay_ms(2000);        
+        
+        //OCR1A = duty_rad;
         
     }
     
