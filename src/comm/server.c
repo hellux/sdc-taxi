@@ -20,15 +20,18 @@
 #define ARG_DELIM ","
 #define ARG_BUF_SIZE 64
 
+#define RESP_VALID_SET "executing"
+#define RESP_INVALID "invalid"
+
 /* starting size of buffer for received messages */
 #define MSG_BUF_SIZE 2048
 
 struct comm_item {
-    struct srv_command command;
-    char *arg_str; /* string with arguments */
+    struct srv_command *command;
+    char *msg; /* string with arguments */
     char **args; /* pointers to arguments in string */
     int argc;
-    struct comm_link *next;
+    struct comm_item *next;
 };
 
 struct server {
@@ -39,10 +42,10 @@ struct server {
     int commc;
 
     struct {
-        struct comm_item queue;
-        int queue_size;
+        struct comm_item *queue; /* linked list, first item first in queue */
         bool terminate;
     } shared;
+    pthread_mutex_t shared_mutex;
 };
 
 /* internal functions */
@@ -79,27 +82,23 @@ char *receive(int conn_fd, int *msglen) {
     return buf;
 }
 
-bool parse_command(struct server *srv, char *msg_in, int msglen,
-                   struct comm_item *ci) {
-    char *msg = malloc(msglen*sizeof(char)+1);
-    strncpy(msg, msg_in, msglen);
-
-    /* parse command */
+/* modifies msg */
+bool parse_command(struct server *srv, char *msg, int msglen,
+                   struct srv_command **comm_dst, char ***args_dst, int *argc_dst) {
     char *saveptr;
     char *comm_str = strtok_r(msg, COMM_DELIM, &saveptr);
     char *arg_str = strtok_r(NULL, ARG_DELIM, &saveptr);
 
     struct srv_command *command = NULL;
-    printf("commc: %d\n", srv->commc);
     for (int i = 0; i < srv->commc; i++) {
         struct srv_command *c = srv->comms+i;
-        if (strcmp(c->name, comm_str)) {
+        if (strcmp(c->name, comm_str) == 0) {
             command = c;
             break;
         }
     }
 
-    if (!command) goto fail;
+    if (!command) return false;
 
     /* parse arguments */
     int bufsize = ARG_BUF_SIZE;
@@ -115,15 +114,16 @@ bool parse_command(struct server *srv, char *msg_in, int msglen,
     }
     args = realloc(args, argc*sizeof(char*));
 
-    printf("command: %s\n", comm_str);
-    for (int i = 0; i < argc; i++) {
-        printf("arg%d: %s\n", i, args[i]);
+    if (argc < command->min_args) {
+        free(args);
+        return false;
     }
 
+    *comm_dst = command;
+    *argc_dst = argc;
+    *args_dst = args;
+
     return true;
-fail:
-    free(msg);
-    return false;
 }
 
 void *srv_thread(void *server) {
@@ -152,21 +152,43 @@ void *srv_thread(void *server) {
         int msglen;
         char *msg = receive(conn_fd, &msglen);
         if (msglen > 1) {
-            char **args;
-            int argc;
-            struct comm_item *ci;
-            bool valid = parse_command(srv, msg, msglen, ci);
-            //srv_command command = ci->command;
-
-            /* TODO create response */
-            //char *response;
-            send(conn_fd, "hej", 3, 0);
-            
             printf("msg: %s\n", msg);
 
-            free(msg);
+            struct comm_item *ci = malloc(sizeof(struct comm_item));
+            bool valid = parse_command(srv, msg, msglen,
+                                       &ci->command, &ci->args, &ci->argc);
+            if (valid) {
+                if (ci->command->has_response) {
+                    char *response = ci->command->func.response(
+                        ci->argc, ci->args, ci->command->data);
+                    send(conn_fd, response, strlen(response), 0);
+                    free(response);
+                    free(msg);
+                    free(ci);
+                } else {
+                    /* add command to queue */
+                    char *response = RESP_VALID_SET;
+                    send(conn_fd, response, strlen(response), 0);
+                    ci->next = NULL;
+                    pthread_mutex_lock(&srv->shared_mutex);
+                    struct comm_item *last = srv->shared.queue;
+                    if (last) {
+                        while (last->next)
+                            last = last->next;
+                        last->next = ci;
+                    } else {
+                        srv->shared.queue = ci;
+                    }
+                    pthread_mutex_unlock(&srv->shared_mutex);
+                }
+            } else {
+                char* response = RESP_INVALID;
+                send(conn_fd, response, strlen(response), 0);
+                free(msg);
+                free(ci);
+            }
         } else {
-            /* ensure remote still available */
+            /* ensure remote still available, otherwise close socket */
             int sent = send(conn_fd, "hb", 2, MSG_NOSIGNAL);
             if (sent < 0) {
                 close(conn_fd);
@@ -188,6 +210,7 @@ struct server *srv_create(const char *addr, int port_start, int port_end,
     srv->comms = commands;
     srv->commc = commc;
     srv->shared.terminate = false;
+    pthread_mutex_init(&srv->shared_mutex, 0);
 
     srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (srv->listen_fd == -1) {
@@ -233,9 +256,25 @@ fail:
 
 void srv_destroy(struct server *srv) {
     if (srv->listen_fd > 0) close(srv->listen_fd);
+    pthread_mutex_destroy(&srv->shared_mutex);
     free(srv);
 }
 
 void srv_execute_commands(struct server *srv) {
-            
+    bool queue_empty = false;
+
+    while (!queue_empty) {
+        pthread_mutex_lock(&srv->shared_mutex);
+        queue_empty = (srv->shared.queue == NULL);
+        if (queue_empty) {
+            pthread_mutex_unlock(&srv->shared_mutex);
+        } else {
+            struct comm_item *ci = srv->shared.queue;
+            struct comm_item *next = ci->next;
+            srv->shared.queue = next;
+            pthread_mutex_unlock(&srv->shared_mutex);
+
+            ci->command->func.action(ci->argc, ci->args, ci->command->data);
+        }
+    }
 }
