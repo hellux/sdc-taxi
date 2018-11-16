@@ -14,15 +14,25 @@ class Command:
     SET_TURN_PARAMS = 'set_turn_params'
 
 class Client():
-    def __init__(self, addr, port):
+    def __init__(self, addr, port_start, port_end):
         self.socket = None
         self.addr = addr
-        self.port = port
+        self.port_start = port_start
+        self.port_end = port_end
 
     def connect(self):
         if self.socket: self.socket.close();
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.addr, self.port))
+        connected = False
+        while not connected:
+            for port in range(self.port_start, self.port_end+1):
+                try:
+                    self.socket.connect((self.addr, port))
+                    connected = True
+                    print("server: connected to port {}".format(port))
+                    break
+                except Exception as e:
+                    pass
 
     def send(self, string):
         sent = False
@@ -33,19 +43,13 @@ class Client():
                 self.socket.sendall(string.encode())
                 sent = True;
             except BrokenPipeError:
-                self.socket.connect()
+                self.connect()
 
     def receive(self):
-        while True:
-            return self.socket.recv(BUFSIZE).decode()
+        return self.socket.recv(BUFSIZE).decode()
         
     def send_command(self, command, args=[]):
         successful = False
-        while not successful:
-            self.send(':'.join([command, ','.join(map(str, args))])+';')
-            if command[0:3] == "get":
-                response = ''
-                try: response = self.receive()
-                except e: print('failed:', e)
-                print(response)
-            successful = True
+        self.send(':'.join([command, ','.join(map(str, args))])+';')
+        response = self.receive()
+        print(response)

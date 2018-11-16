@@ -46,8 +46,7 @@ sens: init $(BINDIR)/sens
 ctrl: init $(BINDIR)/ctrl
 
 comm.server: init
-	$(CC) dbg/server.c comm/server.c -lpthread -o $(BINDIR)/srv
-	./$(BINDIR)/srv
+	$(CC) -g dbg/server.c comm/server.c -lpthread -o $(BINDIR)/srv
 
 comm.ip: init
 	$(CC) -c dbg/ip.c -o $(OBJDIR)/dbg/ip.o
