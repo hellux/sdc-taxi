@@ -1,9 +1,3 @@
-'''
-Created on 9 Nov 2018
-
-@author: joe
-'''
-
 import tkinter
 from tkinter import *
 import thread
@@ -100,7 +94,6 @@ class GUI(Thread):
     window.title("SvartTaxi AB")
     #window.geometry("640x480")
     window.config(menu=menuBar)
-    
     
 def main():    
     GUI = GUI()
