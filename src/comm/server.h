@@ -8,14 +8,14 @@ typedef struct server srv_t;
  *      -used to forward structs with data that will be returned or modified
  * response:
  *      -called if has_response
- *      -called when command received
+ *      -called when cmd received
  *      -called from server thread, must be synchronized
  *      -returned string will be freed by server thread
  * action:
  *      -called if has_response is false
- *      -called from main thread via srv_execute_commands()
+ *      -called from main thread via srv_execute_cmds()
  */
-struct srv_command {
+struct srv_cmd {
     char *name;
     int min_args;
     void *data;
@@ -27,6 +27,6 @@ struct srv_command {
 };
 
 srv_t *srv_create(const char *addr, int port_start, int port_end,
-                  struct srv_command *commands, int commc);
+                  struct srv_cmd *cmds, int cmdc);
 void srv_destroy(srv_t *server);
-void srv_execute_commands(srv_t *server);
+void srv_execute_cmds(srv_t *server);

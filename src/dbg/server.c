@@ -18,19 +18,20 @@ void action_test(int argc, char **args, void *data) {
 }
 
 int main(int argc, char* args[]) {
-    struct srv_command commands[] = {
+    struct srv_cmd cmds[] = {
         {"hej", 0, NULL, true, {response:*hej}},
         {"make", 0, "hej hej", false, {action:*action_test}},
     };
-    int commc = 2;
-    srv_t *srv = srv_create("127.0.0.1", 9000, 10000, commands, commc);
+    int cmdc = 2;
+    printf("size: %ld, %ld\n", sizeof(cmds), sizeof(*cmds));
+    srv_t *srv = srv_create("127.0.0.1", 9000, 10000, cmds, cmdc);
 
-    char comm[100];
+    char cmd[100];
     while (1) {
-       scanf("%s", comm);
-       if (comm[0] == 'q')
+       scanf("%s", cmd);
+       if (cmd[0] == 'q')
            break;
-       srv_execute_commands(srv);
+       srv_execute_cmds(srv);
     }
 
     srv_destroy(srv);
