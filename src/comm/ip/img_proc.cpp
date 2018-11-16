@@ -16,6 +16,8 @@ void ip_process(void) {
         namedWindow("Display Image", WINDOW_AUTOSIZE );
         imshow("Display Image", image);
         waitKey(0);
+        cvShowImage( "result", newImg);
+        cv::waitKey(100);
     } else {
         printf("No image data \n");
     }
