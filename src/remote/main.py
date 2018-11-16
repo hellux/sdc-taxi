@@ -1,9 +1,3 @@
-'''
-Created on 9 Nov 2018
-
-@author: joe
-'''
-
 import tkinter
 from tkinter import *
 from textwrap import fill
