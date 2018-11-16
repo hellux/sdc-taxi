@@ -10,6 +10,10 @@
 #include "../dbg/sim/ctrl_header.h"
 #endif
 
+#define PWM_T 0.020
+#define PWM_PSC 16
+#define PWM_TOP F_CPU*PWM_T/PWM_PSC
+
 typedef struct {
     float kp;           //Constant Pro
     float kd;           //Constant Der
@@ -22,9 +26,14 @@ volatile pd_values_t rad;
 
 void pwm_init(){
     //Initialize to phase and frequency correct PWM
-    TCCR1A |= (1<<WGM10)|(1<<COM1A1)|(1<<COM1B1);
-    TCCR1B |= (1<<WGM13)|(1<<CS10);
+    TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
+    TCCR1B |= (1<<WGM13)|(1<<CS11);
+    //TCNT1 = 0;
+    TIMSK1 |= (1 << TOIE1);
     
+    //Set TOP value
+    ICR1 = PWM_TOP;
+
     //Set PD4, PD5 to outputs
     DDRD |= (1<<PD4)|(1<<PD5);
 }
@@ -45,24 +54,41 @@ float pd_ctrl(volatile pd_values_t *v){
 }
 
 int main(int argc, char* args[]) {
-    uint8_t duty_vel = 0;
-    uint8_t duty_rad = 0;
+    float duty_vel = 0;
+    float duty_rad = 0;
 
     pwm_init();
-    spi_init_slave();
-    init_jtagport();
-    init_lcdports();
+    //spi_init_slave();
+    //init_jtagport();
+    //init_lcdports();
+    
+    int counter= 0;
 
     //Enable global interrupts
     sei();
 
     while(1){
         
-        duty_vel = pd_ctrl(&vel);
-        duty_rad = pd_ctrl(&rad);
+        //duty_vel = pd_ctrl(&vel);
+        //duty_rad = pd_ctrl(&rad);
+        
+        duty_vel = 0.075 * PWM_TOP;
+        duty_rad = 0.078 * PWM_TOP;
+
+        /*                
+        if(counter %2 == 0){
+            duty_rad = 0.079 * PWM_TOP;
+        }
+        else{
+            duty_rad = 0.071 * PWM_TOP;
+        }
+        counter++;
+        //_delay_ms(2000);        
+        */
 
         OCR1A = duty_rad;
         OCR1B = duty_vel;
+        
     }
     
     return 0;
