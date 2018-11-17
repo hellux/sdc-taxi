@@ -20,7 +20,6 @@
 #define RSP_INVALID_CMD "invalid_cmd"
 
 #define MSG_BUF_SIZE 2048   /* starting size for message length */
-#define RSP_BUF_SIZE 2048   /* max size for resp length */
 #define ARG_BUF_SIZE 64     /* starting size for arg count */
 
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
@@ -70,7 +69,16 @@ char *receive(int conn_fd, int *msglen) {
     return buf;
 }
 
-/* modifies msg */
+/* 
+ * retrieve command, argc and arguments from string msg
+ * store result in cmd_dst, argc_dst and args_dst
+ *
+ * return:
+ *      true if valid command with more than min arguments
+ *      false if invalid command
+ *
+ * side effects:
+ *      modify msg: add null chars between arguments */
 bool parse_cmd(struct server *srv, char *msg, int msglen,
                struct srv_cmd **cmd_dst, int *argc_dst, char ***args_dst) {
     char *saveptr;
@@ -114,6 +122,36 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
     return true;
 }
 
+/* parse and execute command (if valid) in msg
+ * retrieve and return response from command */
+char* execute_cmd(struct server *srv, char* msg, int msglen) {
+    struct srv_cmd *cmd;
+    int argc;
+    char **args;
+    bool valid = parse_cmd(srv, msg, msglen, &cmd, &argc, &args);
+    char *msg_rsp;
+
+    if (valid) {
+        char *response;
+        bool success = cmd->action(argc, args, &response,
+                                   cmd->data1, cmd->data2);
+        char* prefix = success ? RSP_SUCCESS_PRE : RSP_FAILURE_PRE;
+        if (response) {
+            int prefix_len = strlen(prefix);
+            int response_len = strlen(response);
+            msg_rsp = malloc(prefix_len+response_len+1);
+            strcpy(msg_rsp, prefix);
+            strcpy(msg_rsp+prefix_len, response);
+        } else {
+            msg_rsp = prefix;
+        }
+    } else {
+        msg_rsp = RSP_FAILURE_PRE RSP_INVALID_CMD;
+    }
+
+    return msg_rsp;
+}
+
 void *srv_thread(void *server) {
     struct server *srv = (struct server*)server;
     bool quit = false;
@@ -122,7 +160,7 @@ void *srv_thread(void *server) {
     fd_set rfds;
     
     while (!quit) {
-        /* sleep until connection or receive request */
+        /* sleep until request for connection or receive */
         FD_ZERO(&rfds);
         FD_SET(srv->listen_fd, &rfds);
         if (conn_fd >= 0) FD_SET(conn_fd, &rfds);
@@ -136,44 +174,24 @@ void *srv_thread(void *server) {
             conn_fd = conn_fd_new;
         }
 
-        /* process cmd if received */
+        /* handle msg if received */
         int msglen;
         char *msg = receive(conn_fd, &msglen);
-        if (msglen > 1) {
-            struct srv_cmd *cmd;
-            int argc;
-            char **args;
-            bool valid = parse_cmd(srv, msg, msglen, &cmd, &argc, &args);
-            if (valid) {
-                char *response;
-                bool success = cmd->action(argc, args, &response,
-                                           cmd->data1, cmd->data2);
-                char* prefix = success ? RSP_SUCCESS_PRE : RSP_FAILURE_PRE;
-                char* msgrsp;
-                if (response) {
-                    int prefix_len = strlen(prefix);
-                    int response_len = strlen(response);
-                    msgrsp = malloc(prefix_len+response_len+1);
-                    strcpy(msgrsp, prefix);
-                    strcpy(msgrsp+prefix_len, response);
-                } else {
-                    msgrsp = prefix;
-                }
-                send(conn_fd, msgrsp, strlen(msgrsp), 0);
-            } else {
-                char* response = RSP_FAILURE_PRE RSP_INVALID_CMD;
-                send(conn_fd, response, strlen(response), 0);
-            }
+        if (msglen > 0) {
+            char *msg_rsp = execute_cmd(srv, msg, msglen);
+            send(conn_fd, msg_rsp, strlen(msg_rsp), 0);
             free(msg);
         } else {
             /* ensure remote still available, otherwise close socket */
-            char *msg = "heartbeat";
-            int sent = send(conn_fd, msg, strlen(msg), MSG_NOSIGNAL);
+            char *msg_rsp = "heartbeat";
+            int sent = send(conn_fd, msg_rsp, strlen(msg_rsp), MSG_NOSIGNAL);
             if (sent < 0) {
                 close(conn_fd);
                 conn_fd = -1;
             }
         }
+
+        /* check if server should be destroyed */
         pthread_mutex_lock(&srv->lock);
         quit = srv->terminate;
         pthread_mutex_unlock(&srv->lock);
