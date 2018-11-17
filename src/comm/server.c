@@ -35,6 +35,52 @@ struct server {
     pthread_mutex_t lock;
 };
 
+/* built in commands */
+
+bool cmd_check(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+    const int BUF_START = 30;
+    int bufs = BUF_START;
+    char *rsp = malloc(bufs);
+    char *str_pos = rsp;
+    str_pos += sprintf(str_pos, "argc: %d, args: ", argc);
+
+    for (int i = 0; i < argc; i++) {
+        int max_size = bufs-(str_pos-rsp);
+        int len = snprintf(str_pos, max_size, "\"%s\", ", args[i]);
+        if (len < max_size) {
+            str_pos += len;
+        } else {
+            int total_length = str_pos-rsp;
+            bufs *= 2;
+            rsp = realloc(rsp, bufs);
+            str_pos = rsp+total_length;
+            i--;
+        }
+    }
+    /* erase last comma and space */
+    str_pos -= 2;
+    str_pos += sprintf(str_pos, ".");
+    *rsp_dst = rsp;
+    return true;
+}
+
+bool cmd_help(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+    char *response = malloc(1024);
+    struct srv_cmd *cmds = *(struct srv_cmd**)d1;
+    int cmdc = *(int*)d2;
+    char *str_pos = response;
+    str_pos += sprintf(str_pos, "available commands: ");
+    for (int i = 0; i < cmdc; i++) {
+        str_pos += sprintf(str_pos, "%s, ", cmds[i].name);
+    }
+    /* erase last comma and space */
+    str_pos -= 2;
+    str_pos += sprintf(str_pos, ".");
+
+    *rsp_dst = response;
+    return true;
+}
+
 /* internal functions */
 
 /* string returned must be freed by caller */
@@ -202,15 +248,26 @@ void *srv_thread(void *server) {
 }
 
 /* external api functions */
-struct server *srv_create(const char *addr, int port_start, int port_end,
-                          struct srv_cmd *cmds, int cmdc) {
-    int succ;
 
+struct server *srv_create(const char *addr, int port_start, int port_end,
+                          struct srv_cmd *cmds_in, int cmdc_in) {
     struct server *srv = calloc(1, sizeof(struct server));
-    srv->cmds = cmds;
-    srv->cmdc = cmdc;
     srv->terminate = false;
     pthread_mutex_init(&srv->lock, 0);
+
+    /* add commands, built in and from caller */
+    struct srv_cmd cmds_std[] = {
+        {"help",            0, &srv->cmds, &srv->cmdc, *cmd_help},
+        {"check",           0, NULL, NULL, *cmd_check},
+    };
+    int cmdc_std = sizeof(cmds_std)/sizeof(*cmds_std);
+    int cmdc = cmdc_std+cmdc_in;
+    printf("cmdc_std: %d\n", cmdc);
+    struct srv_cmd *cmds = malloc(cmdc*sizeof(*cmds));
+    memcpy(cmds, cmds_std, sizeof(cmds_std));
+    memcpy(cmds+cmdc_std, cmds_in, cmdc_in*sizeof(*cmds_in));
+    srv->cmds = cmds;
+    srv->cmdc = cmdc;
 
     srv->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (srv->listen_fd == -1) {
@@ -225,7 +282,7 @@ struct server *srv_create(const char *addr, int port_start, int port_end,
     address.sin_family = AF_INET;
     inet_pton(AF_INET, addr, &address.sin_addr);
 
-    succ = 0;
+    int succ = 0;
     for (int port = port_start; port <= port_end; port++) {
         address.sin_port = htons(port);
         succ = bind(srv->listen_fd, (struct sockaddr*)&address, sizeof(address));
@@ -255,14 +312,17 @@ fail:
 }
 
 void srv_destroy(struct server *srv) {
-    pthread_mutex_lock(&srv->lock);
-    srv->terminate = true;
-    pthread_mutex_unlock(&srv->lock);
+    if (srv) {
+        pthread_mutex_lock(&srv->lock);
+        srv->terminate = true;
+        pthread_mutex_unlock(&srv->lock);
 
-    pthread_join(srv->thread, NULL);
+        pthread_join(srv->thread, NULL);
 
-    if (srv->listen_fd > 0) close(srv->listen_fd);
-    pthread_mutex_destroy(&srv->lock);
+        if (srv->listen_fd > 0) close(srv->listen_fd);
+        pthread_mutex_destroy(&srv->lock);
 
-    free(srv);
+        free(srv->cmds);
+        free(srv);
+    }
 }
