@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include <pthread.h>
+
 #include "bus.h"
 #include "server.h"
 #include "ip/img_proc.h"
@@ -12,15 +14,12 @@
 
 #define F_SPI 4000000
 
-struct srv_set_values {
-    char *mission;
-    double speed_err;
-    double speed_kp;
-    double speed_kd;
-    double turn_err;
-    double turn_kp;
-    double turn_kd;
-    bool state;
+struct sensor_data {
+    uint8_t dist_front;
+    uint8_t dist_right;
+    unsigned rotations;
+    
+    pthread_mutex_t lock;
 };
 
 /* server commands */
@@ -43,6 +42,12 @@ bool cmd_set_bool(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
 
 bool cmd_set_float(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
     return true;
+}
+
+void hlr_sens_recv(unsigned char* received, void *data) {
+    char *msg = (char*)data;
+    received[9] = '\0';
+    printf("%s, received: %s\n", msg, received);
 }
 
 int main(int argc, char* args[]) {
@@ -74,8 +79,12 @@ int main(int argc, char* args[]) {
 
     bus_t *bus = bus_create(F_SPI);
     if (!bus) return EXIT_FAILURE;
-    bus_sens_t sens_data;
-    bus_ctrl_t ctrl_data;
+
+    char *msg = "hej hej";
+    bus_receive_schedule(bus, 0, 7, 10, hlr_sens_recv, msg);
+    unsigned char dst[10];
+    bus_receive(bus, 0, 7, dst, 10);
+    printf("received: %s\n", dst);
 
     char input[100];
     while (!quit) {
@@ -85,10 +94,6 @@ int main(int argc, char* args[]) {
             quit = true;
 
         /* TODO double err = ip_process() */
-
-        bus_get_sens(bus, &sens_data);
-        bus_receive_sens(bus);
-        bus_transmit_ctrl(bus, &ctrl_data);
     }
 
     bus_destroy(bus);
