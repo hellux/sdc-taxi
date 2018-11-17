@@ -11,7 +11,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define COMM_DELIM ":"
+#define CMD_DELIM ":"
 #define ARG_DELIM ","
 
 #define RSP_SUCCESS_PRE "success:"
@@ -128,7 +128,7 @@ char *receive(int conn_fd, int *msglen) {
 bool parse_cmd(struct server *srv, char *msg, int msglen,
                struct srv_cmd **cmd_dst, int *argc_dst, char ***args_dst) {
     char *saveptr;
-    char *cmd_str = strtok_r(msg, COMM_DELIM, &saveptr);
+    char *cmd_str = strtok_r(msg, CMD_DELIM, &saveptr);
     char *arg_str = strtok_r(NULL, ARG_DELIM, &saveptr);
 
     struct srv_cmd *cmd = NULL;

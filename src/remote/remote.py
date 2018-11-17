@@ -19,6 +19,8 @@ class Client():
     BUFSIZE = 4096
     RES_SUCCESS = "success"
     TIMEOUT = 1
+    CMD_SEP = ':'
+    ARG_SEP = ','
 
     def __init__(self, addr, port_start, port_end):
         self.socket = None
@@ -54,17 +56,30 @@ class Client():
     returns: True if msg sent, otherwise False
     """
     def send(self, string):
-        if self.socket is None: return False
-        sent = False
-        try:
-            self.socket.sendall(string.encode())
-            sent = True;
-        except BrokenPipeError as e:
-            sys.stderr.write(e, "\n")
-        return sent
+        if self.socket:
+            sent = False
+            try:
+                self.socket.sendall(string.encode())
+                sent = True;
+            except BrokenPipeError as e:
+                sys.stderr.write(e, "\n")
+            return sent
+        else:
+            return False
 
     def receive(self):
-        return self.socket.recv(Client.BUFSIZE).decode()
+        if self.socket:
+            return self.socket.recv(Client.BUFSIZE).decode()
+        else:
+            return None
+
+    def clear(self):
+        if self.socket:
+            timeout = self.socket.gettimeout()
+            self.socket.setblocking(False)
+            try: self.receive()
+            except OSError: pass
+            self.socket.settimeout(timeout)
         
     """
     returns:
@@ -73,9 +88,13 @@ class Client():
         response: None if transmission failed, otherwise response from command
     """
     def send_command(self, command, args=[]):
-        sent = self.send(':'.join([command, ','.join(map(str, args))]))
+        self.clear()
+        msg = command + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
+        sent = self.send(msg)
         if sent:
-            result, response = self.receive().split(':', 1)
-            return result == Client.RES_SUCCESS, response
-        else:
-            return None, None
+            msg = self.receive()
+            if msg.find(Client.CMD_SEP) >= 0:
+                result, response = msg.split(Client.CMD_SEP, 1)
+                return result == Client.RES_SUCCESS, response
+
+        return None, None
