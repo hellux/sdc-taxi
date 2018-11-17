@@ -58,10 +58,10 @@ static void receive(struct bus *bus, int slave,
                     uint8_t command, unsigned char *dst, int len) {
 #ifdef PI
     /* TODO send command first */
-    digitalWrite(SS1, 1);   // SS high - synch with slave
-    digitalWrite(SS1, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, dst, len); 
-    digitalWrite(SS1, 1);   // SS high - end transmission
+    digitalWrite(slave, 1);   // SS high - synch with slave
+    digitalWrite(slave, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, dst, len);
+    digitalWrite(slave, 1);   // SS high - end transmission
 #else
     for (int i = 0; i < len-1; i++) {
         dst[i] = '0'+i;
@@ -74,10 +74,10 @@ static void transmit(struct bus *bus, int slave,
                      uint8_t command, unsigned char *data, int len) {
 #ifdef PI
     /* TODO send command first */
-    digitalWrite(SS2, 1);   // SS high - synch with slave
-    digitalWrite(SS2, 0);   // SS low - start transmission
+    digitalWrite(slave, 1);   // SS high - synch with slave
+    digitalWrite(slave, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, data, len);
-    digitalWrite(SS2, 1);   // SS high - end transmission
+    digitalWrite(slave, 1);   // SS high - end transmission
 #endif
 }
 
