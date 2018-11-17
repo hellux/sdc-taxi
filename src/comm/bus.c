@@ -32,6 +32,14 @@ struct bus {
     int channel;
 };
 
+struct bus_order {
+    int slave;
+    uint8_t command;
+    bool transmit_receive; /* true: transmit, false: receive */
+    char *src_dst;
+    int len;
+}
+
 /* internal thread functions */
 
 void receive_sens(bus_t *bus, bus_sens_t *data) {

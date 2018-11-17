@@ -45,7 +45,6 @@ bool cmd_set_float(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
     return true;
 }
 
-
 int main(int argc, char* args[]) {
     bool quit = false;
 
@@ -80,9 +79,13 @@ int main(int argc, char* args[]) {
 
     char input[100];
     while (!quit) {
+        /* pause loop, enable exit */
         scanf("%s", input);
         if (input[0] == 'q')
             quit = true;
+
+        /* TODO double err = ip_process() */
+
         bus_get_sens(bus, &sens_data);
         bus_receive_sens(bus);
         bus_transmit_ctrl(bus, &ctrl_data);

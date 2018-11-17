@@ -38,6 +38,7 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .SILENT: init
 
 # communication module
+comm: CFLAGS += -g
 comm: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
 comm: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 comm.pi: CFLAGS += -DPI -O3
