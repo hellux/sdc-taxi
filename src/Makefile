@@ -3,7 +3,7 @@ BINDIR = $(OBJDIR)/bin
 SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
-CFLAGS = -Wall -g -std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -std=c99 -D_POSIX_C_SOURCE=200809L
 
 CXXC = g++
 CXXFLAGS = -Wall `pkg-config --cflags opencv`
@@ -18,6 +18,7 @@ PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_MAIN = comm/main
+COMM_BIN = comm
 COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
@@ -39,13 +40,15 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 # communication module
 comm: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
 comm: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
-comm.pi: COMM_CFLAGS += -DPI
+comm.pi: CFLAGS += -DPI -O3
+comm.pi: CXXFLAGS += -O3
 comm.pi: COMM_LFLAGS += -lwiringPi
 comm.pi: comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 comm.server: COMM_OBJS += $(OBJDIR)/dbg/server.o
 comm.server: init $(OBJDIR)/dbg/server.o $(BINDIR)/comm
+comm.ip: COMM_BIN = comm_ip
 comm.ip: COMM_OBJS += $(OBJDIR)/dbg/ip.o
 comm.ip: init $(OBJDIR)/dbg/ip.o $(BINDIR)/comm
 
@@ -84,9 +87,10 @@ $(OBJDIR)/%.o: %.c
 $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
 	$(CXXC) -c $(CXXFLAGS) $< -o $@
 
+# TODO fix multiple mains
 # link comm to binary
-$(BINDIR)/comm: $(COMM_OBJS)
-	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $@
+$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(COMM_MAIN).o
+	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $(BINDIR)/$(COMM_BIN)
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
