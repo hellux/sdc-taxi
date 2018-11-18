@@ -144,7 +144,7 @@ char *receive(int conn_fd, int *msglen) {
  *
  * return:
  *      true if valid command with more than min arguments
- *      false if invalid command
+ *      false otherwise
  *
  * side effects:
  *      modify msg: add null chars between arguments */
@@ -162,6 +162,8 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
             break;
         }
     }
+
+    *cmd_dst = cmd;
 
     if (!cmd) return false;
 
@@ -184,7 +186,6 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
         return false;
     }
 
-    *cmd_dst = cmd;
     *argc_dst = argc;
     *args_dst = args;
 
@@ -197,11 +198,11 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
  * memory:
  *      msg_rsp has to be freed by caller */
 char* execute_cmd(struct server *srv, char* msg, int msglen) {
-    struct srv_cmd *cmd;
+    struct srv_cmd *cmd = NULL;
     int argc;
     char **args;
     bool valid = parse_cmd(srv, msg, msglen, &cmd, &argc, &args);
-    char *msg_rsp;
+    char *msg_rsp = NULL;
 
     if (valid) {
         struct srv_cmd_args a = {
@@ -210,18 +211,24 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
         /* let action create and write ptr to response to a.resp */
         bool success = cmd->action(&a);
         char* prefix = success ? RSP_SUCCESS_PRE : RSP_FAILURE_PRE;
+        int prefix_len = strlen(prefix);
         if (a.resp) {
-            int prefix_len = strlen(prefix);
             int response_len = strlen(a.resp);
             msg_rsp = malloc(prefix_len+response_len+1);
             strcpy(msg_rsp, prefix);
             strcpy(msg_rsp+prefix_len, a.resp);
-            free(a.resp);
         } else {
-            msg_rsp = prefix;
+            msg_rsp = malloc(prefix_len);
+            strcpy(msg_rsp, prefix);
         }
+        free(a.resp);
     } else {
-        char* msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_CMD;
+        char* msg_rsp_lit;
+        if (cmd) {
+            msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_ARG;
+        } else {
+            msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_ARG;
+        }
         msg_rsp = malloc(strlen(msg_rsp_lit));
         strcpy(msg_rsp, msg_rsp_lit);
     }
@@ -231,11 +238,11 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
 
 void *srv_thread(void *server) {
     struct server *srv = (struct server*)server;
+
     bool quit = false;
     int conn_fd = -1;
 
     struct timeval tv = {.tv_sec = WAITTIME, .tv_usec = 0};
-
     fd_set rfds;
     
     while (!quit) {
