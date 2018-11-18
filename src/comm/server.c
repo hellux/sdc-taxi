@@ -37,37 +37,40 @@ struct server {
 
 /* built in commands */
 
-bool cmd_check(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_check(struct srv_cmd_args *a) {
     const int BUF_START = 30;
     int bufs = BUF_START;
     char *rsp = malloc(bufs);
     char *str_pos = rsp;
-    str_pos += sprintf(str_pos, "argc: %d, args: ", argc);
+    str_pos += sprintf(str_pos, "argc: %d, args: ", a->argc);
 
-    for (int i = 0; i < argc; i++) {
-        int max_size = bufs-(str_pos-rsp);
-        int len = snprintf(str_pos, max_size, "\"%s\", ", args[i]);
-        if (len < max_size) {
-            str_pos += len;
-        } else {
-            int total_length = str_pos-rsp;
-            bufs *= 2;
-            rsp = realloc(rsp, bufs);
-            str_pos = rsp+total_length;
-            i--;
+    if (a->argc > 0) {
+        for (int i = 0; i < a->argc; i++) {
+            int max_size = bufs-(str_pos-rsp);
+            int len = snprintf(str_pos, max_size, "\"%s\", ", a->args[i]);
+            if (len < max_size) {
+                str_pos += len;
+            } else {
+                int total_length = str_pos-rsp;
+                bufs *= 2;
+                rsp = realloc(rsp, bufs);
+                str_pos = rsp+total_length;
+                i--;
+            }
         }
+        /* erase last comma and space */
+        str_pos -= 2;
+        str_pos += sprintf(str_pos, ".");
     }
-    /* erase last comma and space */
-    str_pos -= 2;
-    str_pos += sprintf(str_pos, ".");
-    *rsp_dst = rsp;
+
+    *a->resp = rsp;
     return true;
 }
 
-bool cmd_help(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_help(struct srv_cmd_args *a) {
     char *response = malloc(1024);
-    struct srv_cmd *cmds = *(struct srv_cmd**)d1;
-    int cmdc = *(int*)d2;
+    struct srv_cmd *cmds = *(struct srv_cmd**)a->data1;
+    int cmdc = *(int*)a->data2;
     char *str_pos = response;
     str_pos += sprintf(str_pos, "available commands: ");
     for (int i = 0; i < cmdc; i++) {
@@ -77,7 +80,7 @@ bool cmd_help(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
     str_pos -= 2;
     str_pos += sprintf(str_pos, ".");
 
-    *rsp_dst = response;
+    *a->resp = response;
     return true;
 }
 
@@ -179,8 +182,10 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
 
     if (valid) {
         char *response;
-        bool success = cmd->action(argc, args, &response,
-                                   cmd->data1, cmd->data2);
+        struct srv_cmd_args a = {
+            argc, args, &response, cmd->data1, cmd->data2
+        };
+        bool success = cmd->action(&a);
         char* prefix = success ? RSP_SUCCESS_PRE : RSP_FAILURE_PRE;
         if (response) {
             int prefix_len = strlen(prefix);
@@ -262,7 +267,6 @@ struct server *srv_create(const char *addr, int port_start, int port_end,
     };
     int cmdc_std = sizeof(cmds_std)/sizeof(*cmds_std);
     int cmdc = cmdc_std+cmdc_in;
-    printf("cmdc_std: %d\n", cmdc);
     struct srv_cmd *cmds = malloc(cmdc*sizeof(*cmds));
     memcpy(cmds, cmds_std, sizeof(cmds_std));
     memcpy(cmds+cmdc_std, cmds_in, cmdc_in*sizeof(*cmds_in));

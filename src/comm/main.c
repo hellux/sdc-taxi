@@ -24,23 +24,23 @@ struct sensor_data {
 
 /* server commands */
 
-bool cmd_get_sens(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_get_sens(struct srv_cmd_args *a) {
     return true;
 }
 
-bool cmd_get_mission(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_get_mission(struct srv_cmd_args *a) {
     return true;
 }
 
-bool cmd_set_mission(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_set_mission(struct srv_cmd_args *a) {
     return true;
 }
 
-bool cmd_set_bool(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_set_bool(struct srv_cmd_args *a) {
     return true;
 }
 
-bool cmd_set_float(int argc, char **args, char **rsp_dst, void *d1, void *d2) {
+bool cmd_set_float(struct srv_cmd_args *a) {
     return true;
 }
 
