@@ -102,30 +102,52 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     struct data_sensors *sens_data = (struct data_sensors*)a->data1;
 
     /* read data */
-    /*
     sens_dist_t df, dr;
     unsigned rotations;
-    */
     pthread_mutex_lock(&sens_data->lock);
-    /*
     df = sens_data->dist_front;
     dr = sens_data->dist_right;
     rotations = sens_data->rotations;
-    */
     pthread_mutex_unlock(&sens_data->lock);
 
     /* create string */
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+    rsp = str_append(rsp, &buf_size, "df=%d ", df);
+    rsp = str_append(rsp, &buf_size, "dr=%d ", dr);
+    rsp = str_append(rsp, &buf_size, "rotations=%d", rotations);
 
+    a->resp = rsp;
     return true;
 }
 
 bool sc_get_mission(struct srv_cmd_args *a) {
+    struct data_mission *miss_data = (struct data_mission*)a->data1;
+
+    /* read data */
+    int cmp, rem;
+    pthread_mutex_lock(&miss_data->lock);
+    cmp = miss_data->cmds_completed;
+    rem = miss_data->cmds_remaining;
+    pthread_mutex_unlock(&miss_data->lock);
+
+    /* create string */
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+    rsp = str_append(rsp, &buf_size, "completed=%d ", cmp);
+    rsp = str_append(rsp, &buf_size, "remaining=%d", rem);
+
+    a->resp = rsp;
     return true;
 }
 
 bool sc_set_mission(struct srv_cmd_args *a) {
     return true;
 }
+
+/* TODO restructure below */
 
 bool sc_set_bool(struct srv_cmd_args *a) {
     return true;
@@ -215,8 +237,8 @@ int main(int argc, char* args[]) {
         /* TODO double err = ip_process() */
     }
 
-    bus_destroy(bus);
     srv_destroy(srv);
+    bus_destroy(bus);
 
     return EXIT_SUCCESS;
 }
