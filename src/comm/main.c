@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
-#include <errno.h>
 
 #include <pthread.h>
 
@@ -194,16 +193,16 @@ int main(int argc, char* args[]) {
     bus_t *bus = bus_create(F_SPI);
     if (!bus) return EXIT_FAILURE;
 
-    struct reg_consts;
     struct srv_cmd cmds[] = {
+        {"shutdown",        0, &quit,        NULL, NULL},     /* TODO enable restart from remote */
         {"get_sensor_data", 0, &sens_data,   NULL, *sc_get_sens},
         {"get_mission",     0, &miss_data,   NULL, *sc_get_mission},
-        {"set_mission",     1, NULL,         NULL, *sc_set_mission},
-        {"set_state",       1, NULL,         NULL, *sc_set_state},
-        {"set_speed_delta", 1, NULL,         bus,  NULL},
+        {"set_mission",     1, NULL,         NULL, *sc_set_mission},  /* TODO */
+        {"set_state",       1, NULL,         NULL, *sc_set_state},    /* TODO */
+        {"set_speed_delta", 1, NULL,         bus,  NULL},             /* TODO */
         {"set_speed_kp",    1, &BC_SPEED_KP, bus,  *sc_bus_send_float},
         {"set_speed_kd",    1, &BC_SPEED_KD, bus,  *sc_bus_send_float},
-        {"set_turn_delta",  1, NULL,         NULL, NULL},
+        {"set_turn_delta",  1, NULL,         NULL, NULL},             /* TODO */
         {"set_turn_kp",     1, &BC_TURN_KP,  bus,  *sc_bus_send_float},
         {"set_turn_kd",     1, &BC_TURN_KD,  bus,  *sc_bus_send_float},
     };
@@ -212,18 +211,14 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
-    struct sens_data_frame frame;
-    bus_receive(bus, &BC_GET_SENS, (unsigned char*)&frame);
-    printf("dist: %d, rot: %d\n", frame.dist_front, frame.rotations);
-
-    /*
-    bus_transmit(bus, 0, 7, msg, 8);
-    bus_transmit_schedule(bus, 0, 7, msg, 8, NULL, NULL);
-    */
-
     char input[100];
     while (!quit) {
         bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
+
+        /* TODO create storage for turn and speed, synchronize
+        bus_transmit_schedule(bus, &BC_SPEED, speed);
+        bus_transmit_schedule(bus, &BC_TURN, turn);
+        */
 
         /* pause loop, enable exit */
         scanf("%s", input);
