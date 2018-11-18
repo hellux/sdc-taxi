@@ -87,9 +87,8 @@ class Client():
                 transmission failed
         response: None if transmission failed, otherwise response from command
     """
-    def send_command(self, command, args=[]):
+    def send_command(self, msg):
         self.clear()
-        msg = command + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
         sent = self.send(msg)
         if sent:
             msg = self.receive()
@@ -98,3 +97,7 @@ class Client():
                 return result == Client.RES_SUCCESS, response
 
         return None, None
+
+    def send_command_fmt(self, command, args=[]):
+        msg = command + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
+        return self.send_command(msg)

@@ -2,31 +2,12 @@ import tkinter as tk
 from textwrap import fill
 from course import Node, NodeType
 
-def open_map():
-    print("Open")
-
-def create_map():
-    print("Create")
-
-def clear(console):
-    console.delete(0, tk.END)
-
-def apply_ip():
-    pass
-
-def send_command(console, GUI):
-    pass
-    # TODO tell other thread to send command
-
-def connect():
-    # TODO tell other thread to connect to given ip
-    Label(GUI.window, text="Enter valid IP-address").pack()
-    ip_popup = tk.Entry(GUI.window)
-    ip_button = tk.Button(ip_popup, text="Apply IP", command=apply_ip)
-    return client
-
 class GUI():
-    def __init__(self):
+    LOOP_DELAY = 50
+
+    def __init__(self, tasks):
+        self.tasks = tasks
+
         #VARIABLES
         self.carSpeed = 25
         self.drivingMode = "Auto"
@@ -38,14 +19,16 @@ class GUI():
         console = tk.Entry(self.window, highlightbackground="blue")
 
         #BUTTONS
-        sendCommandButton = tk.Button(self.window, text="Send command", command=send_command(console, self))
+        sendCommandButton = tk.Button(self.window, text="Send command",
+                command=lambda: self.send_command(console))
 
         modeInfo = tk.Label(infoFrame, text="Driving mode: " + self.drivingMode)
-        speedInfo = tk.Label(infoFrame, text = "Speed: " + str(self.carSpeed) + " m/s")
+        speedInfo = tk.Label(infoFrame, text = "Speed: " + str(self.carSpeed) +
+                " m/s")
 
         mapLabel = tk.Label(mapFrame, text="MAP")
         console.insert(0, "Enter command")
-        console.bind('<Button-1>', clear(console))
+        console.bind('<Button-1>', self.clear(console))
 
         speedInfo.grid(row=0, column=1)
         modeInfo.grid(row=1, column=1)
@@ -59,8 +42,8 @@ class GUI():
         menuBar = tk.Menu(self.window)
 
         map_menu = tk.Menu(menuBar)
-        map_menu.add_command(label="Open", command=open_map)
-        map_menu.add_command(label="Create", command=create_map)
+        map_menu.add_command(label="Open", command=self.open_map)
+        map_menu.add_command(label="Create", command=self.create_map)
         
         system_menu = tk.Menu(menuBar)
         
@@ -76,3 +59,34 @@ class GUI():
         self.window.title("SvartTaxi AB")
         #self.window.geometry("640x480")
         self.window.config(menu=menuBar)
+
+        self.window.after(2000, self.main_loop)
+
+    def main_loop(self):
+        # TODO gui from worker tasks
+
+        self.window.after(GUI.LOOP_DELAY, self.main_loop)
+
+    def open_map(self):
+        print("Open")
+
+    def create_map(self):
+        self.tasks.put_nowait("creating from worker")
+
+    def clear(self, console):
+        console.delete(0, tk.END)
+
+    def apply_ip(self):
+        pass
+
+    def send_command(self, console):
+        self.tasks.put(console.get())
+        # TODO tell other thread to send command
+
+    def connect(self):
+        # TODO tell other thread to connect to given ip
+        Label(GUI.window, text="Enter valid IP-address").pack()
+        ip_popup = tk.Entry(GUI.window)
+        ip_button = tk.Button(ip_popup, text="Apply IP", command=apply_ip)
+        return client
+
