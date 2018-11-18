@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <pthread.h>
 
@@ -14,8 +15,8 @@
 #define CMD_DELIM ":"
 #define ARG_DELIM ","
 
-#define RSP_SUCCESS_PRE "success:"
-#define RSP_FAILURE_PRE "failure:"
+#define RSP_SUCCESS_PRE "success" CMD_DELIM
+#define RSP_FAILURE_PRE "failure" CMD_DELIM
 #define RSP_INVALID_ARG "invalid_arg"
 #define RSP_INVALID_CMD "invalid_cmd"
 
@@ -35,52 +36,66 @@ struct server {
     pthread_mutex_t lock;
 };
 
-/* built in commands */
+char *str_append(char *str, int *buf_size, const char *fmt, ...) {
+    bool written = false;
+    while (!written) {
+        int len = strlen(str);
+        int max_app = *buf_size-len;
+        if (max_app > 0) {
+            va_list ap;
+            va_start(ap, fmt);
+            int len_written = vsnprintf(str+len, max_app, fmt, ap);
+            va_end(ap);
 
-bool cmd_check(struct srv_cmd_args *a) {
-    const int BUF_START = 30;
-    int bufs = BUF_START;
-    char *rsp = malloc(bufs);
-    char *str_pos = rsp;
-    str_pos += sprintf(str_pos, "argc: %d, args: ", a->argc);
-
-    if (a->argc > 0) {
-        for (int i = 0; i < a->argc; i++) {
-            int max_size = bufs-(str_pos-rsp);
-            int len = snprintf(str_pos, max_size, "\"%s\", ", a->args[i]);
-            if (len < max_size) {
-                str_pos += len;
+            if (len_written < max_app) {
+                written = true;
             } else {
-                int total_length = str_pos-rsp;
-                bufs *= 2;
-                rsp = realloc(rsp, bufs);
-                str_pos = rsp+total_length;
-                i--;
+                str[len] = '\0'; /* rm added string */
+                *buf_size *= 2;
+                str = realloc(str, *buf_size);
             }
         }
-        /* erase last comma and space */
-        str_pos -= 2;
-        str_pos += sprintf(str_pos, ".");
     }
 
-    *a->resp = rsp;
+    return str;
+}
+
+/* built in server commands */
+
+bool sc_check(struct srv_cmd_args *a) {
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+    rsp = str_append(rsp, &buf_size, "argc: %d,", a->argc);
+
+    if (a->argc > 0) {
+        rsp = str_append(rsp, &buf_size, " args: ");
+        for (int i = 0; i < a->argc; i++) {
+            rsp = str_append(rsp, &buf_size, "\"%s\" ", a->args[i]);
+        }
+    }
+
+    rsp[strlen(rsp)-1] = '.';
+
+    a->resp = rsp;
     return true;
 }
 
-bool cmd_help(struct srv_cmd_args *a) {
-    char *response = malloc(1024);
+bool sc_help(struct srv_cmd_args *a) {
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+
     struct srv_cmd *cmds = *(struct srv_cmd**)a->data1;
     int cmdc = *(int*)a->data2;
-    char *str_pos = response;
-    str_pos += sprintf(str_pos, "available commands: ");
-    for (int i = 0; i < cmdc; i++) {
-        str_pos += sprintf(str_pos, "%s, ", cmds[i].name);
-    }
-    /* erase last comma and space */
-    str_pos -= 2;
-    str_pos += sprintf(str_pos, ".");
 
-    *a->resp = response;
+    rsp = str_append(rsp, &buf_size, "available commands: ");
+    for (int i = 0; i < cmdc; i++) {
+        rsp = str_append(rsp, &buf_size, "%s ", cmds[i].name);
+    }
+
+    rsp[strlen(rsp)-1] = '.';
+
+    a->resp = rsp;
     return true;
 }
 
@@ -121,6 +136,9 @@ char *receive(int conn_fd, int *msglen) {
 /* 
  * retrieve command, argc and arguments from string msg
  * store result in cmd_dst, argc_dst and args_dst
+ *
+ * memory:
+ *      args must be freed by caller
  *
  * return:
  *      true if valid command with more than min arguments
@@ -172,7 +190,10 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
 }
 
 /* parse and execute command (if valid) in msg
- * retrieve and return response from command */
+ * retrieve and return response from command
+ *
+ * memory:
+ *      msg_rsp has to be freed by caller */
 char* execute_cmd(struct server *srv, char* msg, int msglen) {
     struct srv_cmd *cmd;
     int argc;
@@ -181,23 +202,26 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
     char *msg_rsp;
 
     if (valid) {
-        char *response;
         struct srv_cmd_args a = {
-            argc, args, &response, cmd->data1, cmd->data2
+            argc, args, NULL, cmd->data1, cmd->data2
         };
+        /* let action create and write ptr to response to a.resp */
         bool success = cmd->action(&a);
         char* prefix = success ? RSP_SUCCESS_PRE : RSP_FAILURE_PRE;
-        if (response) {
+        if (a.resp) {
             int prefix_len = strlen(prefix);
-            int response_len = strlen(response);
+            int response_len = strlen(a.resp);
             msg_rsp = malloc(prefix_len+response_len+1);
             strcpy(msg_rsp, prefix);
-            strcpy(msg_rsp+prefix_len, response);
+            strcpy(msg_rsp+prefix_len, a.resp);
+            free(a.resp);
         } else {
             msg_rsp = prefix;
         }
     } else {
-        msg_rsp = RSP_FAILURE_PRE RSP_INVALID_CMD;
+        char* msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_CMD;
+        msg_rsp = malloc(strlen(msg_rsp_lit));
+        strcpy(msg_rsp, msg_rsp_lit);
     }
 
     return msg_rsp;
@@ -230,8 +254,10 @@ void *srv_thread(void *server) {
         char *msg = receive(conn_fd, &msglen);
         if (msglen > 0) {
             char *msg_rsp = execute_cmd(srv, msg, msglen);
-            send(conn_fd, msg_rsp, strlen(msg_rsp), 0);
             free(msg);
+
+            send(conn_fd, msg_rsp, strlen(msg_rsp), 0);
+            free(msg_rsp);
         } else {
             /* ensure remote still available, otherwise close socket */
             char *msg_rsp = "heartbeat";
@@ -262,8 +288,8 @@ struct server *srv_create(const char *addr, int port_start, int port_end,
 
     /* add commands, built in and from caller */
     struct srv_cmd cmds_std[] = {
-        {"help",            0, &srv->cmds, &srv->cmdc, *cmd_help},
-        {"check",           0, NULL, NULL, *cmd_check},
+        {"help",            0, &srv->cmds, &srv->cmdc, *sc_help},
+        {"check",           0, NULL,       NULL,       *sc_check},
     };
     int cmdc_std = sizeof(cmds_std)/sizeof(*cmds_std);
     int cmdc = cmdc_std+cmdc_in;
@@ -323,7 +349,7 @@ void srv_destroy(struct server *srv) {
 
         pthread_join(srv->thread, NULL);
 
-        if (srv->listen_fd > 0) close(srv->listen_fd);
+        if (srv->listen_fd >= 0) close(srv->listen_fd);
         pthread_mutex_destroy(&srv->lock);
 
         free(srv->cmds);

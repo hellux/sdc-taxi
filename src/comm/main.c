@@ -99,6 +99,23 @@ struct data_mission {
 /* server commands, called by server on remote command */
 
 bool sc_get_sens(struct srv_cmd_args *a) {
+    struct data_sensors *sens_data = (struct data_sensors*)a->data1;
+
+    /* read data */
+    /*
+    sens_dist_t df, dr;
+    unsigned rotations;
+    */
+    pthread_mutex_lock(&sens_data->lock);
+    /*
+    df = sens_data->dist_front;
+    dr = sens_data->dist_right;
+    rotations = sens_data->rotations;
+    */
+    pthread_mutex_unlock(&sens_data->lock);
+
+    /* create string */
+
     return true;
 }
 
@@ -127,13 +144,13 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(unsigned char* received, void *data) {
     struct sens_data_frame *frame = (struct sens_data_frame*)received;
-    struct data_sensors *dst = (struct data_sensors*)data;
+    struct data_sensors *sens_data = (struct data_sensors*)data;
     
-    pthread_mutex_lock(&dst->lock);
-    dst->dist_front = frame->dist_front;
-    dst->dist_right = frame->dist_right;
-    dst->rotations += frame->rotations;
-    pthread_mutex_unlock(&dst->lock);
+    pthread_mutex_lock(&sens_data->lock);
+    sens_data->dist_front = frame->dist_front;
+    sens_data->dist_right = frame->dist_right;
+    sens_data->rotations += frame->rotations;
+    pthread_mutex_unlock(&sens_data->lock);
 }
 
 int main(int argc, char* args[]) {
