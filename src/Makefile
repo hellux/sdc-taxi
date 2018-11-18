@@ -38,9 +38,10 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .SILENT: init
 
 # communication module
-comm: CFLAGS += -ggdb
-comm: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
-comm: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
+comm.gdb: CFLAGS += -ggdb
+comm.gdb: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
+comm.gdb: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
+	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
 comm.pi: CFLAGS += -DPI -O3
 comm.pi: CXXFLAGS += -O3
 comm.pi: COMM_LFLAGS += -lwiringPi
