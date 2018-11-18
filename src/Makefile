@@ -3,10 +3,10 @@ BINDIR = $(OBJDIR)/bin
 SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
-CFLAGS = -Wall -std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Werror -std=c99 -D_POSIX_C_SOURCE=200809L
 
 CXXC = g++
-CXXFLAGS = -Wall `pkg-config --cflags opencv`
+CXXFLAGS = -Wall -Werror `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
@@ -38,7 +38,7 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .SILENT: init
 
 # communication module
-comm: CFLAGS += -g
+comm: CFLAGS += -ggdb
 comm: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
 comm: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 comm.pi: CFLAGS += -DPI -O3
