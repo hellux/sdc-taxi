@@ -30,11 +30,8 @@ struct order {
     bool scheduled;
     bool transmit_receive; /* true: transmit, false: receive */
 
-    int slave;
-
-    uint8_t cmd;
+    const struct bus_cmd *bc;
     unsigned char *src_dst;
-    int len;
 
     struct order *next;
 };
@@ -55,33 +52,32 @@ struct order_blocked {
 
 /* physical bus functions (bus thread) */
 
-static void receive(struct bus *bus, int slave,
-                    uint8_t command, unsigned char *dst, int len) {
+static void receive(struct bus *bus, const struct bus_cmd *bc,
+                    unsigned char *dst) {
 #ifdef PI
     /* TODO send command first */
-    digitalWrite(slave, 1);   // SS high - synch with slave
-    digitalWrite(slave, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, dst, len);
-    digitalWrite(slave, 1);   // SS high - end transmission
+    digitalWrite(bc->slave, 1);   // SS high - synch with slave
+    digitalWrite(bc->slave, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, dst, bc->len);
+    digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
-    for (int i = 0; i < len-1; i++) {
-        dst[i] = '0'+i;
+    for (int i = 0; i < bc->len; i++) {
+        dst[i] = i;
     }
-    dst[len-1] = '\0';
 #endif
 }
 
-static void transmit(struct bus *bus, int slave,
-                     uint8_t command, unsigned char *data, int len) {
+static void transmit(struct bus *bus, const struct bus_cmd *bc,
+                     unsigned char *data) {
 #ifdef PI
     /* TODO send command first */
-    digitalWrite(slave, 1);   // SS high - synch with slave
-    digitalWrite(slave, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, data, len);
-    digitalWrite(slave, 1);   // SS high - end transmission
+    digitalWrite(bc->slave, 1);   // SS high - synch with slave
+    digitalWrite(bc->slave, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, data, bc->len);
+    digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
-    printf("transmit via command %d to %d: ", command, slave);
-    for (int i = 0; i < len; i++)
+    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    for (int i = 0; i < bc->len; i++)
         printf("%x ", data[i]);
     printf("\n");
 #endif
@@ -106,9 +102,9 @@ static void order_queue(struct bus *bus, struct order *order) {
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
     if (o->transmit_receive) {
-        transmit(bus, o->slave, o->cmd, o->src_dst, o->len);
+        transmit(bus, o->bc, o->src_dst);
     } else {
-        receive(bus, o->slave, o->cmd, o->src_dst, o->len);
+        receive(bus, o->bc, o->src_dst);
     }
     if (o->scheduled) {
         struct order_scheduled *os = (struct order_scheduled*)o;
@@ -196,15 +192,12 @@ void bus_destroy(struct bus *bus) {
     free(bus);
 }
 
-void bus_transmit(bus_t *bus, int slave,
-                  uint8_t cmd, unsigned char *data, int len) {
+void bus_transmit(bus_t *bus, const struct bus_cmd *bc, unsigned char *data) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
     order->common.transmit_receive = true;
-    order->common.slave = slave;
-    order->common.cmd = cmd;
+    order->common.bc = bc;
     order->common.src_dst = data;
-    order->common.len = len;
     pthread_cond_init(&order->done, NULL);
     pthread_mutex_init(&order->done_mutex, NULL);
 
@@ -217,18 +210,20 @@ void bus_transmit(bus_t *bus, int slave,
     free(order);
 }
 
-void bus_transmit_schedule(bus_t *bus, int slave,
-                           uint8_t cmd, unsigned char *data, int len,
+void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
+                           unsigned char *data,
                            void (*handler)(unsigned char *src, void *data),
                            void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = true;
     order->common.transmit_receive = true;
-    order->common.slave = slave;
-    order->common.cmd = cmd;
-    order->common.src_dst = malloc(len);
-    memcpy(order->common.src_dst, data, len);
-    order->common.len = len;
+    order->common.bc = bc;
+    printf("bc->len: %d\n", bc->len);
+
+    /* copy input data */
+    order->common.src_dst = malloc(bc->len);
+    memcpy(order->common.src_dst, data, bc->len);
+
     order->handler = handler;
     order->handler_data = handler_data;
 
@@ -237,15 +232,12 @@ void bus_transmit_schedule(bus_t *bus, int slave,
     pthread_cond_signal(&bus->wake_up);
 }
 
-void bus_receive(bus_t *bus, int slave,
-                 uint8_t cmd, unsigned char *dst, int len) {
+void bus_receive(bus_t *bus, const struct bus_cmd *bc, unsigned char *dst) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
     order->common.transmit_receive = false;
-    order->common.slave = slave;
-    order->common.cmd = cmd;
+    order->common.bc = bc;
     order->common.src_dst = dst;
-    order->common.len = len;
     pthread_cond_init(&order->done, NULL);
     pthread_mutex_init(&order->done_mutex, NULL);
 
@@ -258,17 +250,18 @@ void bus_receive(bus_t *bus, int slave,
     free(order);
 }
 
-void bus_receive_schedule(struct bus *bus, int slave,
-                          uint8_t cmd, int len,
+void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
                           void (*handler)(unsigned char *dst, void *data),
                           void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
     order->common.scheduled = true;
     order->common.transmit_receive = false;
-    order->common.slave = slave;
-    order->common.cmd = cmd;
-    order->common.src_dst = malloc(len);
-    order->common.len = len;
+    order->common.bc = bc;
+
+    /* create storage for receive */
+    printf("len: %d\n", bc->len);
+    order->common.src_dst = malloc(bc->len);
+
     order->handler = handler;
     order->handler_data = handler_data;
 
