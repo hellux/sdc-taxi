@@ -15,7 +15,7 @@ void bus_transmit(bus_t *bus, int slave,
                   uint8_t cmd, unsigned char *data, int len);
 
 /* schedule a transmit, signal handler will be called when finished */
-/* data will be freed when transmit finished */
+/* input data is copied and can thus be freed immediately after call */
 void bus_transmit_schedule(bus_t *bus, int slave,
                            uint8_t cmd, unsigned char *data, int len,
                            void (*handler)(unsigned char *src, void *data),

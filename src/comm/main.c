@@ -80,11 +80,14 @@ int main(int argc, char* args[]) {
     bus_t *bus = bus_create(F_SPI);
     if (!bus) return EXIT_FAILURE;
 
-    char *msg = "hej hej";
+    unsigned char *msg = "hej hej";
     bus_receive_schedule(bus, 0, 7, 10, hlr_sens_recv, msg);
     unsigned char dst[10];
     bus_receive(bus, 0, 7, dst, 10);
     printf("received: %s\n", dst);
+
+    bus_transmit(bus, 0, 7, msg, 8);
+    bus_transmit_schedule(bus, 0, 7, msg, 8, NULL, NULL);
 
     char input[100];
     while (!quit) {

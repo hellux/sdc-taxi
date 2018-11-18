@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <pthread.h>
 
@@ -78,6 +79,11 @@ static void transmit(struct bus *bus, int slave,
     digitalWrite(slave, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, data, len);
     digitalWrite(slave, 1);   // SS high - end transmission
+#else
+    printf("transmit via command %d to %d: ", command, slave);
+    for (int i = 0; i < len; i++)
+        printf("%x ", data[i]);
+    printf("\n");
 #endif
 }
 
@@ -192,14 +198,43 @@ void bus_destroy(struct bus *bus) {
 
 void bus_transmit(bus_t *bus, int slave,
                   uint8_t cmd, unsigned char *data, int len) {
+    struct order_blocked *order = malloc(sizeof(struct order_blocked));
+    order->common.scheduled = false;
+    order->common.transmit_receive = true;
+    order->common.slave = slave;
+    order->common.cmd = cmd;
+    order->common.src_dst = data;
+    order->common.len = len;
+    pthread_cond_init(&order->done, NULL);
+    pthread_mutex_init(&order->done_mutex, NULL);
 
+    order_queue(bus, (struct order*)order);
+
+    pthread_mutex_lock(&order->done_mutex);
+    pthread_cond_wait(&order->done, &order->done_mutex);
+    pthread_mutex_unlock(&order->done_mutex);
+
+    free(order);
 }
 
 void bus_transmit_schedule(bus_t *bus, int slave,
                            uint8_t cmd, unsigned char *data, int len,
                            void (*handler)(unsigned char *src, void *data),
                            void *handler_data) {
+    struct order_scheduled *order = malloc(sizeof(struct order_blocked));
+    order->common.scheduled = true;
+    order->common.transmit_receive = true;
+    order->common.slave = slave;
+    order->common.cmd = cmd;
+    order->common.src_dst = malloc(len);
+    memcpy(order->common.src_dst, data, len);
+    order->common.len = len;
+    order->handler = handler;
+    order->handler_data = handler_data;
 
+    order_queue(bus, (struct order*)order);
+    
+    pthread_cond_signal(&bus->wake_up);
 }
 
 void bus_receive(bus_t *bus, int slave,
@@ -239,6 +274,5 @@ void bus_receive_schedule(struct bus *bus, int slave,
 
     order_queue(bus, (struct order*)order);
     
-    printf("waking up\n");
     pthread_cond_signal(&bus->wake_up);
 }
