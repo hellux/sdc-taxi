@@ -23,6 +23,8 @@
 #define MSG_BUF_SIZE 2048   /* starting size for message length */
 #define ARG_BUF_SIZE 64     /* starting size for arg count */
 
+#define WAITTIME 1 /* seconds before wake up if nothing scheduled */
+
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 struct server {
@@ -232,6 +234,8 @@ void *srv_thread(void *server) {
     bool quit = false;
     int conn_fd = -1;
 
+    struct timeval tv = {.tv_sec = WAITTIME, .tv_usec = 0};
+
     fd_set rfds;
     
     while (!quit) {
@@ -240,12 +244,12 @@ void *srv_thread(void *server) {
         FD_SET(srv->listen_fd, &rfds);
         if (conn_fd >= 0) FD_SET(conn_fd, &rfds);
         int nfds = MAX(srv->listen_fd, conn_fd)+1;
-        select(nfds, &rfds, NULL, NULL, NULL);
+        select(nfds, &rfds, NULL, NULL, &tv);
 
         /* accept new connection if requested */
         int conn_fd_new = accept(srv->listen_fd, NULL, NULL);
         if (conn_fd_new >= 0) {
-            close(conn_fd);
+            if (conn_fd >= 0) close(conn_fd);
             conn_fd = conn_fd_new;
         }
 
