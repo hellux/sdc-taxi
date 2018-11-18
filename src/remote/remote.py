@@ -62,7 +62,7 @@ class Client():
                 self.socket.sendall(string.encode())
                 sent = True;
             except BrokenPipeError as e:
-                sys.stderr.write(e, "\n")
+                sys.stderr.write("{}\n".format(e))
             return sent
         else:
             return False
