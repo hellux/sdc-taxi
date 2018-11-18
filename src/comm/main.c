@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
 
 #include <pthread.h>
 
@@ -50,35 +51,18 @@ struct sens_data_frame {
 #define BCB_RESET    32
 
 /* bus commands for ctrl */
-const struct bus_cmd BC_SPEED = {
-    BCB_SPEED, SLAVE_CTRL, sizeof(err_val_t)
-};
-const struct bus_cmd BC_SPEED_KD = {
-    BCB_SPEED_KD, SLAVE_CTRL, sizeof(reg_const_t)
-};
-const struct bus_cmd BC_SPEED_KP = {
-    BCB_SPEED_KP, SLAVE_CTRL, sizeof(reg_const_t)
-};
-const struct bus_cmd BC_TURN = {
-    BCB_TURN, SLAVE_CTRL, sizeof(err_val_t)
-};
-const struct bus_cmd BC_TURN_KD = {
-    BCB_TURN_KD, SLAVE_CTRL, sizeof(reg_const_t)
-};
-const struct bus_cmd BC_TURN_KP = {
-    BCB_TURN_KP, SLAVE_CTRL, sizeof(reg_const_t)
-};
-const struct bus_cmd BC_RST_CTRL = {
-    BCB_RESET, SLAVE_CTRL, 0
-};
+struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(err_val_t)};
+struct bus_cmd BC_SPEED_KD = {BCB_SPEED_KD, SLAVE_CTRL, sizeof(reg_const_t)};
+struct bus_cmd BC_SPEED_KP = {BCB_SPEED_KP, SLAVE_CTRL, sizeof(reg_const_t)};
+struct bus_cmd BC_TURN =     {BCB_TURN,     SLAVE_CTRL, sizeof(err_val_t)};
+struct bus_cmd BC_TURN_KD =  {BCB_TURN_KD,  SLAVE_CTRL, sizeof(reg_const_t)};
+struct bus_cmd BC_TURN_KP =  {BCB_TURN_KP,  SLAVE_CTRL, sizeof(reg_const_t)};
+struct bus_cmd BC_RST_CTRL = {BCB_RESET,    SLAVE_CTRL, 0 };
 
 /* bus commands for sens */
-const struct bus_cmd BC_GET_SENS = {
-    BCB_GET_SENS, SLAVE_SENS, sizeof(struct sens_data_frame)
-};
-const struct bus_cmd BC_RST_SENS = {
-    BCB_RESET, SLAVE_CTRL, 0
-};
+const struct bus_cmd BC_GET_SENS = {BCB_GET_SENS, SLAVE_SENS,
+    sizeof(struct sens_data_frame)};
+const struct bus_cmd BC_RST_SENS = {BCB_RESET,    SLAVE_CTRL, 0};
 
 /* data from sensors stored on pi */
 struct data_sensors {
@@ -90,6 +74,9 @@ struct data_sensors {
 };
 
 struct data_mission {
+    bool active;
+
+    /* TODO commands */
     int cmds_completed;
     int cmds_remaining;
 
@@ -147,18 +134,33 @@ bool sc_set_mission(struct srv_cmd_args *a) {
     return true;
 }
 
-/* TODO restructure below */
-
-bool sc_set_bool(struct srv_cmd_args *a) {
-    return true;
-}
-
-bool sc_set_float(struct srv_cmd_args *a) {
+bool sc_set_state(struct srv_cmd_args *a) {
     return true;
 }
 
 bool sc_bus_send_float(struct srv_cmd_args *a) {
-    return true;
+    int success = false;
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    char *endptr;
+    float value = strtof(a->args[0], &endptr);
+
+    if (endptr > a->args[0]) {
+        struct bus_cmd *bc = (struct bus_cmd*)a->data1;
+        bus_t *bus = (bus_t*)a->data2;
+        bus_transmit_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
+
+        success = true;
+        rsp = str_append(rsp, &buf_size, "sending value %f", value);
+    } else {
+        rsp = str_append(rsp, &buf_size,
+                         "invalid argument -- \"%s\"", a->args[0]);
+    }
+
+    a->resp = rsp;
+    return success;
 }
 
 /* bus signal handlers, called by bus thread when transmission finished */
@@ -189,26 +191,26 @@ int main(int argc, char* args[]) {
     pthread_mutex_init(&sens_data.lock, 0);
     pthread_mutex_init(&miss_data.lock, 0);
 
+    bus_t *bus = bus_create(F_SPI);
+    if (!bus) return EXIT_FAILURE;
+
     struct reg_consts;
     struct srv_cmd cmds[] = {
-        {"get_sensor_data", 0, &sens_data,  NULL, *sc_get_sens},
-        {"get_mission",     0, &miss_data,  NULL, *sc_get_mission},
-        {"set_mission",     0, NULL,        NULL, *sc_set_mission},
-        {"set_state",       0, NULL,        NULL, *sc_set_bool},
-        {"set_speed_delta", 0, NULL,        NULL, *sc_set_float},
-        {"set_speed_kp",    0, NULL,        NULL, *sc_set_float},
-        {"set_speed_kd",    0, NULL,        NULL, *sc_set_float},
-        {"set_turn_delta",  0, NULL,        NULL, *sc_set_float},
-        {"set_turn_kp",     0, NULL,        NULL, *sc_set_float},
-        {"set_turn_kd",     0, NULL,        NULL, *sc_set_float},
+        {"get_sensor_data", 0, &sens_data,   NULL, *sc_get_sens},
+        {"get_mission",     0, &miss_data,   NULL, *sc_get_mission},
+        {"set_mission",     1, NULL,         NULL, *sc_set_mission},
+        {"set_state",       1, NULL,         NULL, *sc_set_state},
+        {"set_speed_delta", 1, NULL,         bus,  NULL},
+        {"set_speed_kp",    1, &BC_SPEED_KP, bus,  *sc_bus_send_float},
+        {"set_speed_kd",    1, &BC_SPEED_KD, bus,  *sc_bus_send_float},
+        {"set_turn_delta",  1, NULL,         NULL, NULL},
+        {"set_turn_kp",     1, &BC_TURN_KP,  bus,  *sc_bus_send_float},
+        {"set_turn_kd",     1, &BC_TURN_KD,  bus,  *sc_bus_send_float},
     };
     int cmdc = sizeof(cmds)/sizeof(*cmds);
     srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
-
-    bus_t *bus = bus_create(F_SPI);
-    if (!bus) return EXIT_FAILURE;
 
     struct sens_data_frame frame;
     bus_receive(bus, &BC_GET_SENS, (unsigned char*)&frame);
