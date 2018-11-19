@@ -1,17 +1,15 @@
 from gui import GUI
 from worker import Worker
-from queue import Queue
+from tasks import TaskQueue
 
 def main():
-    worker_tasks = Queue()
+    tasks = TaskQueue()
 
-    wrk = Worker(worker_tasks)
-    gui = GUI(worker_tasks)
+    wrk = Worker(tasks)
+    gui = GUI(tasks)
 
     wrk.start()
     gui.window.mainloop()
-    # TODO döda gui vid quit
-    wrk.stop()
 
 if __name__ == '__main__':
     main()

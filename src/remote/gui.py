@@ -1,6 +1,6 @@
 import tkinter as tk
-from textwrap import fill
 from course import Node, NodeType
+from tasks import Task
 
 class GUI():
     LOOP_DELAY = 50
@@ -8,10 +8,20 @@ class GUI():
     def __init__(self, tasks):
         self.tasks = tasks
 
+        self.complete_actions = {
+            Task.CONNECT    : print,
+            Task.SEND       : print,
+        }
+
+        self.window = tk.Tk()
+        self.init_gui()
+        self.window.protocol('WM_DELETE_WINDOW', self.quit)
+        self.window.after(2000, self.main_loop)
+
+    def init_gui(self):
         #VARIABLES
         self.carSpeed = 25
         self.drivingMode = "Auto"
-        self.window = tk.Tk()
 
         #self.window COMPONENTS
         infoFrame = tk.Frame(self.window, highlightbackground="red")
@@ -20,7 +30,7 @@ class GUI():
 
         #BUTTONS
         sendCommandButton = tk.Button(self.window, text="Send command",
-                command=lambda: self.send_command(console))
+            command=lambda:self.tasks.put(Task.SEND, console.get()))
 
         modeInfo = tk.Label(infoFrame, text="Driving mode: " + self.drivingMode)
         speedInfo = tk.Label(infoFrame, text = "Speed: " + str(self.carSpeed) +
@@ -48,11 +58,12 @@ class GUI():
         system_menu = tk.Menu(menuBar)
         
         server_menu = tk.Menu(system_menu)
-        server_menu.add_command(label="Enter IP-address")
+        server_menu.add_command(label="Enter IP-address", command=self.connect)
         system_menu.add_cascade(label="Server", menu=server_menu)
         
-        system_menu.add_command(label="Quit", command=quit)
-        menuBar.add_cascade(label="Map", menu = map_menu)
+        system_menu.add_command(label="Quit",
+            command=self.quit)
+        menuBar.add_cascade(label="Map", menu=map_menu)
         menuBar.add_cascade(label="System", menu=system_menu)
 
         #self.window CONFIG
@@ -60,33 +71,34 @@ class GUI():
         #self.window.geometry("640x480")
         self.window.config(menu=menuBar)
 
-        self.window.after(2000, self.main_loop)
-
     def main_loop(self):
-        # TODO gui from worker tasks
+        task_pair = self.tasks.get_completed(block=False)
+        if task_pair:
+            task, result = task_pair
+            action = self.complete_actions.get(task)
+            if action:
+                action(*result)
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
+
+    def quit(self):
+        self.tasks.put(Task.KILL)
+        self.window.destroy()
 
     def open_map(self):
         print("Open")
 
     def create_map(self):
-        self.tasks.put_nowait("creating from worker")
+        print("Create")
 
     def clear(self, console):
         console.delete(0, tk.END)
 
-    def apply_ip(self):
-        pass
-
-    def send_command(self, console):
-        self.tasks.put(console.get())
-        # TODO tell other thread to send command
-
     def connect(self):
-        # TODO tell other thread to connect to given ip
-        Label(GUI.window, text="Enter valid IP-address").pack()
+        """
+        tk.Label(self.window, text="Enter valid IP-address").pack()
         ip_popup = tk.Entry(GUI.window)
         ip_button = tk.Button(ip_popup, text="Apply IP", command=apply_ip)
-        return client
+        """
 
+        self.tasks.put(Task.CONNECT, '127.0.0.1')
