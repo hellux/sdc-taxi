@@ -119,7 +119,7 @@ char *receive(int conn_fd, int *msglen) {
                 buf = realloc(buf, bufsize+1);
             }
             max_receive = bufsize-length;
-            received = recv(conn_fd, buf+length, max_receive, 0);
+            received = recv(conn_fd, buf+length, max_receive, MSG_DONTWAIT);
             length += received;
         } while (received == max_receive);
     }
@@ -228,7 +228,7 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
         if (cmd) {
             msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_ARG;
         } else {
-            msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_ARG;
+            msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_CMD;
         }
         msg_rsp = malloc(strlen(msg_rsp_lit));
         strcpy(msg_rsp, msg_rsp_lit);
