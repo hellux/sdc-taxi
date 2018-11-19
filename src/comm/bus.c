@@ -30,7 +30,7 @@ struct order {
     bool scheduled;
 
     const struct bus_cmd *bc;
-    unsigned char *src_dst;
+    void *src_dst;
 
     struct order *next;
 };
@@ -38,7 +38,7 @@ struct order {
 struct order_scheduled {
     struct order common;
 
-    void (*handler)(unsigned char* src_dst, void *data);
+    void (*handler)(void *src_dst, void *data);
     void *handler_data;
 };
 
@@ -52,20 +52,20 @@ struct order_blocked {
 /* physical bus functions (bus thread) */
 
 static void tranceive(struct bus *bus, const struct bus_cmd *bc,
-                      unsigned char *data) {
+                      void *msg) {
 #ifdef PI
     digitalWrite(bc->slave, 1);   // SS high - synch with slave
     digitalWrite(bc->slave, 0);   // SS low - start transmission
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)&bc->cmd, 1);
-    wiringPiSPIDataRW(CHANNEL, data, bc->len);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
     digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
     printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
     for (int i = 0; i < bc->len; i++)
-        printf("%x ", data[i]);
+        printf("%x ", ((uint8_t*)msg)[i]);
     printf("\n");
     for (int i = 0; i < bc->len; i++) {
-        data[i] = i;
+        *((uint8_t*)msg+i) = (uint8_t)i;
     }
 #endif
 }
@@ -176,11 +176,11 @@ void bus_destroy(struct bus *bus) {
     free(bus);
 }
 
-void bus_transmit(bus_t *bus, const struct bus_cmd *bc, unsigned char *data) {
+void bus_transmit(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
     order->common.bc = bc;
-    order->common.src_dst = data;
+    order->common.src_dst = msg;
     pthread_cond_init(&order->done, NULL);
     pthread_mutex_init(&order->done_mutex, NULL);
 
@@ -193,9 +193,8 @@ void bus_transmit(bus_t *bus, const struct bus_cmd *bc, unsigned char *data) {
     free(order);
 }
 
-void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
-                           unsigned char *data,
-                           void (*handler)(unsigned char *src, void *data),
+void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
+                           void (*handler)(void *src, void *data),
                            void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = true;
@@ -203,7 +202,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
 
     /* copy input data */
     order->common.src_dst = malloc(bc->len);
-    memcpy(order->common.src_dst, data, bc->len);
+    memcpy(order->common.src_dst, msg, bc->len);
 
     order->handler = handler;
     order->handler_data = handler_data;
@@ -213,7 +212,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
     pthread_cond_signal(&bus->wake_up);
 }
 
-void bus_receive(bus_t *bus, const struct bus_cmd *bc, unsigned char *dst) {
+void bus_receive(bus_t *bus, const struct bus_cmd *bc, void *dst) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
     order->common.bc = bc;
@@ -231,7 +230,7 @@ void bus_receive(bus_t *bus, const struct bus_cmd *bc, unsigned char *dst) {
 }
 
 void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
-                          void (*handler)(unsigned char *dst, void *data),
+                          void (*handler)(void *dst, void *data),
                           void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
     order->common.scheduled = true;

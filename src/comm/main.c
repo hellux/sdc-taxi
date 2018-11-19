@@ -51,6 +51,13 @@ struct data_mission {
     pthread_mutex_t lock;
 };
 
+struct data_rc {
+    double err_vel;
+    double err_rot;
+
+    pthread_mutex_t lock;
+};
+
 /* server commands, called by server on remote command */
 
 bool sc_get_sens(struct srv_cmd_args *a) {
@@ -134,7 +141,7 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* bus signal handlers, called by bus thread when transmission finished */
 
 /* write received values to struct reachable from main thread */
-void bsh_sens_recv(unsigned char* received, void *data) {
+void bsh_sens_recv(void *received, void *data) {
     struct sens_data_frame *frame = (struct sens_data_frame*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
@@ -156,8 +163,10 @@ int main(int argc, char* args[]) {
 
     struct data_sensors sens_data = {0};
     struct data_mission miss_data = {0};
+    struct data_rc rc_data = {0};
     pthread_mutex_init(&sens_data.lock, 0);
     pthread_mutex_init(&miss_data.lock, 0);
+    pthread_mutex_init(&rc_data.lock, 0);
 
     bus_t *bus = bus_create(F_SPI);
     if (!bus) return EXIT_FAILURE;
@@ -180,27 +189,37 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
+    /* remote ctrl values */
+
     char input[100];
     while (!quit) {
+        double err_vel;
+        double err_rot;
+
         bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
 
-        /* TODO create storage for turn and speed, synchronize
-        bus_transmit_schedule(bus, &BC_SPEED, speed);
-        bus_transmit_schedule(bus, &BC_TURN, turn);
-        */
+        pthread_mutex_lock(&miss_data.lock);
+        if (miss_data.active) {
+            pthread_mutex_unlock(&miss_data.lock);
+            /* TODO img proc + mission */
+            err_vel = 0;
+            err_rot = 0;
+        } else {
+            pthread_mutex_unlock(&miss_data.lock);
+
+            pthread_mutex_lock(&rc_data.lock);
+            err_vel = rc_data.err_vel;
+            err_rot = rc_data.err_rot;
+            pthread_mutex_unlock(&rc_data.lock);
+        }
 
         /* pause loop, enable exit */
         scanf("%s", input);
         if (input[0] == 'q')
             quit = true;
 
-        pthread_mutex_lock(&sens_data.lock);
-        printf("dist_front: %f, dist_right: %f, rotations: %d\n",
-                sens_data.dist_front, sens_data.dist_right,
-                sens_data.rotations);
-        pthread_mutex_unlock(&sens_data.lock);
-
-        /* TODO double err = ip_process() */
+        bus_transmit_schedule(bus, &BC_SPEED, (void*)&err_vel, NULL, NULL);
+        bus_transmit_schedule(bus, &BC_TURN, (void*)&err_rot, NULL, NULL);
     }
 
     srv_destroy(srv);

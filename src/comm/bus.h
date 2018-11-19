@@ -17,19 +17,18 @@ bus_t *bus_create(int freq);
 void bus_destroy(bus_t *bus);
 
 /* schedule a transmit, block until finished */
-void bus_transmit(bus_t *bus, const struct bus_cmd *bc, unsigned char *data);
+void bus_transmit(bus_t *bus, const struct bus_cmd *bc, void *msg);
 
 /* schedule a transmit, signal handler will be called when finished */
 /* input data is copied and can thus be freed immediately after call */
-void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
-                           unsigned char *data,
-                           void (*handler)(unsigned char *src, void *data),
+void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
+                           void (*handler)(void *src, void *data),
                            void *handler_data);
 
 /* schedule a receive, block until finished */
-void bus_receive(bus_t *bus, const struct bus_cmd *bc, unsigned char *dst);
+void bus_receive(bus_t *bus, const struct bus_cmd *bc, void *dst);
 
 /* schedule a receive, signal handler will be called when finished */
 void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
-                          void (*handler)(unsigned char *dst, void *data),
+                          void (*handler)(void *dst, void *data),
                           void *handler_data);
