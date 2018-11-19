@@ -28,7 +28,6 @@ struct bus {
 
 struct order {
     bool scheduled;
-    bool transmit_receive; /* true: transmit, false: receive */
 
     const struct bus_cmd *bc;
     unsigned char *src_dst;
@@ -52,23 +51,8 @@ struct order_blocked {
 
 /* physical bus functions (bus thread) */
 
-static void receive(struct bus *bus, const struct bus_cmd *bc,
-                    unsigned char *dst) {
-#ifdef PI
-    digitalWrite(bc->slave, 1);   // SS high - synch with slave
-    digitalWrite(bc->slave, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&bc->cmd, 1);
-    wiringPiSPIDataRW(CHANNEL, dst, bc->len);
-    digitalWrite(bc->slave, 1);   // SS high - end transmission
-#else
-    for (int i = 0; i < bc->len; i++) {
-        dst[i] = i;
-    }
-#endif
-}
-
-static void transmit(struct bus *bus, const struct bus_cmd *bc,
-                     unsigned char *data) {
+static void tranceive(struct bus *bus, const struct bus_cmd *bc,
+                      unsigned char *data) {
 #ifdef PI
     digitalWrite(bc->slave, 1);   // SS high - synch with slave
     digitalWrite(bc->slave, 0);   // SS low - start transmission
@@ -80,6 +64,9 @@ static void transmit(struct bus *bus, const struct bus_cmd *bc,
     for (int i = 0; i < bc->len; i++)
         printf("%x ", data[i]);
     printf("\n");
+    for (int i = 0; i < bc->len; i++) {
+        data[i] = i;
+    }
 #endif
 }
 
@@ -101,11 +88,7 @@ static void order_queue(struct bus *bus, struct order *order) {
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
-    if (o->transmit_receive) {
-        transmit(bus, o->bc, o->src_dst);
-    } else {
-        receive(bus, o->bc, o->src_dst);
-    }
+    tranceive(bus, o->bc, o->src_dst);
     if (o->scheduled) {
         struct order_scheduled *os = (struct order_scheduled*)o;
         if (os->handler)
@@ -164,7 +147,7 @@ struct bus *bus_create(int freq) {
 
     /* setup spi */
 #ifdef PI
-    wiringPiSPISetupGpio();
+    wiringPiSetupGpio();
     wiringPiSPISetup(CHANNEL, freq);
 #endif
 
@@ -196,7 +179,6 @@ void bus_destroy(struct bus *bus) {
 void bus_transmit(bus_t *bus, const struct bus_cmd *bc, unsigned char *data) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
-    order->common.transmit_receive = true;
     order->common.bc = bc;
     order->common.src_dst = data;
     pthread_cond_init(&order->done, NULL);
@@ -217,9 +199,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
                            void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = true;
-    order->common.transmit_receive = true;
     order->common.bc = bc;
-    printf("bc->len: %d\n", bc->len);
 
     /* copy input data */
     order->common.src_dst = malloc(bc->len);
@@ -236,7 +216,6 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc,
 void bus_receive(bus_t *bus, const struct bus_cmd *bc, unsigned char *dst) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
-    order->common.transmit_receive = false;
     order->common.bc = bc;
     order->common.src_dst = dst;
     pthread_cond_init(&order->done, NULL);
@@ -256,11 +235,9 @@ void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
                           void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
     order->common.scheduled = true;
-    order->common.transmit_receive = false;
     order->common.bc = bc;
 
     /* create storage for receive */
-    printf("len: %d\n", bc->len);
     order->common.src_dst = malloc(bc->len);
 
     order->handler = handler;

@@ -195,7 +195,7 @@ int main(int argc, char* args[]) {
             quit = true;
 
         pthread_mutex_lock(&sens_data.lock);
-        printf("dist_front: %d, dist_right: %d, rotations: %d\n",
+        printf("dist_front: %f, dist_right: %f, rotations: %d\n",
                 sens_data.dist_front, sens_data.dist_right,
                 sens_data.rotations);
         pthread_mutex_unlock(&sens_data.lock);
