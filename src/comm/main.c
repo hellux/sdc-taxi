@@ -18,20 +18,6 @@
 #define SLAVE_SENS 10
 #define SLAVE_CTRL 11
 
-#define F_SPI 4000000
-
-typedef uint8_t sens_dist_t;
-typedef uint8_t sens_rot_t;
-typedef float   reg_const_t;
-typedef float   err_val_t;
-
-/* format of data sent from sensor via bus */
-struct sens_data_frame {
-    sens_dist_t dist_front;
-    sens_dist_t dist_right;
-    sens_rot_t rotations;
-};
-
 /* bus commands for ctrl */
 struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(err_val_t)};
 struct bus_cmd BC_SPEED_KD = {BCB_SPEED_KD, SLAVE_CTRL, sizeof(reg_const_t)};

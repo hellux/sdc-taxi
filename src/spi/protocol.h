@@ -8,11 +8,26 @@
 #define BF_KD    8
 
 /* bus cmd bytes */
-#define BCB_SPEED    BF_WRITE|BF_SPEED
-#define BCB_SPEED_KD BF_WRITE|BF_SPEED|BF_REG|BF_KD
-#define BCB_SPEED_KP BF_WRITE|BF_SPEED|BF_REG
-#define BCB_TURN     BF_WRITE
-#define BCB_TURN_KD  BF_WRITE|         BF_REG|BF_KD
-#define BCB_TURN_KP  BF_WRITE|         BF_REG
+#define BCB_SPEED    (BF_WRITE|BF_SPEED)
+#define BCB_SPEED_KD (BF_WRITE|BF_SPEED|BF_REG|BF_KD)
+#define BCB_SPEED_KP (BF_WRITE|BF_SPEED|BF_REG)
+#define BCB_TURN     (BF_WRITE)
+#define BCB_TURN_KD  (BF_WRITE|         BF_REG|BF_KD)
+#define BCB_TURN_KP  (BF_WRITE|         BF_REG)
 #define BCB_GET_SENS 16
 #define BCB_RESET    32
+
+
+#define F_SPI 4000000
+
+typedef uint8_t sens_dist_t;
+typedef uint8_t sens_rot_t;
+typedef float   reg_const_t;
+typedef float   err_val_t;
+
+/* format of data sent from sensor via bus */
+struct sens_data_frame {
+    sens_dist_t dist_front;
+    sens_dist_t dist_right;
+    sens_rot_t rotations;
+};
