@@ -110,7 +110,44 @@ bool sc_set_mission(struct srv_cmd_args *a) {
 }
 
 bool sc_set_bool(struct srv_cmd_args *a) {
-    return true;
+    int success = true;
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    char* bool_str = a->args[1];
+    bool value;
+
+    switch (bool_str[0]) {
+        case '0':
+        case 'f':
+        case 'F':
+            value = false;
+            break;
+        case '1':
+        case 't':
+        case 'T':
+            value = true;
+            break;
+        default:
+            success = false;
+    }
+
+    if (success) {
+        bool *dst = (bool*)a->data1;
+        pthread_mutex_t *lock = (pthread_mutex_t*)a->data2;
+        pthread_mutex_lock(lock);
+        *dst = value;
+        pthread_mutex_unlock(lock);
+        success = true;
+        rsp = str_append(rsp, &buf_size, "setting value to %d", value);
+    } else {
+        rsp = str_append(rsp, &buf_size,
+                         "invalid argument -- \"%s\"", bool_str);
+    }
+
+    a->resp = rsp;
+    return success;
 }
 
 bool sc_set_float(struct srv_cmd_args *a) {
@@ -206,7 +243,7 @@ int main(int argc, char* args[]) {
     {"get_mission", 0, &miss_data,        &miss_data.lock, *sc_get_mission},
     {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
     {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
-    {"shutdown",    0, &quit,             &quit_lock,      *sc_set_bool},
+    {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
     {"set_vel",     1, &rc_data.err_vel,  &rc_data.lock,   *sc_set_float},
     {"set_rot",     1, &rc_data.err_rot,  &rc_data.lock,   *sc_set_float},
     {"set_vel_kp",  1, &BC_SPEED_KP,      bus,             *sc_bus_send_float},
