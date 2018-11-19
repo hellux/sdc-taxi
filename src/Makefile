@@ -45,7 +45,8 @@ comm.gdb: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 comm.pi: CFLAGS += -DPI -O3
 comm.pi: CXXFLAGS += -O3
 comm.pi: COMM_LFLAGS += -lwiringPi
-comm.pi: comm
+comm.pi: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
+comm.pi: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 comm.server: COMM_OBJS += $(OBJDIR)/dbg/server.o
