@@ -19,10 +19,10 @@
 #define SLAVE_CTRL 8
 
 /* bus commands for ctrl */
-struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(ctrl_val_t)};
+struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(ctrl_err_t)};
 struct bus_cmd BC_SPEED_KD = {BCB_SPEED_KD, SLAVE_CTRL, sizeof(ctrl_const_t)};
 struct bus_cmd BC_SPEED_KP = {BCB_SPEED_KP, SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_TURN =     {BCB_TURN,     SLAVE_CTRL, sizeof(ctrl_val_t)};
+struct bus_cmd BC_TURN =     {BCB_TURN,     SLAVE_CTRL, sizeof(ctrl_err_t)};
 struct bus_cmd BC_TURN_KD =  {BCB_TURN_KD,  SLAVE_CTRL, sizeof(ctrl_const_t)};
 struct bus_cmd BC_TURN_KP =  {BCB_TURN_KP,  SLAVE_CTRL, sizeof(ctrl_const_t)};
 struct bus_cmd BC_RST_CTRL = {BCB_RESET,    SLAVE_CTRL, 0 };
@@ -52,8 +52,8 @@ struct data_mission {
 };
 
 struct data_rc {
-    double err_vel;
-    double err_rot;
+    ctrl_err_t err_vel;
+    ctrl_err_t err_rot;
 
     pthread_mutex_t lock;
 };
@@ -109,8 +109,35 @@ bool sc_set_mission(struct srv_cmd_args *a) {
     return true;
 }
 
-bool sc_set_state(struct srv_cmd_args *a) {
+bool sc_set_bool(struct srv_cmd_args *a) {
     return true;
+}
+
+bool sc_set_float(struct srv_cmd_args *a) {
+    int success = false;
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    char* float_str = a->args[1];
+    char *endptr;
+    float value = strtof(float_str, &endptr);
+
+    if (endptr > float_str) {
+        float *dst = (float*)a->data1;
+        pthread_mutex_t *lock = (pthread_mutex_t*)a->data2;
+        pthread_mutex_lock(lock);
+        *dst = value;
+        pthread_mutex_unlock(lock);
+        success = true;
+        rsp = str_append(rsp, &buf_size, "setting value to %f", value);
+    } else {
+        rsp = str_append(rsp, &buf_size,
+                         "invalid argument -- \"%s\"", float_str);
+    }
+
+    a->resp = rsp;
+    return success;
 }
 
 bool sc_bus_send_float(struct srv_cmd_args *a) {
@@ -155,6 +182,8 @@ void bsh_sens_recv(void *received, void *data) {
 
 int main(int argc, char* args[]) {
     bool quit = false;
+    pthread_mutex_t quit_lock;
+    pthread_mutex_init(&quit_lock, 0);
 
     const char *inet_addr = args[1];
     if (!inet_addr) {
@@ -173,17 +202,17 @@ int main(int argc, char* args[]) {
     if (!bus) return EXIT_FAILURE;
 
     struct srv_cmd cmds[] = {
-        {"shutdown",        0, &quit,        NULL, NULL},     /* TODO enable restart from remote */
-        {"get_sensor_data", 0, &sens_data,   NULL, *sc_get_sens},
-        {"get_mission",     0, &miss_data,   NULL, *sc_get_mission},
-        {"set_mission",     1, NULL,         NULL, *sc_set_mission},  /* TODO */
-        {"set_state",       1, NULL,         NULL, *sc_set_state},    /* TODO */
-        {"set_speed_delta", 1, NULL,         bus,  NULL},             /* TODO */
-        {"set_speed_kp",    1, &BC_SPEED_KP, bus,  *sc_bus_send_float},
-        {"set_speed_kd",    1, &BC_SPEED_KD, bus,  *sc_bus_send_float},
-        {"set_turn_delta",  1, NULL,         NULL, NULL},             /* TODO */
-        {"set_turn_kp",     1, &BC_TURN_KP,  bus,  *sc_bus_send_float},
-        {"set_turn_kd",     1, &BC_TURN_KD,  bus,  *sc_bus_send_float},
+    {"get_sensor",  0, &sens_data,        &sens_data.lock, *sc_get_sens},
+    {"get_mission", 0, &miss_data,        &miss_data.lock, *sc_get_mission},
+    {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
+    {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
+    {"shutdown",    0, &quit,             &quit_lock,      *sc_set_bool},
+    {"set_vel",     1, &rc_data.err_vel,  &rc_data.lock,   *sc_set_float},
+    {"set_rot",     1, &rc_data.err_rot,  &rc_data.lock,   *sc_set_float},
+    {"set_vel_kp",  1, &BC_SPEED_KP,      bus,             *sc_bus_send_float},
+    {"set_vel_kd",  1, &BC_SPEED_KD,      bus,             *sc_bus_send_float},
+    {"set_rot_kp",  1, &BC_TURN_KP,       bus,             *sc_bus_send_float},
+    {"set_rot_kd",  1, &BC_TURN_KD,       bus,             *sc_bus_send_float},
     };
     int cmdc = sizeof(cmds)/sizeof(*cmds);
     srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
@@ -194,8 +223,8 @@ int main(int argc, char* args[]) {
 
     char input[100];
     while (!quit) {
-        double err_vel;
-        double err_rot;
+        ctrl_err_t err_vel;
+        ctrl_err_t err_rot;
 
         bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
 
@@ -216,8 +245,11 @@ int main(int argc, char* args[]) {
 
         /* pause loop, enable exit */
         scanf("%s", input);
-        if (input[0] == 'q')
+        if (input[0] == 'q') {
+            pthread_mutex_lock(&quit_lock);
             quit = true;
+            pthread_mutex_unlock(&quit_lock);
+        }
 
         bus_transmit_schedule(bus, &BC_SPEED, (void*)&err_vel, NULL, NULL);
         bus_transmit_schedule(bus, &BC_TURN, (void*)&err_rot, NULL, NULL);
