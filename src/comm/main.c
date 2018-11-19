@@ -15,16 +15,16 @@
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
-#define SLAVE_SENS 10
-#define SLAVE_CTRL 11
+#define SLAVE_SENS 7
+#define SLAVE_CTRL 8
 
 /* bus commands for ctrl */
-struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(err_val_t)};
-struct bus_cmd BC_SPEED_KD = {BCB_SPEED_KD, SLAVE_CTRL, sizeof(reg_const_t)};
-struct bus_cmd BC_SPEED_KP = {BCB_SPEED_KP, SLAVE_CTRL, sizeof(reg_const_t)};
-struct bus_cmd BC_TURN =     {BCB_TURN,     SLAVE_CTRL, sizeof(err_val_t)};
-struct bus_cmd BC_TURN_KD =  {BCB_TURN_KD,  SLAVE_CTRL, sizeof(reg_const_t)};
-struct bus_cmd BC_TURN_KP =  {BCB_TURN_KP,  SLAVE_CTRL, sizeof(reg_const_t)};
+struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(ctrl_val_t)};
+struct bus_cmd BC_SPEED_KD = {BCB_SPEED_KD, SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_SPEED_KP = {BCB_SPEED_KP, SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_TURN =     {BCB_TURN,     SLAVE_CTRL, sizeof(ctrl_val_t)};
+struct bus_cmd BC_TURN_KD =  {BCB_TURN_KD,  SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_TURN_KP =  {BCB_TURN_KP,  SLAVE_CTRL, sizeof(ctrl_const_t)};
 struct bus_cmd BC_RST_CTRL = {BCB_RESET,    SLAVE_CTRL, 0 };
 
 /* bus commands for sens */

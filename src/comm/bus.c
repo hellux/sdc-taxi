@@ -164,6 +164,7 @@ struct bus *bus_create(int freq) {
 
     /* setup spi */
 #ifdef PI
+    wiringPiSPISetupGpio();
     wiringPiSPISetup(CHANNEL, freq);
 #endif
 

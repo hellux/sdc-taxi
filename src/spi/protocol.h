@@ -1,3 +1,5 @@
+#define F_SPI 4000000
+
 /* flags for bus command;
  *  examples:
  *      write speed =   0000 0011 = 3
@@ -17,13 +19,11 @@
 #define BCB_GET_SENS 16
 #define BCB_RESET    32
 
-
-#define F_SPI 4000000
-
-typedef uint8_t sens_dist_t;
+typedef float   sens_dist_t;
 typedef uint8_t sens_rot_t;
-typedef float   reg_const_t;
-typedef float   err_val_t;
+
+typedef float   ctrl_const_t;
+typedef float   ctrl_val_t;
 
 /* format of data sent from sensor via bus */
 struct sens_data_frame {
