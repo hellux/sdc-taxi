@@ -1,9 +1,12 @@
 import tkinter as tk
 from course import Node, NodeType
 from tasks import Task
+from tkinter import *
 
 class GUI():
     LOOP_DELAY = 50
+    PREFIX_SPEED = "Speed: "
+    PREFIX_MODE = "Driving mode: "
 
     def __init__(self, tasks):
         self.tasks = tasks
@@ -20,31 +23,33 @@ class GUI():
 
     def init_gui(self):
         #VARIABLES
-        self.carSpeed = 25
-        self.drivingMode = "Auto"
+        self.car_speed = tk.StringVar()
+        self.driving_mode = tk.StringVar()
+        
+        self.car_speed.set(GUI.PREFIX_SPEED)
+        self.driving_mode.set(GUI.PREFIX_MODE)
 
         #self.window COMPONENTS
-        infoFrame = tk.Frame(self.window, highlightbackground="red")
-        mapFrame = tk.Canvas(self.window, highlightbackground="blue")
+        info_frame = tk.Frame(self.window, highlightbackground="red")
+        map_frame = tk.Canvas(self.window, highlightbackground="blue")
         console = tk.Entry(self.window, highlightbackground="blue")
 
         #BUTTONS
         sendCommandButton = tk.Button(self.window, text="Send command",
             command=lambda:self.tasks.put(Task.SEND, console.get()))
 
-        modeInfo = tk.Label(infoFrame, text="Driving mode: " + self.drivingMode)
-        speedInfo = tk.Label(infoFrame, text = "Speed: " + str(self.carSpeed) +
-                " m/s")
+        drive_label = tk.Label(info_frame, textvariable=self.driving_mode)
+        speed_label = tk.Label(info_frame, textvariable=self.car_speed)
 
-        mapLabel = tk.Label(mapFrame, text="MAP")
+        map_label = tk.Label(map_frame, text="MAP")
         console.insert(0, "Enter command")
         console.bind('<Button-1>', self.clear(console))
 
-        speedInfo.grid(row=0, column=1)
-        modeInfo.grid(row=1, column=1)
+        speed_label.grid(row=0, column=1)
+        drive_label.grid(row=1, column=1)
 
-        infoFrame.grid(row=0, column=0)
-        mapFrame.grid(row=0, column=1)
+        info_frame.grid(row=0, column=0)
+        map_frame.grid(row=0, column=1)
         console.grid(row=1, column=1)
         sendCommandButton.grid(row=1, column=2)
 
@@ -58,17 +63,20 @@ class GUI():
         system_menu = tk.Menu(menuBar)
         
         server_menu = tk.Menu(system_menu)
-        server_menu.add_command(label="Enter IP-address", command=self.connect)
-        system_menu.add_cascade(label="Server", menu=server_menu)
+        server_menu.add_command(label="Connect", command=self.connect)
         
-        system_menu.add_command(label="Quit",
-            command=self.quit)
+        system_menu.add_cascade(label="Server", menu=server_menu)
+        system_menu.add_command(label="Quit", command=self.quit)
+
+        driving_menu = tk.Menu(menuBar)
+        driving_menu.add_command(label="Auto", command=self.drive_auto)
+        driving_menu.add_command(label="Manual", command=self.drive_manual)
+        
         menuBar.add_cascade(label="Map", menu=map_menu)
+        menuBar.add_cascade(label="Driving", menu=driving_menu)
         menuBar.add_cascade(label="System", menu=system_menu)
 
-        #self.window CONFIG
         self.window.title("SvartTaxi AB")
-        #self.window.geometry("640x480")
         self.window.config(menu=menuBar)
 
     def main_loop(self):
@@ -81,6 +89,15 @@ class GUI():
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
 
+
+    def drive_auto(self):
+        self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
+        
+    def drive_manual(self):
+        manuel_control_window = tk.Tk()
+        manuel_control_window.title("Manual driving")
+        self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
+        
     def quit(self):
         self.tasks.put(Task.KILL)
         self.window.destroy()
@@ -95,10 +112,14 @@ class GUI():
         console.delete(0, tk.END)
 
     def connect(self):
-        """
-        tk.Label(self.window, text="Enter valid IP-address").pack()
-        ip_popup = tk.Entry(GUI.window)
-        ip_button = tk.Button(ip_popup, text="Apply IP", command=apply_ip)
-        """
-
-        self.tasks.put(Task.CONNECT, '127.0.0.1')
+        #172.20.10.4
+        ip_popup = tk.Tk()
+        ip_popup.title("Connect to server")
+        ip_input = tk.Entry(ip_popup)
+        ip_button = tk.Button(ip_popup, text="Connect to server", \
+            command=lambda:self.tasks.put(Task.CONNECT, ip_input.get()))
+        ip_input.grid(row=0, column=0)
+        ip_button.grid(row=0, column=1)
+        print(ip_input.get())
+        
+        
