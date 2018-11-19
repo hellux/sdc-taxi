@@ -274,8 +274,10 @@ void ip_process(void) {
     */
     //cv::Mat frame = cv::imread("paso_peatonal.jpg");
     cv::VideoCapture cap(0);
-    if (!cap.isOpened())
-        return;
+    if (!cap.isOpened()) {
+	std::cout << "Hej Dennis! hitta kameran. nununununu\n";
+	return;  
+    }
 
     cv::Mat frame;
     cv::Mat denoised_image;
