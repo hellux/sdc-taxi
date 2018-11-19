@@ -55,9 +55,9 @@ struct order_blocked {
 static void receive(struct bus *bus, const struct bus_cmd *bc,
                     unsigned char *dst) {
 #ifdef PI
-    /* TODO send command first */
     digitalWrite(bc->slave, 1);   // SS high - synch with slave
     digitalWrite(bc->slave, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&bc->cmd, 1);
     wiringPiSPIDataRW(CHANNEL, dst, bc->len);
     digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
@@ -70,9 +70,9 @@ static void receive(struct bus *bus, const struct bus_cmd *bc,
 static void transmit(struct bus *bus, const struct bus_cmd *bc,
                      unsigned char *data) {
 #ifdef PI
-    /* TODO send command first */
     digitalWrite(bc->slave, 1);   // SS high - synch with slave
     digitalWrite(bc->slave, 0);   // SS low - start transmission
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&bc->cmd, 1);
     wiringPiSPIDataRW(CHANNEL, data, bc->len);
     digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
