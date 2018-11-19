@@ -23,7 +23,7 @@ typedef float   sens_dist_t;
 typedef uint8_t sens_rot_t;
 
 typedef float   ctrl_const_t;
-typedef float   ctrl_val_t;
+typedef float   ctrl_err_t;
 
 /* format of data sent from sensor via bus */
 struct sens_data_frame {
