@@ -2,14 +2,11 @@ import threading
 from remote import Client
 from tasks import Task
 
-PORT_START = 9000
-PORT_END = 9100
-
 class Worker(threading.Thread):
-    def __init__(self, tasks):
+    def __init__(self, tasks, client):
         threading.Thread.__init__(self)
 
-        self.client = None
+        self.client = client
         self.tasks = tasks
 
         self.actions = {
@@ -21,15 +18,11 @@ class Worker(threading.Thread):
         self.terminate = False
 
     def task_connect(self, address):
-        self.client = Client(address, PORT_START, PORT_END)
+        self.client.addr = address
         return self.client.connect()
 
     def task_send(self, msg):
-        if self.client:
-            success, response = self.client.send_command(msg)
-            return response
-        else:
-            return "not connected to comm"
+        return self.client.send_cmd_retry(msg)
 
     def task_kill(self):
         self.terminate = True

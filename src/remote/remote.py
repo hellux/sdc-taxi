@@ -4,16 +4,16 @@ import sys
 
 class Command:
     TEST_CONN    = 'check'
-    GET_DATA     = 'get_sensor_data'
+    GET_DATA     = 'get_sensor'
     GET_MISSION  = 'get_mission'
     SET_MISSION  = 'set_mission'
     SET_STATE    = 'set_state'
-    SET_SPEED    = 'set_speed_delta'
-    SET_SPEED_KP = 'set_speed_kp'
-    SET_SPEED_KD = 'set_speed_kd'
-    SET_SPEED    = 'set_turn_delta'
-    SET_SPEED_KP = 'set_turn_kp'
-    SET_SPEED_KD = 'set_turn_kd'
+    SET_SPEED    = 'set_vel'
+    SET_SPEED_KP = 'set_vel_kp'
+    SET_SPEED_KD = 'set_vel_kd'
+    SET_SPEED    = 'set_rot'
+    SET_SPEED_KP = 'set_rot_kp'
+    SET_SPEED_KD = 'set_rot_kd'
 
 class Client():
     BUFSIZE = 4096
@@ -22,15 +22,14 @@ class Client():
     CMD_SEP = ':'
     ARG_SEP = ','
 
-    def __init__(self, addr, port_start, port_end):
+    def __init__(self, port_start, port_end):
         self.socket = None
-        self.addr = addr
         self.port_start = port_start
         self.port_end = port_end
 
     def connected(self):
         if self.socket is None: return False
-        success, response = self.send_command(Command.TEST_CONN)
+        success, response = self.send_cmd(Command.TEST_CONN)
         return success
 
     def connect(self):
@@ -61,7 +60,7 @@ class Client():
             try:
                 self.socket.sendall(string.encode())
                 sent = True;
-            except BrokenPipeError as e:
+            except Exception as e:
                 sys.stderr.write("{}\n".format(e))
             return sent
         else:
@@ -73,7 +72,7 @@ class Client():
         else:
             return None
 
-    def clear(self):
+    def clear_socket(self):
         if self.socket:
             timeout = self.socket.gettimeout()
             self.socket.setblocking(False)
@@ -83,21 +82,28 @@ class Client():
         
     """
     returns:
-        result: True if command successful, False if command failed, None if
+        result: True if cmd successful, False if cmd failed, None if
                 transmission failed
-        response: None if transmission failed, otherwise response from command
+        response: None if transmission failed, otherwise response from cmd
     """
-    def send_command(self, msg):
-        self.clear()
+    def send_cmd(self, msg):
+        self.clear_socket()
         sent = self.send(msg)
         if sent:
-            msg = self.receive()
-            if msg.find(Client.CMD_SEP) >= 0:
+            try: msg = self.receive()
+            except: return None, None
+            if msg and msg.find(Client.CMD_SEP) >= 0:
                 result, response = msg.split(Client.CMD_SEP, 1)
                 return result == Client.RES_SUCCESS, response
-
         return None, None
 
-    def send_command_fmt(self, command, args=[]):
-        msg = command + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
-        return self.send_command(msg)
+    def send_cmd_retry(self, msg):
+        succ, resp = self.send_cmd(msg)
+        if succ is None:
+            if self.connect():
+                succ, resp = self.send_cmd(msg)
+        return resp
+
+    def send_cmd_fmt(self, cmd, args=[]):
+        msg = cmd + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
+        return self.send_cmd_retry(msg)
