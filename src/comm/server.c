@@ -170,8 +170,9 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
     /* parse arguments */
     int bufsize = ARG_BUF_SIZE;
     char **args = malloc(bufsize*sizeof(char*));
-    args[0] = arg_str;
     int argc = 0;
+    args[argc++] = cmd_str;
+    args[argc] = arg_str;
     while (args[argc]) {
         if (argc == bufsize) {
             bufsize *= 2;
@@ -181,7 +182,7 @@ bool parse_cmd(struct server *srv, char *msg, int msglen,
     }
     args = realloc(args, argc*sizeof(char*));
 
-    if (argc < cmd->min_args) {
+    if (argc-1 < cmd->min_args) {
         free(args);
         return false;
     }

@@ -118,11 +118,12 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
     int buf_size = 128;
     char *rsp = malloc(buf_size);
     rsp[0] = '\0';
-
+    
+    char* float_str = a->args[1];
     char *endptr;
-    float value = strtof(a->args[0], &endptr);
+    float value = strtof(float_str, &endptr);
 
-    if (endptr > a->args[0]) {
+    if (endptr > float_str) {
         struct bus_cmd *bc = (struct bus_cmd*)a->data1;
         bus_t *bus = (bus_t*)a->data2;
         bus_transmit_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
@@ -131,7 +132,7 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
         rsp = str_append(rsp, &buf_size, "sending value %f", value);
     } else {
         rsp = str_append(rsp, &buf_size,
-                         "invalid argument -- \"%s\"", a->args[0]);
+                         "invalid argument -- \"%s\"", float_str);
     }
 
     a->resp = rsp;
