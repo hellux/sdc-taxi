@@ -242,11 +242,12 @@ void *srv_thread(void *server) {
     bool quit = false;
     int conn_fd = -1;
 
-    struct timeval tv = {.tv_sec = WAITTIME, .tv_usec = 0};
+    struct timeval tv = {0};
     fd_set rfds;
     
     while (!quit) {
-        /* sleep until request for connection or receive */
+        /* sleep until request for connection or receive, or timeout */
+        tv.tv_sec = WAITTIME;
         FD_ZERO(&rfds);
         FD_SET(srv->listen_fd, &rfds);
         if (conn_fd >= 0) FD_SET(conn_fd, &rfds);
