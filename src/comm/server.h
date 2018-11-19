@@ -2,31 +2,36 @@
 
 typedef struct server srv_t;
 
+/* container for arguments sent to action function */
+struct srv_cmd_args {
+    int argc;
+    char **args;
+    char *resp;
+    void *data1, *data2;
+};
+
+/* helper for creating responses */
+/* str must be valid string with *buf_size bytes allocated */
+char *str_append(char *str, int *buf_size, const char *fmt, ...);
+
 /*
- * data:
+ * data1/data2:
  *      -will be sent to action/response
  *      -used to forward structs with data that will be returned or modified
- * response:
- *      -called if has_response
+ * action:
  *      -called when cmd received
  *      -called from server thread, must be synchronized
  *      -returned string will be freed by server thread
- * action:
- *      -called if has_response is false
- *      -called from main thread via srv_execute_cmds()
+ *      -shall write ptr to response (if any) to a->resp
+ *      -shall return true if command was valid
  */
 struct srv_cmd {
     char *name;
     int min_args;
-    void *data;
-    bool has_response;
-    union {
-        void (*action)(int argc, char **args, void *data);
-        char *(*response)(int argc, char **args, void *data);
-    } func; 
+    void *data1, *data2;
+    bool (*action)(struct srv_cmd_args *a);
 };
 
 srv_t *srv_create(const char *addr, int port_start, int port_end,
                   struct srv_cmd *cmds, int cmdc);
 void srv_destroy(srv_t *server);
-void srv_execute_cmds(srv_t *server);

@@ -42,6 +42,8 @@
 # guides
     network guide med c
         http://beej.us/guide/bgnet/html/multi/index.html
+    async threading med tkinter
+        https://www.oreilly.com/library/view/python-cookbook/0596001673/ch09s07.html
 
 # i2c
     raspberry pi, python:
@@ -72,4 +74,3 @@
 # opencv
     hämta bilder från kamera
         https://www.opencv-srf.com/2017/12/play-video-from-file-or-camera.html
-

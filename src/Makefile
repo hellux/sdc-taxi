@@ -3,21 +3,22 @@ BINDIR = $(OBJDIR)/bin
 SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
-CFLAGS = -Wall -g -std=c99
+CFLAGS = -Wall -Werror -std=c99 -D_POSIX_C_SOURCE=200809L
 
 CXXC = g++
-CXXFLAGS = -Wall `pkg-config --cflags opencv`
+CXXFLAGS = -Wall -Werror `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
 AVRCFLAGS = -Wall -static -Og -DF_CPU=16000000
-DSIM =
 
 PROG_CONF = prog.conf
 PROG_DBG = atmelice
 PROG_PNO = m1284p
 
-COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv` -lwiringPi
+COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
+COMM_MAIN = comm/main
+COMM_BIN = comm
 COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
@@ -36,44 +37,34 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .PHONY: comm
 .SILENT: init
 
-# main.c can be replaced with another file for debugging
-# 	for example, to use dbg/server.c instead of comm/main.c:
-# 		make comm main=dbg/server
-comm: init $(BINDIR)/comm
+# communication module
+comm.gdb: CFLAGS += -ggdb
+comm.gdb: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
+comm.gdb: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
+	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
+comm.pi: CFLAGS += -DPI -O3
+comm.pi: CXXFLAGS += -O3
+comm.pi: COMM_LFLAGS += -lwiringPi
+comm.pi: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
+comm.pi: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
+	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
+		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
+comm.server: COMM_OBJS += $(OBJDIR)/dbg/server.o
+comm.server: init $(OBJDIR)/dbg/server.o $(BINDIR)/comm
+comm.ip: COMM_BIN = comm_ip
+comm.ip: COMM_OBJS += $(OBJDIR)/dbg/ip.o
+comm.ip: init $(OBJDIR)/dbg/ip.o $(BINDIR)/comm
 
+# avr modules
 sens: init $(BINDIR)/sens
-
 ctrl: init $(BINDIR)/ctrl
-
-comm.server: init
-	$(CC) -g dbg/server.c comm/server.c -lpthread -o $(BINDIR)/srv
-
-comm.ip: init
-	$(CC) -c dbg/ip.c -o $(OBJDIR)/dbg/ip.o
-	$(CXXC) -O3 -c $(CXXFLAGS) comm/ip/img_proc.cpp -o $(OBJDIR)/comm/ip/img_proc.o
-	$(CXXC) $(OBJDIR)/comm/ip/img_proc.o $(OBJDIR)/dbg/ip.o -lm `pkg-config --libs opencv` -o $(BINDIR)/ip
-	./$(BINDIR)/ip
-
-# simulate avr
-%.sim: SIM=-DSIM
+%.sim: AVRCFLAGS += -DSIM
 %.sim: init $(SIMDIR)/% $(BINDIR)/%
 	./$(SIMDIR)/$*
-
-# program via debugger
 %.prog: init $(BINDIR)/%.hex
 	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
-
-# program via linux GPIO interface (on RPi)
-# (use predefined programmers gpio_X from conf file)
 %.gpio: init $(BINDIR)/%.hex
 	$(MAKE) $*.prog PROG_DBG=gpio_$*
-
-comm.run: comm
-	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
-
-clean:
-	rm -rf $(OBJDIR)
-	rm -rf $(BINDIR)
 
 init:
 	mkdir -p $(OBJDIR)
@@ -83,27 +74,30 @@ init:
 	mkdir -p $(OBJDIR)/comm/ip
 	mkdir -p $(OBJDIR)/avr
 	mkdir -p $(BINDIR)
+clean:
+	rm -rf $(OBJDIR)
+	rm -rf $(BINDIR)
 
 # compile simulator bench
 $(SIMDIR)/%: dbg/sim/%.c
 	$(CC) -lelf -lsimavr $< -o $@
 
 # compile objects for comm c files
-$(OBJDIR)/%.o: %.c | $(OBJDIR)/comm/
+$(OBJDIR)/%.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
 # compile objects for comm cpp files (only ip files)
 $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
 	$(CXXC) -c $(CXXFLAGS) $< -o $@
 
+# TODO fix multiple mains
 # link comm to binary
-$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(if $(main),$(main),comm/main).o
-	$(eval main=$(if $(main),$(main),comm/main))
-	$(CXXC) $(OBJDIR)/$(main).o $(COMM_OBJS) $(COMM_LFLAGS) -o $@
+$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(COMM_MAIN).o
+	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $(BINDIR)/$(COMM_BIN)
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c
-	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $(SIM) $< -o $@
+	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
 
 # link sens to binary
 $(BINDIR)/sens: $(SENS_OBJS)
@@ -111,7 +105,7 @@ $(BINDIR)/sens: $(SENS_OBJS)
 
 # link ctrl to binary
 $(BINDIR)/ctrl: $(BINDIR) $(CTRL_OBJS)
-	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) -I/home/noah/build-repos/simavr/include $(CTRL_LFLAGS) -o $@
+	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
 
 # create hex from binary
 %.hex: %

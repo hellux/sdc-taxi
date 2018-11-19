@@ -15,13 +15,12 @@ void spi_init_slave(){
     SPDR = 0;
 }
 
-uint8_t spi_tranceive(uint8_t data){
-    // Load data into the buffer
-    SPDR = data;
- 
-    // Wait until transmission complete
-    while(!(SPSR & (1<<SPIF) ));
- 
-    // Return received data
-    return(SPDR);
+void spi_tranceive(uint8_t *data, int len) {
+    for (int i = 0; i < len; i++) {
+        SPDR = data[i];
+
+        while(!(SPSR & (1<<SPIF)));
+
+        data[i] = SPDR;
+    }
 }

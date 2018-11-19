@@ -6,6 +6,8 @@
 #include <util/delay.h>
 #include <avr/io.h>
 
+#include "../spi/protocol.h"
+
 #ifdef SIM
 #include "../dbg/sim/ctrl_header.h"
 #endif
@@ -37,22 +39,21 @@ void pwm_init(){
 }
 
 ISR(SPI_STC_vect){
-    uint8_t data;
+    uint8_t command; 
+    spi_tranceive(&command, 1);
 
-    //Run SPI Recive function 
-    data = spi_tranceive(0);
-
-    //First byte = FF if constant
-    if(data == 0xFF){
-        //Recieve all the bytes needed for the two constants (Kd, Kp)
-        //data = spi_tranceive(0);
+    if(command == BCB_TURN){
+        float data; 
+        spi_tranceive((uint8_t*)&data, 4);
+    
+        OCR1A = data * PWM_TOP; 
     }
-    //First byte = 00 if error
-    else if(data == 0x00){
-        //Recieve the two bytes needed for error
-        //data = spi_tranceive(0);
+    if(command == BCB_SPEED){        
+        float data; 
+        spi_tranceive((uint8_t*)&data, 4);
+    
+        OCR1B = data * PWM_TOP; 
     }
-
 }
 
 float pd_ctrl(volatile pd_values_t *v){
@@ -66,15 +67,19 @@ float pd_ctrl(volatile pd_values_t *v){
 }
 
 int main(int argc, char* args[]) {
-    float duty_vel = 0;
-    float duty_rad = 0;
+    //float duty_vel = 0;
+    //float duty_rad = 0;
 
     pwm_init();
-    //spi_init_slave();
-    //init_jtagport();
+    spi_init_slave();
+    init_jtagport();
     //init_lcdports();
-    
-    //int counter= 0;
+   
+    /*
+    duty_vel = 0.075 * PWM_TOP; 
+    OCR1B = duty_vel;
+    _delay_ms(3000);
+    */
 
     //Enable global interrupts
     sei();
@@ -84,45 +89,14 @@ int main(int argc, char* args[]) {
         //duty_vel = pd_ctrl(&vel);
         //duty_rad = pd_ctrl(&rad);
         
-        duty_vel = 0.075 * PWM_TOP;
+        /*
+        duty_vel = 0.078 * PWM_TOP;
         OCR1B = duty_vel;
-        //duty_rad = 0.078 * PWM_TOP;
-
-        /*                
-        if(counter %4 == 1){
-            duty_rad = 0.077 * PWM_TOP;
-        }
-        else if(counter %4 == 2){
-            duty_rad = 0.075 * PWM_TOP;
-        }
-        else if(counter %4 == 3){
-            duty_rad = 0.073 * PWM_TOP;
-        }
-        else if(counter %4 == 0){
-            duty_rad = 0.075 * PWM_TOP;
-        }
-        counter++;
+        
+        duty_rad = 0.050 * PWM_TOP;
+        OCR1A = duty_rad;
+        _delay_ms(3000);
         */
-        //_delay_ms(2000);        
-         
-        duty_rad = 0.078 * PWM_TOP;
-        OCR1A = duty_rad;
-        _delay_ms(2000);
-
-        duty_rad = 0.075 * PWM_TOP;
-        OCR1A = duty_rad;
-        _delay_ms(2000);
-
-        duty_rad = 0.072 * PWM_TOP;
-        OCR1A = duty_rad;
-        _delay_ms(2000);
-
-        duty_rad = 0.075 * PWM_TOP;
-        OCR1A = duty_rad;
-        _delay_ms(2000);        
-        
-        //OCR1A = duty_rad;
-        
     }
     
     return 0;
