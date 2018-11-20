@@ -8,12 +8,12 @@ class Command:
     GET_MISSION  = 'get_mission'
     SET_MISSION  = 'set_mission'
     SET_STATE    = 'set_state'
-    SET_SPEED    = 'set_vel'
-    SET_SPEED_KP = 'set_vel_kp'
-    SET_SPEED_KD = 'set_vel_kd'
-    SET_SPEED    = 'set_rot'
-    SET_SPEED_KP = 'set_rot_kp'
-    SET_SPEED_KD = 'set_rot_kd'
+    SET_VEL    = 'set_vel'
+    SET_VEL_KP = 'set_vel_kp'
+    SET_VEL_KD = 'set_vel_kd'
+    SET_ROT    = 'set_rot'
+    SET_ROT_KP = 'set_rot_kp'
+    SET_ROT_KD = 'set_rot_kd'
 
 class Client():
     BUFSIZE = 4096
