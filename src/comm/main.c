@@ -281,8 +281,8 @@ int main(int argc, char* args[]) {
         }
 
         /* pause loop, enable exit */
-        scanf("%s", input);
-        if (input[0] == 'q') {
+        int len = scanf("%s", input);
+        if (len > 0 && input[0] == 'q') {
             pthread_mutex_lock(&quit_lock);
             quit = true;
             pthread_mutex_unlock(&quit_lock);
