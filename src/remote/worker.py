@@ -1,5 +1,5 @@
 import threading
-from remote import Client
+from remote import Client, Command
 from tasks import Task
 
 class Worker(threading.Thread):

@@ -96,11 +96,19 @@ class GUI():
         self.keys["direction"] = True
         self.tasks.put(Task.MOVE, self.keys.copy())
         
+    def button_up(self, event, direction):
+        self.keys["direction"] = False
+        
     def bind_keys(self):
         self.window.bind("<Left>", self.button_down(self, "LEFT"))
         self.window.bind("<Right>", self.button_down(self, "RIGHT"))
         self.window.bind("<Up>", self.button_down(self, "UP"))
         self.window.bind("<Down>", self.button_down(self, "DOWN"))
+        
+        self.window.bind("<KeyRelease-Left>", self.button_up(self, "LEFT"))
+        self.window.bind("<KeyRelease-Right>", self.button_up(self, "RIGHT"))
+        self.window.bind("<KeyRelease-Up>", self.button_up(self, "UP"))
+        self.window.bind("<KeyRelease-Down>", self.button_up(self, "DOWN"))
         
     def unbind_keys(self):
         self.window.unbind("<Left>")
