@@ -9,19 +9,20 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 
+#include "../spi/protocol.h"
+
 #define ADC_PRESCALER_128 0x07
 
-#define DIST_FRONT_MUL 17391
-#define DIST_FRONT_EXP 1.071
+#define CNV_FRONT_MUL 17391
+#define CNV_FRONT_EXP 1.071
 
-#define DIST_RIGHT_MUL 2680
-#define DIST_RIGHT_EXP 1.018
+#define CNV_SIZE_MUL 2680
+#define CNV_SIZE_EXP 1.018
 
-struct sens_values {
-    uint16_t dist_front;    // distance to object (front)
-    uint16_t dist_side;    // distance to object (side)
-    uint8_t rotations;      // Wheel rotations since last tranceive
-};
+#define CHN_SENS_FRONT 0;
+#define CHN_SENS_RIGHT 1;
+//#define WHEEL_SENSOR ;
+
 
 void adc_init() {
 	//mux init
@@ -52,19 +53,25 @@ uint16_t adc_read(uint8_t channel) {
 }
 
 // SPI Transmission/reception complete ISR
-ISR(SPI_STC_vect)
-{
+ISR(SPI_STC_vect) {
     // Code to execute
     // whenever transmission/reception
     // is complete.
+    float data = sensors.dist_front; 
+    spi_tranceive(&data, sizeof(sensors));
 }
 
 /*
 	Convert voltage to distance (front sensor)
 */
-float ir_front_sensor(uint16_t adc_val){
-	return DIST_FRONT_EXP*pow(adc_val, -DIST_FRONT_EXP);
-}
+float sensor_to_cm(uint16_t adc_val, uint8_t channel) {
+
+    if(channel = CHN_SENS_FRONT) {
+	return CNV_FRONT_EXP*pow(adc_val, -DIST_FRONT_EXP);
+
+    } else {
+        return CNV_SIDE_EXP*pow(adc_val, -CNV_SIDE_EXP);
+    }
 
 /*
 	other formula:
@@ -79,25 +86,32 @@ float ir_front_sensor(uint16_t adc_val){
 
 
 int main(void) {
-    volatile struct sens_values *values = {0};
+    //volatile struct sens_values *values = {0};
+    struct sens_data_frame sensors; 
+    
+    //lcd_init(); 
+    DDRA = 0x00; 
+    //lcd
+    DDRD = 0xFF;
 
-	unsigned channel = MUX0;
-
-	adc_init();
-
-	//spi conf
+    //spi conf
     spi_init_slave();
+
     //port conf
     init_jtagport();
-    init_lcdports();
 
-	// Enable global interrupts
-	sei();
+    // Enable global interrupts
+    sei();
 
-	// Setup A/D-converter
-	adc_init();
+    // Setup A/D-converter
+    adc_init();
 
     while(1){
+	
+	uint16_t adc_val =  adc_read(CHN_SENS_FRONT);	
+	sensors.dist_front = sensor_to_cm(adc_val, CHN_SENS_FRONT);
+	
+	PORTD = sensors.dist_front;	   
     }
     return 0;
 }
