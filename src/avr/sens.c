@@ -16,13 +16,14 @@
 #define CNV_FRONT_MUL 17391
 #define CNV_FRONT_EXP 1.071
 
-#define CNV_SIZE_MUL 2680
-#define CNV_SIZE_EXP 1.018
+#define CNV_SIDE_MUL 2680
+#define CNV_SIDE_EXP 1.018
 
-#define CHN_SENS_FRONT 0;
-#define CHN_SENS_RIGHT 1;
+#define CHN_SENS_FRONT 0
+#define CHN_SENS_RIGHT 1
 //#define WHEEL_SENSOR ;
 
+volatile struct sens_data_frame sensors; 
 
 void adc_init() {
 	//mux init
@@ -54,11 +55,13 @@ uint16_t adc_read(uint8_t channel) {
 
 // SPI Transmission/reception complete ISR
 ISR(SPI_STC_vect) {
+    cli();
     // Code to execute
     // whenever transmission/reception
     // is complete.
     float data = sensors.dist_front; 
-    spi_tranceive(&data, sizeof(sensors));
+    spi_tranceive((uint8_t*)&data, sizeof(sensors));
+    sei();
 }
 
 /*
@@ -66,12 +69,13 @@ ISR(SPI_STC_vect) {
 */
 float sensor_to_cm(uint16_t adc_val, uint8_t channel) {
 
-    if(channel = CHN_SENS_FRONT) {
-	return CNV_FRONT_EXP*pow(adc_val, -DIST_FRONT_EXP);
+    if(channel == CHN_SENS_FRONT) {
+	return CNV_FRONT_EXP*pow(adc_val, -CNV_FRONT_EXP);
 
     } else {
         return CNV_SIDE_EXP*pow(adc_val, -CNV_SIDE_EXP);
     }
+}
 
 /*
 	other formula:
@@ -87,7 +91,6 @@ float sensor_to_cm(uint16_t adc_val, uint8_t channel) {
 
 int main(void) {
     //volatile struct sens_values *values = {0};
-    struct sens_data_frame sensors; 
     
     //lcd_init(); 
     DDRA = 0x00; 
