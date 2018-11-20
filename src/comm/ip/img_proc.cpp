@@ -276,7 +276,10 @@ void ip_process(void) {
     if (!cap.isOpened()) {
 	std::cout << "Hej Dennis! hitta kameran. Nununununu\n";
 	return;  
-    }
+    } 
+    std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
+    cap.set(CV_CAP_PROP_FPS, 60);
+    std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
 
     cv::Mat frame;
     cv::Mat denoised_image;
@@ -289,14 +292,20 @@ void ip_process(void) {
     
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
 
-    while (true) {
-        /* grab and decode latest frame */
-        while (cap.get(CAP_PROP_FRAME_COUNT) > 0) cap.grab();
+    /*while (true) {
+        //grab and decode latest frame 
+        while (cap.get(CV_CAP_PROP_FRAME_COUNT) > 0) cap.grab();
         bool succ = cap.retrieve(frame);
         if (succ != true) {
             break;
-        }
-
+        }*/
+    while (true) {
+	
+	cap.read(fream);
+	if (frame.empty()) {
+	    std::cout << "EmptyFrame \n";
+	    break;
+	}
         edges_image = img_edge_detector(frame);
 
         masked_image = mask_image(edges_image);
