@@ -5,6 +5,7 @@ class Task(Enum):
     CONNECT = auto()
     SEND = auto()
     KILL = auto()
+    MOVE = auto()
 
 class TaskQueue():
     def __init__(self):

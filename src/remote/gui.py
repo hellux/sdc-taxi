@@ -1,3 +1,4 @@
+from __future__ import print_function
 import tkinter as tk
 from course import Node, NodeType
 from tasks import Task
@@ -25,6 +26,7 @@ class GUI():
         #VARIABLES
         self.car_speed = tk.StringVar()
         self.driving_mode = tk.StringVar()
+        self.keys = {"LEFT":False, "RIGHT":False, "FORWARD":False, "REVERSE":False}
         
         self.car_speed.set(GUI.PREFIX_SPEED)
         self.driving_mode.set(GUI.PREFIX_MODE)
@@ -77,7 +79,7 @@ class GUI():
         menuBar.add_cascade(label="System", menu=system_menu)
 
         self.window.title("SvartTaxi AB")
-        self.window.config(menu=menuBar)
+        self.window.config(menu=menuBar) 
 
     def main_loop(self):
         task_pair = self.tasks.get_completed(block=False)
@@ -88,14 +90,31 @@ class GUI():
                 action(*result)
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
-
-
+        
+        
+    def button_down(self, event, direction):
+        self.keys["direction"] = True
+        self.tasks.put(Task.MOVE, self.keys.copy())
+        
+    def bind_keys(self):
+        self.window.bind("<Left>", self.button_down(self, "LEFT"))
+        self.window.bind("<Right>", self.button_down(self, "RIGHT"))
+        self.window.bind("<Up>", self.button_down(self, "UP"))
+        self.window.bind("<Down>", self.button_down(self, "DOWN"))
+        
+    def unbind_keys(self):
+        self.window.unbind("<Left>")
+        self.window.unbind("<Right>")
+        self.window.unbind("<Up>")
+        self.window.unbind("<Down>")
+        
     def drive_auto(self):
+        self.unbind_keys()
         self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
         
     def drive_manual(self):
-        manuel_control_window = tk.Tk()
-        manuel_control_window.title("Manual driving")
+        self.bind_keys()
+        self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
         
     def quit(self):
@@ -107,12 +126,11 @@ class GUI():
 
     def create_map(self):
         print("Create")
-
+  
     def clear(self, console):
         console.delete(0, tk.END)
 
     def connect(self):
-        #172.20.10.4
         ip_popup = tk.Tk()
         ip_popup.title("Connect to server")
         ip_input = tk.Entry(ip_popup)
@@ -120,6 +138,3 @@ class GUI():
             command=lambda:self.tasks.put(Task.CONNECT, ip_input.get()))
         ip_input.grid(row=0, column=0)
         ip_button.grid(row=0, column=1)
-        print(ip_input.get())
-        
-        
