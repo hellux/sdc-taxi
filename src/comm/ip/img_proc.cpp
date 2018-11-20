@@ -164,7 +164,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
             right_pts.push_back(end);
             std::cout << "right_ " << start << "-" << end << "\n";
         }
-        if (right_points.size() > 0) {
+        if (right_pts.size() > 0) {
             cv::fitLine(right_pts, right_line, CV_DIST_L2, 0, 0.01, 0.01);
             rline_slope = right_line[1] / right_line[0];
             raxis_intersection = cv::Point(right_line[2], right_line[3]);
@@ -227,7 +227,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     std::vector<cv::Point> polygon_pts;
     cv::Mat lane;
 
-    original_frame.copyTo(lane);
+    original_img.copyTo(lane);
     polygon_pts.push_back(points[0]);
     polygon_pts.push_back(points[1]);
     polygon_pts.push_back(points[3]);
@@ -252,7 +252,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     }*/
 
     std::string message = "De baxar dina byxor!!!";
-    cv::putText(original_frame, message, cv::Point(50, 150), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(255, 0, 0), 5, CV_FILLED);
+    cv::putText(original_img, message, cv::Point(50, 150), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(255, 0, 0), 5, CV_FILLED);
 
     std::cout << "point 1: " << points[1] << "\n";
     std::cout << "center: " << img_center_pt << "\n";
@@ -260,7 +260,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     dist = std::sqrt(pow(points[1].x-img_center_pt, 2) + pow(points[1].y-720, 2));
     std::string distance = std::to_string(dist);
 
-    cv::putText(original_frame, distance, cv::Point(620, 500), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
+    cv::putText(original_img, distance, cv::Point(620, 500), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
 }
 
 void ip_process(void) {
@@ -290,9 +290,9 @@ void ip_process(void) {
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
 
     while (true) {
-
-        if (!cap.read(frame))
-            break;
+        /* grab and decode latest frame */
+        while (cap.get(CAP_PROP_FRAME_COUNT) > 0) cap.grab();
+        cap.retrieve(frame);
 
         edges_image = img_edge_detector(frame);
 
