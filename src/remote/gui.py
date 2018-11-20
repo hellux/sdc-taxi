@@ -98,6 +98,7 @@ class GUI():
         
     def button_up(self, event, direction):
         self.keys[direction] = False
+        self.tasks.put(Task.MOVE, self.keys.copy())
         
     def bind_keys(self):
         self.window.bind("<Left>", lambda e:self.button_down(e, "LEFT"))
@@ -118,9 +119,11 @@ class GUI():
         
     def drive_auto(self):
         self.unbind_keys()
+        self.tasks.put(Task.SET_AUTO, True)
         self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
         
     def drive_manual(self):
+        self.tasks.put(Task.SET_AUTO, False)
         self.bind_keys()
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
