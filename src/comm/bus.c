@@ -53,10 +53,12 @@ struct order_blocked {
 
 static void tranceive(struct bus *bus, const struct bus_cmd *bc,
                       void *msg) {
+    /* prevent overwriting command by creating a copy */
+    int cmd = bc->cmd;
 #ifdef PI
     digitalWrite(bc->slave, 1);   // SS high - synch with slave
     digitalWrite(bc->slave, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&bc->cmd, 1);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cmd, 1);
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
     digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
