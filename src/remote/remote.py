@@ -51,21 +51,6 @@ class Client():
             sys.stderr.write("server: connection via port {}\n".format(port))
         return connected
 
-    """
-    returns: True if msg sent, otherwise False
-    """
-    def send(self, string):
-        if self.socket:
-            sent = False
-            try:
-                self.socket.sendall(string.encode())
-                sent = True;
-            except BrokenPipeError as e:
-                sys.stderr.write("{}\n".format(e))
-            return sent
-        else:
-            return False
-
     def receive(self):
         if self.socket:
             return self.socket.recv(Client.BUFSIZE).decode()
@@ -79,7 +64,7 @@ class Client():
             try: self.receive()
             except OSError: pass
             self.socket.settimeout(timeout)
-        
+    
     """
     returns:
         result: True if cmd successful, False if cmd failed, None if
@@ -88,7 +73,12 @@ class Client():
     """
     def send_cmd(self, msg):
         self.clear_socket()
-        sent = self.send(msg)
+        sent = False
+        try:
+            self.socket.sendall(msg.encode())
+            sent = True;
+        except BrokenPipeError as e:
+            sys.stderr.write("{}\n".format(e))
         if sent:
             try: msg = self.receive()
             except: return None, None
