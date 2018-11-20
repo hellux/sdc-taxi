@@ -17,10 +17,10 @@
 #define PWM_TOP F_CPU*PWM_T/PWM_PSC
 
 typedef struct {
-    float kp;           //Constant Pro
-    float kd;           //Constant Der
-    float err;          //Error
-    float last_err;     //Previous error
+    ctrl_const_t kp;            //Constant Pro
+    ctrl_const_t kd;            //Constant Der
+    ctrl_err_t err;             //Error
+    ctrl_err_t last_err;        //Previous error
 } pd_values_t;
 
 volatile pd_values_t vel;
@@ -39,21 +39,60 @@ void pwm_init(){
 }
 
 ISR(SPI_STC_vect){
+    cli();
     uint8_t command; 
-    spi_tranceive(&command, 1);
+    spi_tranceive(&command, sizeof(command));
 
-    if(command == BCB_TURN){
+    if(command == BCB_ROT){
         float data; 
-        spi_tranceive((uint8_t*)&data, 4);
-    
-        OCR1A = data * PWM_TOP; 
+        spi_tranceive((uint8_t*)&data, sizeof(data));
+        if(data < 0.05){
+            OCR1A = 0.05 * PWM_TOP; 
+        }
+        else if(data > 0.10){
+            OCR1A = 0.10 * PWM_TOP; 
+        }
+        else{
+            OCR1A = data * PWM_TOP; 
+        }
     }
-    if(command == BCB_SPEED){        
+
+    else if(command == BCB_VEL){        
         float data; 
-        spi_tranceive((uint8_t*)&data, 4);
-    
-        OCR1B = data * PWM_TOP; 
+        spi_tranceive((uint8_t*)&data, sizeof(data));
+        if(data < 0.05){  
+          OCR1B = 0.05 * PWM_TOP; 
+        }
+        else if(data > 0.079){  
+          OCR1B = 0.079 * PWM_TOP; 
+        }
+        else{
+          OCR1B = data * PWM_TOP; 
+        }
     }
+   /* 
+    else if(command == BCB_VEL_KP){
+        float data; 
+        spi_tranceive((uint8_t*)&data, sizeof(data));
+        vel->kp = data;
+    }
+    else if(command == BCB_VEL_KD){
+        float data; 
+        spi_tranceive((uint8_t*)&data, sizeof(data));
+        vel->kd = data;
+    }
+    else if(command == BCB_ROT_KP){
+        float data; 
+        spi_tranceive((uint8_t*)&data, sizeof(data));
+        rad->kp = data;
+    }
+    else if(command == BCB_ROT_KP){
+        float data; 
+        spi_tranceive((uint8_t*)&data, sizeof(data));
+        rad->kp = data;
+    }
+    */
+    sei();
 }
 
 float pd_ctrl(volatile pd_values_t *v){
@@ -75,12 +114,6 @@ int main(int argc, char* args[]) {
     init_jtagport();
     //init_lcdports();
    
-    /*
-    duty_vel = 0.075 * PWM_TOP; 
-    OCR1B = duty_vel;
-    _delay_ms(3000);
-    */
-
     //Enable global interrupts
     sei();
 
