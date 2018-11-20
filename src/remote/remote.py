@@ -72,6 +72,7 @@ class Client():
         response: None if transmission failed, otherwise response from cmd
     """
     def send_cmd(self, msg):
+        print("sending cmd:", msg)
         self.clear_socket()
         sent = False
         try:

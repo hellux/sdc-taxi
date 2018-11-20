@@ -35,6 +35,7 @@ class Worker(threading.Thread):
         self.terminate = True
 
     def task_move(self, keys):
+        print(keys)
         vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
         rot = int(keys["RIGHT"]) - int(keys["LEFT"])
 

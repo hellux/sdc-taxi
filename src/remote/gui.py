@@ -93,22 +93,24 @@ class GUI():
         
         
     def button_down(self, event, direction):
-        self.keys["direction"] = True
+        print("down:", direction)
+        self.keys[direction] = True
         self.tasks.put(Task.MOVE, self.keys.copy())
         
     def button_up(self, event, direction):
-        self.keys["direction"] = False
+        print("up:", direction)
+        self.keys[direction] = False
         
     def bind_keys(self):
-        self.window.bind("<Left>", self.button_down(self, "LEFT"))
-        self.window.bind("<Right>", self.button_down(self, "RIGHT"))
-        self.window.bind("<Up>", self.button_down(self, "UP"))
-        self.window.bind("<Down>", self.button_down(self, "DOWN"))
+        self.window.bind("<Left>", lambda e:self.button_down(e, "LEFT"))
+        self.window.bind("<Right>", lambda e:self.button_down(e, "RIGHT"))
+        self.window.bind("<Up>", lambda e:self.button_down(e, "UP"))
+        self.window.bind("<Down>", lambda e:self.button_down(e, "DOWN"))
         
-        self.window.bind("<KeyRelease-Left>", self.button_up(self, "LEFT"))
-        self.window.bind("<KeyRelease-Right>", self.button_up(self, "RIGHT"))
-        self.window.bind("<KeyRelease-Up>", self.button_up(self, "UP"))
-        self.window.bind("<KeyRelease-Down>", self.button_up(self, "DOWN"))
+        self.window.bind("<KeyRelease-Left>", lambda e: self.button_up(e, "LEFT"))
+        self.window.bind("<KeyRelease-Right>", lambda e: self.button_up(e, "RIGHT"))
+        self.window.bind("<KeyRelease-Up>", lambda e: self.button_up(e, "UP"))
+        self.window.bind("<KeyRelease-Down>", lambda e: self.button_up(e, "DOWN"))
         
     def unbind_keys(self):
         self.window.unbind("<Left>")
