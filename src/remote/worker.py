@@ -35,33 +35,11 @@ class Worker(threading.Thread):
         self.terminate = True
 
     def task_move(self, keys):
-        if(keys["LEFT"]):
-            task_send(self, SET_SPEED)
-            task_send(self, SPEED_FORWARD)
-            task_send(self, SET_ROT)
-            task_send(self, LEFT_TURN)
-            keys["LEFT"] = False
-            
-        if(keys["RIGHT"]):
-            task_send(self, SET_SPEED)
-            task_send(self, SPEED_FORWARD)
-            task_send(self, SET_ROT)
-            task_send(self, RIGHT_TURN)
-            keys["RIGHT"] = False
-            
-        if(keys["FORWARD"]):
-            task_send(self, SET_SPEED)
-            task_send(self, SPEED_FORWARD)
-            keys["FORWARD"] = False
-            
-        if(keys["REVERSE"]):
-            task_send(self, SET_SPEED)
-            task_send(self, SPEED_REVERSE)
-            keys["REVERSE"] = False
-            
-        if(all(dir == False for dir in keys.values())):
-            task_send(self, SET_SPEED)
-            task_send(self, SPEED_STOP)
+        vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
+        rot = int(keys["RIGHT"]) - int(keys["LEFT"])
+
+        self.client.send_cmd_fmt(Command.SET_VEL, [vel])
+        self.client.send_cmd_fmt(Command.SET_ROT, [rot])
             
     def run(self):
         while not self.terminate:
