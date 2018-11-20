@@ -292,7 +292,10 @@ void ip_process(void) {
     while (true) {
         /* grab and decode latest frame */
         while (cap.get(CAP_PROP_FRAME_COUNT) > 0) cap.grab();
-        cap.retrieve(frame);
+        bool succ = cap.retrieve(frame);
+        if (succ != true) {
+            break;
+        }
 
         edges_image = img_edge_detector(frame);
 

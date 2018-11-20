@@ -19,12 +19,12 @@
 #define SLAVE_CTRL 8
 
 /* bus commands for ctrl */
-struct bus_cmd BC_SPEED =    {BCB_SPEED,    SLAVE_CTRL, sizeof(ctrl_err_t)};
-struct bus_cmd BC_SPEED_KD = {BCB_SPEED_KD, SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_SPEED_KP = {BCB_SPEED_KP, SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_TURN =     {BCB_TURN,     SLAVE_CTRL, sizeof(ctrl_err_t)};
-struct bus_cmd BC_TURN_KD =  {BCB_TURN_KD,  SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_TURN_KP =  {BCB_TURN_KP,  SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_VEL =    {BCB_VEL,    SLAVE_CTRL, sizeof(ctrl_err_t)};
+struct bus_cmd BC_VEL_KD = {BCB_VEL_KD, SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_VEL_KP = {BCB_VEL_KP, SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_ROT =     {BCB_ROT,     SLAVE_CTRL, sizeof(ctrl_err_t)};
+struct bus_cmd BC_ROT_KD =  {BCB_ROT_KD,  SLAVE_CTRL, sizeof(ctrl_const_t)};
+struct bus_cmd BC_ROT_KP =  {BCB_ROT_KP,  SLAVE_CTRL, sizeof(ctrl_const_t)};
 struct bus_cmd BC_RST_CTRL = {BCB_RESET,    SLAVE_CTRL, 0 };
 
 /* bus commands for sens */
@@ -246,10 +246,10 @@ int main(int argc, char* args[]) {
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
     {"set_vel",     1, &rc_data.err_vel,  &rc_data.lock,   *sc_set_float},
     {"set_rot",     1, &rc_data.err_rot,  &rc_data.lock,   *sc_set_float},
-    {"set_vel_kp",  1, &BC_SPEED_KP,      bus,             *sc_bus_send_float},
-    {"set_vel_kd",  1, &BC_SPEED_KD,      bus,             *sc_bus_send_float},
-    {"set_rot_kp",  1, &BC_TURN_KP,       bus,             *sc_bus_send_float},
-    {"set_rot_kd",  1, &BC_TURN_KD,       bus,             *sc_bus_send_float},
+    {"set_vel_kp",  1, &BC_VEL_KP,        bus,             *sc_bus_send_float},
+    {"set_vel_kd",  1, &BC_VEL_KD,        bus,             *sc_bus_send_float},
+    {"set_rot_kp",  1, &BC_ROT_KP,        bus,             *sc_bus_send_float},
+    {"set_rot_kd",  1, &BC_ROT_KD,        bus,             *sc_bus_send_float},
     };
     int cmdc = sizeof(cmds)/sizeof(*cmds);
     srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
@@ -288,8 +288,8 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&quit_lock);
         }
 
-        bus_transmit_schedule(bus, &BC_SPEED, (void*)&err_vel, NULL, NULL);
-        bus_transmit_schedule(bus, &BC_TURN, (void*)&err_rot, NULL, NULL);
+        bus_transmit_schedule(bus, &BC_VEL, (void*)&err_vel, NULL, NULL);
+        bus_transmit_schedule(bus, &BC_ROT, (void*)&err_rot, NULL, NULL);
     }
 
     srv_destroy(srv);
