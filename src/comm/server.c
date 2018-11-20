@@ -219,7 +219,7 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
             strcpy(msg_rsp, prefix);
             strcpy(msg_rsp+prefix_len, a.resp);
         } else {
-            msg_rsp = malloc(prefix_len);
+            msg_rsp = malloc(prefix_len+1);
             strcpy(msg_rsp, prefix);
         }
         free(a.resp);
@@ -230,7 +230,7 @@ char* execute_cmd(struct server *srv, char* msg, int msglen) {
         } else {
             msg_rsp_lit = RSP_FAILURE_PRE RSP_INVALID_CMD;
         }
-        msg_rsp = malloc(strlen(msg_rsp_lit));
+        msg_rsp = malloc(strlen(msg_rsp_lit)+1);
         strcpy(msg_rsp, msg_rsp_lit);
     }
 
@@ -260,24 +260,23 @@ void *srv_thread(void *server) {
         if (conn_fd_new >= 0) {
             if (conn_fd >= 0) close(conn_fd);
             conn_fd = conn_fd_new;
-        }
+        } else { /* handle msg if received */
+            int msglen;
+            char *msg = receive(conn_fd, &msglen);
+            if (msglen > 0) {
+                char *msg_rsp = execute_cmd(srv, msg, msglen);
+                free(msg);
 
-        /* handle msg if received */
-        int msglen;
-        char *msg = receive(conn_fd, &msglen);
-        if (msglen > 0) {
-            char *msg_rsp = execute_cmd(srv, msg, msglen);
-            free(msg);
-
-            send(conn_fd, msg_rsp, strlen(msg_rsp), 0);
-            free(msg_rsp);
-        } else {
-            /* ensure remote still available, otherwise close socket */
-            char *msg_rsp = "heartbeat";
-            int sent = send(conn_fd, msg_rsp, strlen(msg_rsp), MSG_NOSIGNAL);
-            if (sent < 0) {
-                close(conn_fd);
-                conn_fd = -1;
+                send(conn_fd, msg_rsp, strlen(msg_rsp), 0);
+                free(msg_rsp);
+            } else if (FD_ISSET(srv->listen_fd, &rfds)) {
+                /* ensure remote still available, otherwise close socket */
+                char *msg_rsp = "heartbeat";
+                int sent = send(conn_fd, msg_rsp, strlen(msg_rsp), MSG_NOSIGNAL);
+                if (sent < 0) {
+                    close(conn_fd);
+                    conn_fd = -1;
+                }
             }
         }
 

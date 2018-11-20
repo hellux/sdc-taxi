@@ -301,7 +301,7 @@ void ip_process(void) {
         }*/
     while (true) {
 	
-	cap.read(fream);
+	cap.read(frame);
 	if (frame.empty()) {
 	    std::cout << "EmptyFrame \n";
 	    break;

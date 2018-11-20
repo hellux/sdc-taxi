@@ -62,7 +62,7 @@ static void tranceive(struct bus *bus, const struct bus_cmd *bc,
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
     digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
-    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    printf("transmit via command %d to %d: ", cmd, bc->slave);
     for (int i = 0; i < bc->len; i++)
         printf("%x ", ((uint8_t*)msg)[i]);
     printf("\n");

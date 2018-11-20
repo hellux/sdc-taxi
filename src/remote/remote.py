@@ -8,12 +8,12 @@ class Command:
     GET_MISSION  = 'get_mission'
     SET_MISSION  = 'set_mission'
     SET_STATE    = 'set_state'
-    SET_SPEED    = 'set_vel'
-    SET_SPEED_KP = 'set_vel_kp'
-    SET_SPEED_KD = 'set_vel_kd'
-    SET_SPEED    = 'set_rot'
-    SET_SPEED_KP = 'set_rot_kp'
-    SET_SPEED_KD = 'set_rot_kd'
+    SET_VEL    = 'set_vel'
+    SET_VEL_KP = 'set_vel_kp'
+    SET_VEL_KD = 'set_vel_kd'
+    SET_ROT    = 'set_rot'
+    SET_ROT_KP = 'set_rot_kp'
+    SET_ROT_KD = 'set_rot_kd'
 
 class Client():
     BUFSIZE = 4096
@@ -30,7 +30,7 @@ class Client():
     def connected(self):
         if self.socket is None: return False
         success, response = self.send_cmd(Command.TEST_CONN)
-        return success
+        return success == True
 
     def connect(self):
         if self.socket: self.socket.close();
@@ -60,7 +60,7 @@ class Client():
             try:
                 self.socket.sendall(string.encode())
                 sent = True;
-            except Exception as e:
+            except BrokenPipeError as e:
                 sys.stderr.write("{}\n".format(e))
             return sent
         else:
@@ -95,6 +95,9 @@ class Client():
             if msg and msg.find(Client.CMD_SEP) >= 0:
                 result, response = msg.split(Client.CMD_SEP, 1)
                 return result == Client.RES_SUCCESS, response
+            else:
+                sys.stderr.write(
+                    'server: invalid response received -- "{}"\n'.format(msg))
         return None, None
 
     def send_cmd_retry(self, msg):
@@ -102,7 +105,7 @@ class Client():
         if succ is None:
             if self.connect():
                 succ, resp = self.send_cmd(msg)
-        return resp
+        return succ, resp
 
     def send_cmd_fmt(self, cmd, args=[]):
         msg = cmd + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
