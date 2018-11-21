@@ -16,6 +16,11 @@
 #define PWM_PSC 16
 #define PWM_TOP F_CPU*PWM_T/PWM_PSC
 
+#define MIN_RAD 0.05 // Full left turn
+#define MAX_RAD 0.10 // Full right turn
+#define MIN_VEL 0.071 // Backing
+#define MAX_VEL 0.079 
+
 typedef struct {
     ctrl_const_t kp;            //Constant Pro
     ctrl_const_t kd;            //Constant Der
@@ -46,11 +51,11 @@ ISR(SPI_STC_vect){
     if(command == BCB_ROT){
         float data; 
         spi_tranceive((uint8_t*)&data, sizeof(data));
-        if(data < 0.05){
-            OCR1A = 0.05 * PWM_TOP; 
+        if(data < MIN_RAD){
+            OCR1A = MIN_RAD * PWM_TOP; 
         }
-        else if(data > 0.10){
-            OCR1A = 0.10 * PWM_TOP; 
+        else if(data > MAX_RAD){
+            OCR1A = MAX_RAD * PWM_TOP; 
         }
         else{
             OCR1A = data * PWM_TOP; 
@@ -60,17 +65,17 @@ ISR(SPI_STC_vect){
     else if(command == BCB_VEL){        
         float data; 
         spi_tranceive((uint8_t*)&data, sizeof(data));
-        if(data < 0.05){  
-          OCR1B = 0.05 * PWM_TOP; 
+        if(data < MIN_VEL){  
+          OCR1B = MIN_VEL * PWM_TOP; 
         }
-        else if(data > 0.079){  
-          OCR1B = 0.079 * PWM_TOP; 
+        else if(data > MAX_VEL){  
+          OCR1B = MAX_VEL * PWM_TOP; 
         }
         else{
           OCR1B = data * PWM_TOP; 
         }
     }
-   /* 
+    
     else if(command == BCB_VEL_KP){
         float data; 
         spi_tranceive((uint8_t*)&data, sizeof(data));
@@ -91,7 +96,7 @@ ISR(SPI_STC_vect){
         spi_tranceive((uint8_t*)&data, sizeof(data));
         rad->kp = data;
     }
-    */
+    
     sei();
 }
 
