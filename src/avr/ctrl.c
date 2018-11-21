@@ -19,7 +19,7 @@
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
 #define VEL_MAX 0.2
-#define ROT_MAX 0.3
+#define ROT_MAX 0.95
 
 #define PWM_T 0.020
 #define PWM_PSC 16
@@ -56,9 +56,9 @@ float pd_ctrl(volatile struct pd_values *v){
 
 ISR(SPI_STC_vect){
     cli();
-    uint8_t command; 
+    uint8_t command = 5; 
     spi_tranceive(&command, sizeof(command));
-
+    
     /* retrieve data if write command */
     struct ctrl_frame_data frame;
     
@@ -75,7 +75,7 @@ ISR(SPI_STC_vect){
         vel.err_prev = vel.err;
         vel.err = new->vel;
         rot.err_prev = rot.err;
-        rot.err = new->vel;
+        rot.err = new->rot;
     } else if (command & BF_REG) {
         struct ctrl_frame_reg *new = (struct ctrl_frame_reg*)&frame;
         volatile struct pd_values *reg = (command & BF_VEL) ? &vel : &rot;
