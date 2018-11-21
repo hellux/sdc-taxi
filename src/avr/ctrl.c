@@ -86,6 +86,9 @@ ISR(SPI_STC_vect){
         float velocity = vel.err; /* TODO use pd_ctrl when not testing */
         float rotation = rot.err;
 
+        velocity = MIN(MAX(velocity, -VEL_MAX), VEL_MAX);
+        rotation = MIN(MAX(rotation, -ROT_MAX), ROT_MAX);
+
         float duty_vel = DUTY_NEUTRAL + velocity*(DUTY_MAX-DUTY_NEUTRAL);
         float duty_rot = DUTY_NEUTRAL + rotation*(DUTY_MAX-DUTY_NEUTRAL);
 
