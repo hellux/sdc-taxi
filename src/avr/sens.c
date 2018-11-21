@@ -26,9 +26,9 @@
 #define WHEEL_DIAMETER 0.08
 #define SENS_PULS_ROTATION 5
 
-const struct sens_frame_data SENS_EMPTY = {0};
+const struct sens_data SENS_EMPTY = {0};
 
-volatile struct sens_frame_data sensors; 
+volatile struct sens_data sensors; 
 volatile float wheel_sensor_cntr;
 
 void adc_init() {
@@ -74,13 +74,13 @@ ISR(SPI_STC_vect) {
     // Code to execute
     // whenever transmission/reception
     // is complete.
-    struct sens_frame_data sensors_copy = sensors;
+    struct sens_data sensors_copy = sensors;
     uint8_t cmd;
     spi_tranceive(&cmd, sizeof(cmd));
 
-    if (cmd == BCB_SENSORS) {
+    if (cmd == BCBS_GET) {
 	    spi_tranceive((uint8_t*)&sensors_copy, sizeof(sensors));
-    } else if (cmd == BCB_RST) {
+    } else if (cmd == BCBS_RST) {
 	    sensors = SENS_EMPTY;
     }
     sei();

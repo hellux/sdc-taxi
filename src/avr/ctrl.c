@@ -70,50 +70,44 @@ ISR(SPI_STC_vect){
     uint8_t command;
     spi_tranceive(&command, sizeof(command));
     
-    /* retrieve data if write command */
-    struct ctrl_frame_data frame;
+    volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
+
     if (command & BF_WRITE) {
-        spi_tranceive((uint8_t*)&frame, sizeof(frame));
-    }
+        ctrl_val_t value_retrieved;
+        spi_tranceive((uint8_t*)&value_retrieved, sizeof(value_retrieved));
 
-    /* set new values */
-    if (command == BCB_ERR) {
-        struct ctrl_frame_err *new = (struct ctrl_frame_err*)&frame;
-        vel.err_prev = vel.err;
-        vel.err = new->vel;
-        rot.err_prev = rot.err;
-        rot.err = new->rot;
-    } else if (command & BF_REG) {
-        struct ctrl_frame_reg *new = (struct ctrl_frame_reg*)&frame;
-        volatile struct pd_values *reg = (command & BF_VEL) ? &vel : &rot;
-        reg->kp = new->kp;
-        reg->kd = new->kd;
-    } else if (command == BCB_RST) {
-        reset();
-    }
+        if (command & BF_MOD_REG) {
+            ctrl_val_t value_new;
 
-    /* update motor values */
-    if (command & BF_MOD) {
-        struct ctrl_frame_man new;
+            if (command & BF_ERR_VAL) {
+                pdv->err_prev = pdv->err;
+                pdv->err = value_retrieved;
+                value_new = pd_ctrl(pdv);
+            } else {
+                value_new = value_retrieved;
+            }
 
-        if (command & BF_MAN) {
-            new = *((struct ctrl_frame_man*)&frame);
+            value_new = MIN(MAX(value_new, -VEL_MAX), VEL_MAX);
+            float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
+
+            if (command & BF_VEL_ROT) {
+                OCR_VEL = duty*PWM_TOP; 
+            } else {
+                OCR_ROT = duty*PWM_TOP; 
+            }
         } else {
-            new.vel = pd_ctrl(&vel); /* TODO use pd_ctrl when not testing */
-            new.rot = pd_ctrl(&rot);
+            volatile ctrl_val_t *dst =
+                (command & BF_KP_KD) ? &pdv->kp : &pdv->kd;
+            *dst = value_retrieved;
         }
-
-        new.vel = MIN(MAX(new.vel, -VEL_MAX), VEL_MAX);
-        new.rot = MIN(MAX(new.rot, -ROT_MAX), ROT_MAX);
-
-        float duty_vel = DUTY_NEUTRAL + new.vel*(DUTY_MAX-DUTY_NEUTRAL);
-        float duty_rot = DUTY_NEUTRAL + new.rot*(DUTY_MAX-DUTY_NEUTRAL);
-
-        OCR_VEL = duty_vel*PWM_TOP; 
-        OCR_ROT = duty_rot*PWM_TOP; 
-        
-        sei();
+    } else if (command == BCBC_RST) {
+        reset();
+    } else if (command == BCBC_SYN) {
+        uint8_t ack = CTRL_ACK;
+        spi_tranceive(&ack, sizeof(ack));
     }
+
+    sei();
 }
 
 void pwm_init(){
