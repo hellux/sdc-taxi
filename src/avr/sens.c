@@ -120,7 +120,7 @@ void sensor_to_led(uint8_t channel) {
 	PORTD = sensors.dist_side;		
     
     } else {
-        PORTD = sensors.dist_wheel;
+        PORTD = sensors.distance;
     }
 }
 
@@ -133,7 +133,7 @@ void sensor_data_handler(uint8_t channel) {
 
     } else {
 	float wheel_dist = ((PI*WHEEL_DIAMETER) / (SENS_PULS_ROTATION*wheel_sensor_cntr));
-	sensors.dist_wheel = wheel_dist;
+	sensors.distance = wheel_dist;
 	sensor_to_led(CHN_SENS_WHEEL);
     }   
 } 
