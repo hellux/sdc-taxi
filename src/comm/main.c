@@ -19,6 +19,8 @@
 #define SLAVE_CTRL 8
 
 /* bus commands for ctrl */
+struct bus_cmd BC_MAN =
+    {BCB_MAN,     SLAVE_CTRL, sizeof(struct ctrl_frame_man)};
 struct bus_cmd BC_ERR =
     {BCB_ERR,     SLAVE_CTRL, sizeof(struct ctrl_frame_err)};
 struct bus_cmd BC_REG_VEL =
@@ -52,7 +54,7 @@ struct data_mission {
 };
 
 struct data_rc {
-    struct ctrl_frame_err err;
+    struct ctrl_frame_man man;
 
     pthread_mutex_t lock;
 };
@@ -186,7 +188,7 @@ bool sc_bus_send_floats(struct srv_cmd_args *a) {
     char *endptr1, *endptr2;
     char* float1_str = a->args[1];
     char* float2_str = a->args[2];
-    values[0] = strtof(float2_str, &endptr1);
+    values[0] = strtof(float1_str, &endptr1);
     values[1] = strtof(float2_str, &endptr2);
 
     if (endptr1 > float1_str && endptr2 > float2_str) {
@@ -244,8 +246,8 @@ int main(int argc, char* args[]) {
     {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
     {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
-    {"set_vel",     1, &rc_data.err.vel,  &rc_data.lock,   *sc_set_float},
-    {"set_rot",     1, &rc_data.err.rot,  &rc_data.lock,   *sc_set_float},
+    {"set_vel",     1, &rc_data.man.vel,  &rc_data.lock,   *sc_set_float},
+    {"set_rot",     1, &rc_data.man.rot,  &rc_data.lock,   *sc_set_float},
     {"set_reg_vel", 2, &BC_REG_VEL,       bus,             *sc_bus_send_floats},
     {"set_reg_rot", 2, &BC_REG_ROT,       bus,             *sc_bus_send_floats},
     };
@@ -258,24 +260,6 @@ int main(int argc, char* args[]) {
 
     char input[100];
     while (!quit) {
-        struct ctrl_frame_err error;
-
-        bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
-
-        pthread_mutex_lock(&miss_data.lock);
-        if (miss_data.active) {
-            pthread_mutex_unlock(&miss_data.lock);
-            /* TODO img proc + mission */
-            error.vel = 0;
-            error.rot = 0;
-        } else {
-            pthread_mutex_unlock(&miss_data.lock);
-
-            pthread_mutex_lock(&rc_data.lock);
-            error = rc_data.err;
-            pthread_mutex_unlock(&rc_data.lock);
-        }
-
         /* pause loop, enable exit */
         int len = scanf("%s", input);
         if (len > 0 && input[0] == 'q') {
@@ -284,7 +268,24 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&quit_lock);
         }
 
-        bus_transmit_schedule(bus, &BC_ERR, (void*)&error, NULL, NULL);
+        bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
+
+        pthread_mutex_lock(&miss_data.lock);
+        if (miss_data.active) {
+            pthread_mutex_unlock(&miss_data.lock);
+
+            struct ctrl_frame_err error = {0};
+            /* TODO img proc + mission */
+            bus_transmit_schedule(bus, &BC_ERR, (void*)&error, NULL, NULL);
+        } else {
+            pthread_mutex_unlock(&miss_data.lock);
+
+            struct ctrl_frame_man manual;
+            pthread_mutex_lock(&rc_data.lock);
+            manual = rc_data.man;
+            pthread_mutex_unlock(&rc_data.lock);
+            bus_transmit_schedule(bus, &BC_MAN, (void*)&manual, NULL, NULL);
+        }
     }
 
     srv_destroy(srv);

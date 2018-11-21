@@ -30,7 +30,7 @@ class Node:
         self.type = node_type
         self.exits = []
 
-    def addExit(destination, distance):
+    def addExit(self, destination, distance):
         self.exits += (destination, distance)
 
 def closest_path(course, src, dst):
@@ -43,9 +43,9 @@ def closest_path(course, src, dst):
 def create_mission(path):
     node, rest = path[0], path[1:]
     if node.type is NodeType.STOPLINE:
-        return ([IGNORE] if rest else [STOP]) + create_mission(rest)
+        return ([Command.IGNORE] if rest else [Command.STOP]) + create_mission(rest)
     elif node.type is NodeType.PARKING:
-        return ([IGNORE] if rest else [PARK]) + create_mission(rest)
+        return ([Command.IGNORE] if rest else [Command.PARK]) + create_mission(rest)
     else: # ROUNDABOUT
         src, dst = 0, 0
         exit_count = len(node.exits)
@@ -53,4 +53,4 @@ def create_mission(path):
             if node.exits[i][0] == src: src = i
             elif node.exits[i][0] == dst: dst = i
         ignore_count = (dst-src) % exit_count - 1
-        return [ENTER] + stoplines*[IGNORE] + [EXIT] + create_mission(rest)
+        return [Command.ENTER] + ignore_count*[Command.IGNORE] + [Command.EXIT] + create_mission(rest)
