@@ -28,6 +28,13 @@
 #define OCR_VEL OCR1B
 #define OCR_ROT OCR1A
 
+/* regulator constants at start */
+#define VEL_KP_DEF 0.1
+#define VEL_KD_DEF 0.0
+
+#define ROT_KP_DEF 0.1
+#define ROT_KD_DEF 0.0
+
 struct pd_values {
     ctrl_val_t kp;
     ctrl_val_t kd;
@@ -42,7 +49,11 @@ volatile struct pd_values rot;
 
 void reset() {
     vel = PD_EMPTY;
+    vel.kp = VEL_KP_DEF;
+    vel.kd = VEL_KD_DEF;
     rot = PD_EMPTY;
+    rot.kp = ROT_KP_DEF;
+    rot.kd = ROT_KD_DEF;
     OCR_VEL = DUTY_NEUTRAL*PWM_TOP;
     OCR_ROT = DUTY_NEUTRAL*PWM_TOP;
 }
@@ -87,8 +98,8 @@ ISR(SPI_STC_vect){
 
     /* regulate with new values */
     if (command == BCB_ERR) {
-        float velocity = vel.err; /* TODO use pd_ctrl when not testing */
-        float rotation = rot.err;
+        float velocity = pd_ctrl(&vel); /* TODO use pd_ctrl when not testing */
+        float rotation = pd_ctrl(&rot);
 
         velocity = MIN(MAX(velocity, -VEL_MAX), VEL_MAX);
         rotation = MIN(MAX(rotation, -ROT_MAX), ROT_MAX);
