@@ -2,8 +2,8 @@
 
 /* flags for bus command */
 #define BF_WRITE 1 /* master will write */
-#define BF_REG   4 /* regulator vs error constant */
-#define BF_VEL   2 /* velocity vs rotation */
+#define BF_REG   2 /* regulator vs error constant */
+#define BF_VEL   4 /* velocity vs rotation */
 
 /* bus cmd bytes */
 #define BCB_ERR      (BF_WRITE)
