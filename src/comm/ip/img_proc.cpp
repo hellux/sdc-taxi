@@ -40,7 +40,6 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     cv::cvtColor(edge_img, edge_img, cv::COLOR_RGB2GRAY);
     
     //cv::cornerHarris(edge_img, edge_img, 2, 3, 0.04);
-    //cv::Canny(edge_img, edge_img, 100, 150, 3);
     /*cv::Point2f perspectiveSrc[] = { cv::Point2f(565,470), cv::Point2f(721,470), cv::Point2f(277,698), cv::Point2f(1142,698) };
     cv::Point2f perspectiveDst[] = { cv::Point2f(300,0), cv::Point2f(980,0), cv::Point2f(300,720), cv::Point2f(980,720) };
     cv::getPerspectiveTransform(perspectiveSrc, perspectiveDst);
@@ -69,6 +68,10 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     //cv::warpPerspective(denoised_image, denoised_image, kernel, denoised_image.size());
     //cv::inRange(denoised_image, cv::Scalar(1), cv::Scalar(255), denoised_image);
 
+    /*
+    	cv::Canny(edge_img, edge_img, 100, 150, 3);
+	Supposedly, a more simple alternative for filter2D. But it has not shown improvement
+    */
     cv::filter2D(edge_img, edge_img, DDEPTH, kernel, anchor, DELTA, cv::BORDER_DEFAULT);
     cv::imshow("2Dfiltering: ", edge_img);
 
@@ -93,8 +96,8 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
     double rho = 1;
     double theta = CV_PI / 180;
     int threshold = 75; //20
-    double minLineLength = 10; //20
-    double maxLineGap = 200; //30
+    double minLineLength = 20;//20
+    double maxLineGap = 100; //30
 
     cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
 
@@ -277,9 +280,9 @@ void ip_process(void) {
 	std::cout << "Hej Dennis! hitta kameran. Nununununu\n";
 	return;  
     } 
-    std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
-    cap.set(CV_CAP_PROP_FPS, 60);
-    std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
+    //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
+    //cap.set(CV_CAP_PROP_FPS, 60);
+    //std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
 
     cv::Mat frame;
     cv::Mat denoised_image;
@@ -320,7 +323,7 @@ void ip_process(void) {
 
             plotLane(frame, lane);
 
-        }else {
+        } else {
 
             cv::imshow("Lane", frame);
             int k = cv::waitKey(25);
