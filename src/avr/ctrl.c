@@ -12,30 +12,46 @@
 #include "../dbg/sim/ctrl_header.h"
 #endif
 
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
+#define MAX(A, B) ((A) > (B) ? (A) : (B))
+
+#define DUTY_MAX 0.075
+#define DUTY_NEUTRAL 0.075
+#define DUTY_MIN 0.050
+#define VEL_MAX 0.05
+#define ROT_MAX 0.3
+
 #define PWM_T 0.020
 #define PWM_PSC 16
 #define PWM_TOP F_CPU*PWM_T/PWM_PSC
 
-typedef struct {
-    ctrl_const_t kp;            //Constant Pro
-    ctrl_const_t kd;            //Constant Der
-    ctrl_err_t err;             //Error
-    ctrl_err_t last_err;        //Previous error
-} pd_values_t;
+#define OCR_VEL OCR1A
+#define OCR_ROT OCR1B
 
-volatile pd_values_t vel;
-volatile pd_values_t rad;
+struct pd_values {
+    ctrl_val_t kp;
+    ctrl_val_t kd;
+    ctrl_val_t err;
+    ctrl_val_t err_prev;
+};
 
-void pwm_init(){
-    //Initialize to phase and frequency correct PWM
-    TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
-    TCCR1B |= (1<<WGM13)|(1<<CS11);
-    
-    //Set TOP value
-    ICR1 = PWM_TOP;
+const struct pd_values PD_EMPTY = {0};
 
-    //Set PD4, PD5 to outputs
-    DDRD |= (1<<PD4)|(1<<PD5);
+volatile struct pd_values vel;
+volatile struct pd_values rot;
+
+void reset() {
+    vel = PD_EMPTY;
+    rot = PD_EMPTY;
+    OCR_VEL = DUTY_NEUTRAL*PWM_TOP;
+    OCR_ROT = DUTY_NEUTRAL*PWM_TOP;
+}
+
+float pd_ctrl(volatile struct pd_values *v){
+    float proportion =  v->err                * v->kp;
+    float derivative = (v->err - v->err_prev) * v->kd;
+
+    return proportion + derivative;
 }
 
 ISR(SPI_STC_vect){
@@ -43,94 +59,64 @@ ISR(SPI_STC_vect){
     uint8_t command; 
     spi_tranceive(&command, sizeof(command));
 
-    if(command == BCB_ROT){
-        float data; 
-        spi_tranceive((uint8_t*)&data, sizeof(data));
-        if(data < 0.05){
-            OCR1A = 0.05 * PWM_TOP; 
-        }
-        else if(data > 0.10){
-            OCR1A = 0.10 * PWM_TOP; 
-        }
-        else{
-            OCR1A = data * PWM_TOP; 
-        }
+    /* retrieve data if write command */
+    struct ctrl_frame_data frame;
+    if (command & BF_WRITE) {
+        spi_tranceive((uint8_t*)&frame, sizeof(frame));
     }
 
-    else if(command == BCB_VEL){        
-        float data; 
-        spi_tranceive((uint8_t*)&data, sizeof(data));
-        if(data < 0.05){  
-          OCR1B = 0.05 * PWM_TOP; 
-        }
-        else if(data > 0.079){  
-          OCR1B = 0.079 * PWM_TOP; 
-        }
-        else{
-          OCR1B = data * PWM_TOP; 
-        }
+    /* set new values */
+    if (command == BCB_ERR) {
+        struct ctrl_frame_err *new = (struct ctrl_frame_err*)&frame;
+        vel.err_prev = vel.err;
+        vel.err = new->vel;
+        rot.err_prev = rot.err;
+        rot.err = new->vel;
+    } else if (command & BF_REG) {
+        struct ctrl_frame_reg *new = (struct ctrl_frame_reg*)&frame;
+        volatile struct pd_values *reg = (command & BF_VEL) ? &vel : &rot;
+        reg->kp = new->kp;
+        reg->kd = new->kd;
+    } else if (command == BCB_RST) {
+        reset();
     }
-   /* 
-    else if(command == BCB_VEL_KP){
-        float data; 
-        spi_tranceive((uint8_t*)&data, sizeof(data));
-        vel->kp = data;
+
+    /* regulate with new values */
+    if (command == BCB_ERR) {
+        float velocity = vel.err; /* TODO use pd_ctrl when not testing */
+        float rotation = rot.err;
+
+        float duty_vel = DUTY_NEUTRAL + velocity*(DUTY_MAX-DUTY_NEUTRAL);
+        float duty_rot = DUTY_NEUTRAL + rotation*(DUTY_MAX-DUTY_NEUTRAL);
+
+        OCR_VEL = duty_vel*PWM_TOP; 
+        OCR_ROT = duty_rot*PWM_TOP; 
     }
-    else if(command == BCB_VEL_KD){
-        float data; 
-        spi_tranceive((uint8_t*)&data, sizeof(data));
-        vel->kd = data;
-    }
-    else if(command == BCB_ROT_KP){
-        float data; 
-        spi_tranceive((uint8_t*)&data, sizeof(data));
-        rad->kp = data;
-    }
-    else if(command == BCB_ROT_KP){
-        float data; 
-        spi_tranceive((uint8_t*)&data, sizeof(data));
-        rad->kp = data;
-    }
-    */
+
     sei();
 }
 
-float pd_ctrl(volatile pd_values_t *v){
-    float proportion;
-    float derivative;
-    proportion = v->err                 * v->kp;
-    derivative = (v->err - v->last_err) * v->kd;
-    v->last_err = v->err;
+void pwm_init(){
+    /* Initialize to phase and frequency correct PWM */
+    TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
+    TCCR1B |= (1<<WGM13)|(1<<CS11);
 
-    return proportion + derivative;
+    ICR1 = PWM_TOP;
+
+    /* set outputs */
+    DDRD |= (1<<PD4)|(1<<PD5);
 }
 
-int main(int argc, char* args[]) {
-    //float duty_vel = 0;
-    //float duty_rad = 0;
-
+int main() {
     pwm_init();
     spi_init_slave();
     init_jtagport();
-    //init_lcdports();
-   
-    //Enable global interrupts
-    sei();
+    reset();
 
-    while(1){
-        
-        //duty_vel = pd_ctrl(&vel);
-        //duty_rad = pd_ctrl(&rad);
-        
+    sei();
+    while (1) {
         /*
-        duty_vel = 0.078 * PWM_TOP;
-        OCR1B = duty_vel;
-        
-        duty_rad = 0.050 * PWM_TOP;
-        OCR1A = duty_rad;
         _delay_ms(3000);
         */
     }
-    
-    return 0;
 }

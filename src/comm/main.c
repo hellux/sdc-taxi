@@ -19,24 +19,24 @@
 #define SLAVE_CTRL 8
 
 /* bus commands for ctrl */
-struct bus_cmd BC_VEL =    {BCB_VEL,    SLAVE_CTRL, sizeof(ctrl_err_t)};
-struct bus_cmd BC_VEL_KD = {BCB_VEL_KD, SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_VEL_KP = {BCB_VEL_KP, SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_ROT =     {BCB_ROT,     SLAVE_CTRL, sizeof(ctrl_err_t)};
-struct bus_cmd BC_ROT_KD =  {BCB_ROT_KD,  SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_ROT_KP =  {BCB_ROT_KP,  SLAVE_CTRL, sizeof(ctrl_const_t)};
-struct bus_cmd BC_RST_CTRL = {BCB_RESET,    SLAVE_CTRL, 0 };
+struct bus_cmd BC_ERR =
+    {BCB_ERR,     SLAVE_CTRL, sizeof(struct ctrl_frame_err)};
+struct bus_cmd BC_REG_VEL =
+    {BCB_REG_VEL, SLAVE_CTRL, sizeof(struct ctrl_frame_reg)};
+struct bus_cmd BC_REG_ROT =
+    {BCB_REG_ROT, SLAVE_CTRL, sizeof(struct ctrl_frame_reg)};
+struct bus_cmd BC_RST_CTRL =
+    {BCB_RST,     SLAVE_CTRL, 0 };
 
 /* bus commands for sens */
-const struct bus_cmd BC_GET_SENS = {BCB_GET_SENS, SLAVE_SENS,
-    sizeof(struct sens_data_frame)};
-const struct bus_cmd BC_RST_SENS = {BCB_RESET,    SLAVE_CTRL, 0};
+const struct bus_cmd BC_GET_SENS =
+    {BCB_SENSORS, SLAVE_SENS, sizeof(struct sens_frame_data)};
+const struct bus_cmd BC_RST_SENS =
+    {BCB_RST,     SLAVE_CTRL, 0};
 
 /* data from sensors stored on pi */
 struct data_sensors {
-    sens_dist_t dist_front;
-    sens_dist_t dist_right;
-    unsigned rotations;
+    struct sens_frame_data f;
     
     pthread_mutex_t lock;
 };
@@ -52,8 +52,7 @@ struct data_mission {
 };
 
 struct data_rc {
-    ctrl_err_t err_vel;
-    ctrl_err_t err_rot;
+    struct ctrl_frame_err err;
 
     pthread_mutex_t lock;
 };
@@ -65,11 +64,11 @@ bool sc_get_sens(struct srv_cmd_args *a) {
 
     /* read data */
     sens_dist_t df, dr;
-    unsigned rotations;
+    sens_odom_t dist;
     pthread_mutex_lock(&sens_data->lock);
-    df = sens_data->dist_front;
-    dr = sens_data->dist_right;
-    rotations = sens_data->rotations;
+    df = sens_data->f.dist_front;
+    dr = sens_data->f.dist_right;
+    dist = sens_data->f.distance;
     pthread_mutex_unlock(&sens_data->lock);
 
     /* create string */
@@ -78,7 +77,7 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     rsp[0] = '\0';
     rsp = str_append(rsp, &buf_size, "df=%d ", df);
     rsp = str_append(rsp, &buf_size, "dr=%d ", dr);
-    rsp = str_append(rsp, &buf_size, "rotations=%d", rotations);
+    rsp = str_append(rsp, &buf_size, "dist=%d", dist);
 
     a->resp = rsp;
     return true;
@@ -177,26 +176,29 @@ bool sc_set_float(struct srv_cmd_args *a) {
     return success;
 }
 
-bool sc_bus_send_float(struct srv_cmd_args *a) {
+bool sc_bus_send_floats(struct srv_cmd_args *a) {
     int success = false;
     int buf_size = 128;
     char *rsp = malloc(buf_size);
     rsp[0] = '\0';
     
-    char* float_str = a->args[1];
-    char *endptr;
-    float value = strtof(float_str, &endptr);
+    float values[2];
+    char *endptr1, *endptr2;
+    char* float1_str = a->args[1];
+    char* float2_str = a->args[2];
+    values[0] = strtof(float2_str, &endptr1);
+    values[1] = strtof(float2_str, &endptr2);
 
-    if (endptr > float_str) {
+    if (endptr1 > float1_str && endptr2 > float2_str) {
+        success = true;
         struct bus_cmd *bc = (struct bus_cmd*)a->data1;
         bus_t *bus = (bus_t*)a->data2;
-        bus_transmit_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
-
-        success = true;
-        rsp = str_append(rsp, &buf_size, "sending value %f", value);
+        bus_transmit_schedule(bus, bc, (unsigned char*)values, NULL, NULL);
+        rsp = str_append(rsp, &buf_size, "sending values %f, %f",
+                         values[0], values[1]);
     } else {
-        rsp = str_append(rsp, &buf_size,
-                         "invalid argument -- \"%s\"", float_str);
+        rsp = str_append(rsp, &buf_size, "invalid arguments -- \"%s\"",
+                         float1_str, float2_str);
     }
 
     a->resp = rsp;
@@ -207,13 +209,11 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
-    struct sens_data_frame *frame = (struct sens_data_frame*)received;
+    struct sens_frame_data *frame = (struct sens_frame_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
     pthread_mutex_lock(&sens_data->lock);
-    sens_data->dist_front = frame->dist_front;
-    sens_data->dist_right = frame->dist_right;
-    sens_data->rotations += frame->rotations;
+    sens_data->f = *frame;
     pthread_mutex_unlock(&sens_data->lock);
 }
 
@@ -244,12 +244,10 @@ int main(int argc, char* args[]) {
     {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
     {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
-    {"set_vel",     1, &rc_data.err_vel,  &rc_data.lock,   *sc_set_float},
-    {"set_rot",     1, &rc_data.err_rot,  &rc_data.lock,   *sc_set_float},
-    {"set_vel_kp",  1, &BC_VEL_KP,        bus,             *sc_bus_send_float},
-    {"set_vel_kd",  1, &BC_VEL_KD,        bus,             *sc_bus_send_float},
-    {"set_rot_kp",  1, &BC_ROT_KP,        bus,             *sc_bus_send_float},
-    {"set_rot_kd",  1, &BC_ROT_KD,        bus,             *sc_bus_send_float},
+    {"set_vel",     1, &rc_data.err.vel,  &rc_data.lock,   *sc_set_float},
+    {"set_rot",     1, &rc_data.err.rot,  &rc_data.lock,   *sc_set_float},
+    {"set_reg_vel", 2, &BC_REG_VEL,       bus,             *sc_bus_send_floats},
+    {"set_reg_rot", 2, &BC_REG_ROT,       bus,             *sc_bus_send_floats},
     };
     int cmdc = sizeof(cmds)/sizeof(*cmds);
     srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
@@ -260,8 +258,7 @@ int main(int argc, char* args[]) {
 
     char input[100];
     while (!quit) {
-        ctrl_err_t err_vel;
-        ctrl_err_t err_rot;
+        struct ctrl_frame_err error;
 
         bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
 
@@ -269,14 +266,13 @@ int main(int argc, char* args[]) {
         if (miss_data.active) {
             pthread_mutex_unlock(&miss_data.lock);
             /* TODO img proc + mission */
-            err_vel = 0;
-            err_rot = 0;
+            error.vel = 0;
+            error.rot = 0;
         } else {
             pthread_mutex_unlock(&miss_data.lock);
 
             pthread_mutex_lock(&rc_data.lock);
-            err_vel = rc_data.err_vel;
-            err_rot = rc_data.err_rot;
+            error = rc_data.err;
             pthread_mutex_unlock(&rc_data.lock);
         }
 
@@ -288,8 +284,7 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&quit_lock);
         }
 
-        bus_transmit_schedule(bus, &BC_VEL, (void*)&err_vel, NULL, NULL);
-        bus_transmit_schedule(bus, &BC_ROT, (void*)&err_rot, NULL, NULL);
+        bus_transmit_schedule(bus, &BC_ERR, (void*)&error, NULL, NULL);
     }
 
     srv_destroy(srv);
