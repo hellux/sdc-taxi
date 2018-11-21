@@ -255,7 +255,15 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
-    /* remote ctrl values */
+    uint8_t rsp_ctrl, rsp_sens;
+    bus_receive(bus, &BCC_SYN, (void*)&rsp_ctrl);
+    if (rsp_ctrl != CTRL_ACK) {
+        fprintf(stderr, "WARNING: no acknowledge from ctrl\n");
+    }
+    bus_receive(bus, &BCC_SYN, (void*)&rsp_sens);
+    if (rsp_sens != SENS_ACK) {
+        fprintf(stderr, "WARNING: no acknowledge from sens\n");
+    }
 
     char input[100];
     while (!quit) {
