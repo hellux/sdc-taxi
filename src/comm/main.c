@@ -186,7 +186,7 @@ bool sc_bus_send_floats(struct srv_cmd_args *a) {
     char *endptr1, *endptr2;
     char* float1_str = a->args[1];
     char* float2_str = a->args[2];
-    values[0] = strtof(float2_str, &endptr1);
+    values[0] = strtof(float1_str, &endptr1);
     values[1] = strtof(float2_str, &endptr2);
 
     if (endptr1 > float1_str && endptr2 > float2_str) {
@@ -258,6 +258,14 @@ int main(int argc, char* args[]) {
 
     char input[100];
     while (!quit) {
+        /* pause loop, enable exit */
+        int len = scanf("%s", input);
+        if (len > 0 && input[0] == 'q') {
+            pthread_mutex_lock(&quit_lock);
+            quit = true;
+            pthread_mutex_unlock(&quit_lock);
+        }
+
         struct ctrl_frame_err error;
 
         bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
@@ -276,14 +284,7 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&rc_data.lock);
         }
 
-        /* pause loop, enable exit */
-        int len = scanf("%s", input);
-        if (len > 0 && input[0] == 'q') {
-            pthread_mutex_lock(&quit_lock);
-            quit = true;
-            pthread_mutex_unlock(&quit_lock);
-        }
-
+        printf("vel: %f, rot: %f\n", error.vel, error.rot);
         bus_transmit_schedule(bus, &BC_ERR, (void*)&error, NULL, NULL);
     }
 
