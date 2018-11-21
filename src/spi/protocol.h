@@ -20,7 +20,7 @@
 #define BCB_RESET    32
 
 typedef float   sens_dist_t;
-typedef uint8_t sens_rot_t;
+typedef float   sens_rot_t;
 
 typedef float   ctrl_const_t;
 typedef float   ctrl_err_t;
@@ -28,6 +28,6 @@ typedef float   ctrl_err_t;
 /* format of data sent from sensor via bus */
 struct sens_data_frame {
     sens_dist_t dist_front;
-    sens_dist_t dist_right;
-    sens_rot_t rotations;
+    sens_dist_t dist_side;
+    sens_rot_t dist_wheel;
 };
