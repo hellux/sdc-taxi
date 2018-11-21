@@ -35,6 +35,6 @@ struct ctrl_frame_reg {
 
 struct sens_frame_data {
     sens_dist_t dist_front;
-    sens_dist_t dist_side;
+    sens_dist_t dist_right;
     sens_odom_t distance;
 };

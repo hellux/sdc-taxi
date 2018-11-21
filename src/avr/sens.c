@@ -26,9 +26,10 @@
 #define WHEEL_DIAMETER 0.08
 #define SENS_PULS_ROTATION 5
 
-volatile struct sens_data_frame sensors; 
-volatile float wheel_sensor_cntr;
+const struct sens_frame_data SENS_EMPTY = {0};
 
+volatile struct sens_frame_data sensors; 
+volatile float wheel_sensor_cntr;
 
 void adc_init() {
 	//mux init
@@ -60,11 +61,11 @@ uint16_t adc_read(uint8_t channel) {
 
 //INT0 -> PD2
 ISR(INT0_vect) {
-    cntr_sensor_wheel++;        
+    wheel_sensor_cntr++;        
 }
 //INT1 -> PD3
 ISR(INT1_vect) {
-    cntr_sensor_wheel++;
+    wheel_sensor_cntr++;
 }
 
 // SPI Transmission/reception complete ISR
@@ -73,14 +74,14 @@ ISR(SPI_STC_vect) {
     // Code to execute
     // whenever transmission/reception
     // is complete.
-    struct sensors_data_frame sensors_copy = *sensors;
+    struct sens_frame_data sensors_copy = sensors;
     uint8_t cmd;
     spi_tranceive(&cmd, sizeof(cmd));
 
-    if (cmd == BCB_GET_SENS) {
-	spi_tranceive((uint8_t*)&sensors_copy, sizeof(sensors));
-    } else { // cmd == BCB_RESET
-	sensors = {0};
+    if (cmd == BCB_SENSORS) {
+	    spi_tranceive((uint8_t*)&sensors_copy, sizeof(sensors));
+    } else if (cmd == BCB_RST) {
+	    sensors = SENS_EMPTY;
     }
     sei();
 }
@@ -117,7 +118,7 @@ void sensor_to_led(uint8_t channel) {
 	PORTD = sensors.dist_front;
 
     } else if (channel == CHN_SENS_SIDE) {
-	PORTD = sensors.dist_side;		
+	PORTD = sensors.dist_right;		
     
     } else {
         PORTD = sensors.distance;
