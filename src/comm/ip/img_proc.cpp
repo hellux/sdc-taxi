@@ -6,7 +6,7 @@
 using namespace cv;
 
 extern "C" void ip_init(void);
-extern "C" void ip_process(void);
+extern "C" struct ip_res *ip_process(void);
 
 void ip_init(void) {
 
@@ -266,7 +266,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     cv::putText(original_img, distance, cv::Point(620, 500), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
 }
 
-void ip_process(void) {
+struct ip_res *ip_process(void) {
     std::cout << "hej från c++" << std::endl;
 
     /*
@@ -277,8 +277,8 @@ void ip_process(void) {
     //cv::Mat frame = cv::imread("paso_peatonal.jpg");
     cv::VideoCapture cap(0);
     if (!cap.isOpened()) {
-	std::cout << "Hej Dennis! hitta kameran. Nununununu\n";
-	return;  
+        std::cout << "Hej Dennis! hitta kameran. Nununununu\n";
+        return NULL;
     } 
     //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
     //cap.set(CV_CAP_PROP_FPS, 60);
@@ -334,4 +334,5 @@ void ip_process(void) {
             }
         }
     }
+    return NULL;
 }
