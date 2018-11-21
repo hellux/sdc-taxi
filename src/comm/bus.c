@@ -51,8 +51,7 @@ struct order_blocked {
 
 /* physical bus functions (bus thread) */
 
-static void tranceive(struct bus *bus, const struct bus_cmd *bc,
-                      void *msg) {
+static void tranceive(const struct bus_cmd *bc, void *msg) {
     /* prevent overwriting command by creating a copy */
     int cmd = bc->cmd;
 #ifdef PI
@@ -90,7 +89,7 @@ static void order_queue(struct bus *bus, struct order *order) {
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
-    tranceive(bus, o->bc, o->src_dst);
+    tranceive(o->bc, o->src_dst);
     if (o->scheduled) {
         struct order_scheduled *os = (struct order_scheduled*)o;
         if (os->handler)
