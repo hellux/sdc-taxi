@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 struct ip_res {
     float stopline_dist;
     float error;
