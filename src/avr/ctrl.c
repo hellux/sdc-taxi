@@ -67,15 +67,11 @@ float pd_ctrl(volatile struct pd_values *v){
 
 ISR(SPI_STC_vect){
     cli();
-    uint8_t command = 5; 
+    uint8_t command;
     spi_tranceive(&command, sizeof(command));
     
     /* retrieve data if write command */
     struct ctrl_frame_data frame;
-    
-    frame.value1 = 1;
-    frame.value2 = 2;
-
     if (command & BF_WRITE) {
         spi_tranceive((uint8_t*)&frame, sizeof(frame));
     }
@@ -96,22 +92,28 @@ ISR(SPI_STC_vect){
         reset();
     }
 
-    /* regulate with new values */
-    if (command == BCB_ERR) {
-        float velocity = pd_ctrl(&vel); /* TODO use pd_ctrl when not testing */
-        float rotation = pd_ctrl(&rot);
+    /* update motor values */
+    if (command & BF_MOD) {
+        struct ctrl_frame_man new;
 
-        velocity = MIN(MAX(velocity, -VEL_MAX), VEL_MAX);
-        rotation = MIN(MAX(rotation, -ROT_MAX), ROT_MAX);
+        if (command & BF_MAN) {
+            new = *((struct ctrl_frame_man*)&frame);
+        } else {
+            new.vel = pd_ctrl(&vel); /* TODO use pd_ctrl when not testing */
+            new.rot = pd_ctrl(&rot);
+        }
 
-        float duty_vel = DUTY_NEUTRAL + velocity*(DUTY_MAX-DUTY_NEUTRAL);
-        float duty_rot = DUTY_NEUTRAL + rotation*(DUTY_MAX-DUTY_NEUTRAL);
+        new.vel = MIN(MAX(new.vel, -VEL_MAX), VEL_MAX);
+        new.rot = MIN(MAX(new.rot, -ROT_MAX), ROT_MAX);
+
+        float duty_vel = DUTY_NEUTRAL + new.vel*(DUTY_MAX-DUTY_NEUTRAL);
+        float duty_rot = DUTY_NEUTRAL + new.rot*(DUTY_MAX-DUTY_NEUTRAL);
 
         OCR_VEL = duty_vel*PWM_TOP; 
         OCR_ROT = duty_rot*PWM_TOP; 
+        
+        sei();
     }
-    
-    sei();
 }
 
 void pwm_init(){

@@ -19,6 +19,8 @@
 #define SLAVE_CTRL 8
 
 /* bus commands for ctrl */
+struct bus_cmd BC_MAN =
+    {BCB_MAN,     SLAVE_CTRL, sizeof(struct ctrl_frame_man)};
 struct bus_cmd BC_ERR =
     {BCB_ERR,     SLAVE_CTRL, sizeof(struct ctrl_frame_err)};
 struct bus_cmd BC_REG_VEL =
@@ -52,7 +54,7 @@ struct data_mission {
 };
 
 struct data_rc {
-    struct ctrl_frame_err err;
+    struct ctrl_frame_man man;
 
     pthread_mutex_t lock;
 };
@@ -244,8 +246,8 @@ int main(int argc, char* args[]) {
     {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
     {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
-    {"set_vel",     1, &rc_data.err.vel,  &rc_data.lock,   *sc_set_float},
-    {"set_rot",     1, &rc_data.err.rot,  &rc_data.lock,   *sc_set_float},
+    {"set_vel",     1, &rc_data.man.vel,  &rc_data.lock,   *sc_set_float},
+    {"set_rot",     1, &rc_data.man.rot,  &rc_data.lock,   *sc_set_float},
     {"set_reg_vel", 2, &BC_REG_VEL,       bus,             *sc_bus_send_floats},
     {"set_reg_rot", 2, &BC_REG_ROT,       bus,             *sc_bus_send_floats},
     };
@@ -266,26 +268,24 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&quit_lock);
         }
 
-        struct ctrl_frame_err error;
-
         bus_receive_schedule(bus, &BC_GET_SENS, bsh_sens_recv, &sens_data);
 
         pthread_mutex_lock(&miss_data.lock);
         if (miss_data.active) {
             pthread_mutex_unlock(&miss_data.lock);
+
+            struct ctrl_frame_err error = {0};
             /* TODO img proc + mission */
-            error.vel = 0;
-            error.rot = 0;
+            bus_transmit_schedule(bus, &BC_ERR, (void*)&error, NULL, NULL);
         } else {
             pthread_mutex_unlock(&miss_data.lock);
 
+            struct ctrl_frame_man manual;
             pthread_mutex_lock(&rc_data.lock);
-            error = rc_data.err;
+            manual = rc_data.man;
             pthread_mutex_unlock(&rc_data.lock);
+            bus_transmit_schedule(bus, &BC_MAN, (void*)&manual, NULL, NULL);
         }
-
-        printf("vel: %f, rot: %f\n", error.vel, error.rot);
-        bus_transmit_schedule(bus, &BC_ERR, (void*)&error, NULL, NULL);
     }
 
     srv_destroy(srv);
