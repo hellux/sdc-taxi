@@ -1,4 +1,4 @@
-#define F_SPI 2000000
+#define F_SPI 1000000
 
 /* flags for bus command */
 #define BF_WRITE 1  /* master will write */
