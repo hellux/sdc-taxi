@@ -51,6 +51,7 @@ comm.pi: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 comm.server: COMM_OBJS += $(OBJDIR)/dbg/server.o
 comm.server: init $(OBJDIR)/dbg/server.o $(BINDIR)/comm
+comm.ip: CXXFLAGS += -ggdb
 comm.ip: COMM_BIN = comm_ip
 comm.ip: COMM_OBJS += $(OBJDIR)/dbg/ip.o
 comm.ip: init $(OBJDIR)/dbg/ip.o $(BINDIR)/comm
