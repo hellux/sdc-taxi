@@ -1,8 +1,9 @@
 import threading
-from remote import Client
+from remote import Client, Command
 from tasks import Task
 
 class Worker(threading.Thread):
+    
     def __init__(self, tasks, client):
         threading.Thread.__init__(self)
 
@@ -12,7 +13,9 @@ class Worker(threading.Thread):
         self.actions = {
             Task.CONNECT    : self.task_connect,
             Task.SEND       : self.task_send,
-            Task.KILL       : self.task_kill
+            Task.KILL       : self.task_kill,
+            Task.MOVE       : self.task_move,
+            Task.SET_AUTO   : self.set_auto
         }
 
         self.terminate = False
@@ -27,6 +30,16 @@ class Worker(threading.Thread):
     def task_kill(self):
         self.terminate = True
 
+    def task_move(self, keys):
+        vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
+        rot = int(keys["RIGHT"]) - int(keys["LEFT"])
+
+        self.client.send_cmd_fmt(Command.SET_VEL, [vel])
+        self.client.send_cmd_fmt(Command.SET_ROT, [rot])
+            
+    def set_auto(self, auto):
+        self.client.send_cmd_fmt(Command.SET_STATE, [auto])
+        
     def run(self):
         while not self.terminate:
             task, args = self.tasks.get(block=True)

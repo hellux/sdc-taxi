@@ -51,8 +51,7 @@ struct order_blocked {
 
 /* physical bus functions (bus thread) */
 
-static void tranceive(struct bus *bus, const struct bus_cmd *bc,
-                      void *msg) {
+static void tranceive(const struct bus_cmd *bc, void *msg) {
     /* prevent overwriting command by creating a copy */
     int cmd = bc->cmd;
 #ifdef PI
@@ -62,7 +61,7 @@ static void tranceive(struct bus *bus, const struct bus_cmd *bc,
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
     digitalWrite(bc->slave, 1);   // SS high - end transmission
 #else
-    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    printf("transmit via command %d to %d: ", cmd, bc->slave);
     for (int i = 0; i < bc->len; i++)
         printf("%x ", ((uint8_t*)msg)[i]);
     printf("\n");
@@ -90,7 +89,7 @@ static void order_queue(struct bus *bus, struct order *order) {
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
-    tranceive(bus, o->bc, o->src_dst);
+    tranceive(o->bc, o->src_dst);
     if (o->scheduled) {
         struct order_scheduled *os = (struct order_scheduled*)o;
         if (os->handler)

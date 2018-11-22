@@ -38,11 +38,11 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .SILENT: init
 
 # communication module
-comm.gdb: CFLAGS += -ggdb
+comm.gdb: CFLAGS += -ggdb -Og
 comm.gdb: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
 comm.gdb: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
-comm.pi: CFLAGS += -DPI -O3
+comm.pi: CFLAGS += -DPI
 comm.pi: CXXFLAGS += -O3
 comm.pi: COMM_LFLAGS += -lwiringPi
 comm.pi: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
@@ -51,9 +51,13 @@ comm.pi: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 comm.server: COMM_OBJS += $(OBJDIR)/dbg/server.o
 comm.server: init $(OBJDIR)/dbg/server.o $(BINDIR)/comm
+comm.ip: CXXFLAGS += -ggdb
 comm.ip: COMM_BIN = comm_ip
 comm.ip: COMM_OBJS += $(OBJDIR)/dbg/ip.o
 comm.ip: init $(OBJDIR)/dbg/ip.o $(BINDIR)/comm
+comm.remote:
+	scp -r comm spi Makefile pi@172.20.10.4:module
+	ssh pi@172.20.10.4 -t 'cd module; make comm.pi'
 
 # avr modules
 sens: init $(BINDIR)/sens
