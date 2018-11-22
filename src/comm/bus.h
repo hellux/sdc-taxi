@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "../spi/protocol.h"
+#include "protocol.h"
 
 typedef struct bus bus_t;
 

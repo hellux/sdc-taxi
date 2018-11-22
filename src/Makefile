@@ -19,7 +19,7 @@ PROG_PNO = m1284p
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_MAIN = comm/main
 COMM_BIN = comm
-COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,") spi/protocol.c
+COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
