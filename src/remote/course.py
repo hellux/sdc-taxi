@@ -36,13 +36,31 @@ class Node:
         self.exits += (destination, distance)
 
 class Edge:
-    def __init__(self, dist=0 , node=Node(NodeType.NULL):
+    def __init__(self, dist=0 , dest=Node(NodeType.NULL)):
         self.dist = dist
-        self.node = node
+        self.dest = dest
 
+    def __lt__(self, other):
+        return self.dist < other.dist
 
 def closest_path(course, src, dst):
+    inf = float('inf')
     path = [src]
+    q = []
+    unvisited = []
+
+    for node in course:
+        if node != src:
+            heapq.heappush(unvisited, (inf, node, None))
+        else:
+            heapq.heappush(unvisited, (0, src, None))
+
+    heapq.heapify(unvisited)
+    while(unvisited):
+        cur = unvisited.pop()
+        for exit in cur[1].exits:
+            if 
+            
 
     # TODO dijkstra
 
