@@ -12,11 +12,13 @@ R.addExit(A, 5)
 B.addExit(R, 10)
 R.addExit(B, 10)
 """
+import heapq
 
 class NodeType:
     STOPLINE = 1
     PARKING = 2
     ROUNDABOUT = 3
+    NULL = 4
 
 class Command:
     IGNORE = 'ignr'
@@ -32,6 +34,12 @@ class Node:
 
     def addExit(self, destination, distance):
         self.exits += (destination, distance)
+
+class Edge:
+    def __init__(self, dist=0 , node=Node(NodeType.NULL):
+        self.dist = dist
+        self.node = node
+
 
 def closest_path(course, src, dst):
     path = [src]
