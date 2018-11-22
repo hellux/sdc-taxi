@@ -346,24 +346,24 @@ struct ip_res *ip_process(void) {
         if (!lines.empty()) {
             lr_lines = classify_lines(lines, edges_image);
 
-	if (right_found) {
-	    for (auto line : lr_lines[0]) {
-		cv::Point start = cv::Point(line[0], line[1]);
-		cv::Point end = cv::Point(line[2], line[3]);
-		if (start.y > 500) {
-		    cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
-		}
-	}
-}
-if (left_found) {
-	for (auto line : lr_lines[1]) {
-		cv::Point start = cv::Point(line[0], line[1]);
-		cv::Point end = cv::Point(line[2], line[3]);
-		if (start.y > 500) {
-			cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
-		}
-	}
-}
+	    if (right_found) {
+	        for (auto line : lr_lines[0]) {
+		    cv::Point start = cv::Point(line[0], line[1]);
+		    cv::Point end = cv::Point(line[2], line[3]);
+		    if (start.y > 500) {
+		        cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
+		    }
+	        }
+            }
+	    if (left_found) {
+	        for (auto line : lr_lines[1]) {
+		    cv::Point start = cv::Point(line[0], line[1]);
+		    cv::Point end = cv::Point(line[2], line[3]);
+		    if (start.y > 500) {
+		        cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
+		    }
+	        }
+            }
 
             //lane = linear_regression(lr_lines, frame);
 
