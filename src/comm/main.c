@@ -29,11 +29,12 @@ struct bus_cmd BCC_ROT_ERR = {BCBC_ROT_ERR, SLAVE_CTRL, sizeof(ctrl_val_t)};
 struct bus_cmd BCC_ROT_KP  = {BCBC_ROT_KP,  SLAVE_CTRL, sizeof(ctrl_val_t)};
 struct bus_cmd BCC_ROT_KD  = {BCBC_ROT_KD,  SLAVE_CTRL, sizeof(ctrl_val_t)};
 struct bus_cmd BCC_RST     = {BCBC_RST,     SLAVE_CTRL, 0};
-struct bus_cmd BCC_SYN     = {BCBC_RST,     SLAVE_CTRL, 1};
+struct bus_cmd BCC_SYN     = {BCBC_SYN,     SLAVE_CTRL, 1};
 
 /* bus commands for sens */
 struct bus_cmd BCS_GET = {BCBS_GET, SLAVE_SENS, sizeof(struct sens_data)};
-struct bus_cmd BCS_RST = {BCBS_RST, SLAVE_CTRL, 0};
+struct bus_cmd BCS_SYN = {BCBS_SYN, SLAVE_SENS, 1};
+struct bus_cmd BCS_RST = {BCBS_RST, SLAVE_SENS, 0};
 
 /* data from sensors stored on pi */
 struct data_sensors {
@@ -260,21 +261,21 @@ int main(int argc, char* args[]) {
     if (rsp_ctrl != CTRL_ACK) {
         fprintf(stderr, "WARNING: no acknowledge from ctrl\n");
     }
-    bus_receive(bus, &BCC_SYN, (void*)&rsp_sens);
+    bus_receive(bus, &BCS_SYN, (void*)&rsp_sens);
     if (rsp_sens != SENS_ACK) {
         fprintf(stderr, "WARNING: no acknowledge from sens\n");
     }
 
-    char input[100];
+    //char input[100];
     while (!quit) {
-        /* pause loop, enable exit */
+        /* pause loop, enable exit 
         int len = scanf("%s", input);
         if (len > 0 && input[0] == 'q') {
             pthread_mutex_lock(&quit_lock);
             quit = true;
             pthread_mutex_unlock(&quit_lock);
         }
-
+        */
         bus_receive_schedule(bus, &BCS_GET, bsh_sens_recv, &sens_data);
 
         pthread_mutex_lock(&miss_data.lock);
