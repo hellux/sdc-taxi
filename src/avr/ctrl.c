@@ -1,6 +1,4 @@
 #include "bus.h"
-#include "lcd.h"
-#include "jtag.h"
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -122,7 +120,6 @@ void pwm_init(){
 int main() {
     pwm_init();
     spi_init();
-    init_jtagport();
     reset();
 
     sei();

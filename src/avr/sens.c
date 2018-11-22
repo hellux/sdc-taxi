@@ -6,7 +6,6 @@
 #include <avr/io.h>
 
 #include "bus.h"
-#include "jtag.h"
 #include "../spi/protocol.h"
 
 #define ADC_PRESCALER_128 0x07
@@ -98,7 +97,6 @@ int main(void) {
     EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
 
     spi_init();
-    init_jtagport();
     adc_init();
     reset();
 
