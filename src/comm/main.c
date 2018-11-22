@@ -242,8 +242,7 @@ int main(int argc, char* args[]) {
 
     //char input[100];
     while (!quit) {
-        /* pause loop, enable exit */
-        /*
+        /* pause loop, enable exit 
         int len = scanf("%s", input);
         if (len > 0 && input[0] == 'q') {
             pthread_mutex_lock(&quit_lock);
@@ -252,7 +251,9 @@ int main(int argc, char* args[]) {
         }
         */
 
+        /*
         bus_receive_schedule(bus, &BCSS[BBS_GET], bsh_sens_recv, &sens_data);
+        */
 
         pthread_mutex_lock(&miss_data.lock);
         if (miss_data.active) {

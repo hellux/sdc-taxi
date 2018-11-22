@@ -12,6 +12,7 @@ R.addExit(A, 5)
 B.addExit(R, 10)
 R.addExit(B, 10)
 """
+import heapq
 
 class NodeType:
     STOPLINE = 1
@@ -28,15 +29,54 @@ class Command:
 class Node:
     def __init__(self, node_type=NodeType.STOPLINE):
         self.type = node_type
-        self.exits = []
+        self.outgoing = []
 
-    def addExit(self, destination, distance):
-        self.exits += (destination, distance)
+    def addEdge(self, end, cost):
+        self.outgoing.append(Edge(self, end, cost))
+
+
+class Edge:
+    def __init__(self, start=None, end=None, cost=0):
+        self.start = start
+        self.end = end
+        self.cost = cost
+
+    def __lt__(self, other):
+        return self.cost < other.cost
+
+class NodeWeight:
+    def __init__(self, cur, path=[], weight=float('inf')):
+        self.cur = cur
+        self.path = path
+        self.weight = weight
+    
+    def __lt__(self, other):
+        return self.weight < other.weight
 
 def closest_path(course, src, dst):
     path = [src]
+    unvisited = []
 
-    # TODO dijkstra
+    for node in course:
+        if node == src:
+            unvisited.append(NodeWeight(src, path, 0))
+        else:
+            unvisited.append(NodeWeight(node, path))
+
+    while(unvisited):
+        cur = min(unvisited)
+        if cur.cur == dst:
+            path = cur.path
+            break
+
+        for edge in cur.cur.outgoing:
+            for node in unvisited:
+                if edge.end == node.cur:
+                    if cur.weight + edge.cost < node.weight:
+                        node.path = cur.path + [node.cur]
+                        node.weight = cur.weight + edge.cost
+        
+        unvisited.remove(cur)
 
     return path
 
