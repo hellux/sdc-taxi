@@ -40,11 +40,13 @@ struct bus_cmd {
     int len;
 };
 
-#define BF_WRITE    1
-#define BF_VEL_ROT  2
-#define BF_MOD_REG  4
-#define BF_ERR_VAL  8
-#define BF_KP_KD    8 /* should share with above */
+#define BB_INVALID 0
+
+#define BF_WRITE    8
+#define BF_VEL_ROT  4
+#define BF_MOD_REG  2
+#define BF_ERR_VAL  1
+#define BF_KP_KD    1 /* should share with above */
 
 /* ctrl commands */
 #define BBC_RST     0x01
@@ -60,12 +62,12 @@ struct bus_cmd {
 
 static struct bus_cmd BCCS[16] = {
 /*  cmd           write, slave id,   data length */
-    {0},
+    {BB_INVALID,  false, 0,          0},
     {BBC_RST,     false, SLAVE_CTRL, 0},
     {BBC_SYN,     false, SLAVE_CTRL, sizeof(ctrl_val_t)},
     {0},
 
-    {0},{0},{0},{0},
+    {0}, {0}, {0}, {0},
 
     {BBC_ROT_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
     {BBC_ROT_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
@@ -91,15 +93,15 @@ struct sens_data {
 
 /* bus commands for sens */
 static struct bus_cmd BCSS[16] = {
-/*  cmd       write, slave id,   data length */
-    {0},
-    {BBS_RST, false, SLAVE_SENS, 0},
-    {BBS_SYN, false, SLAVE_SENS, 1},
-    {BBS_GET, false, SLAVE_SENS, sizeof(struct sens_data)},
+/*  cmd          write, slave id,   data length */
+    {BB_INVALID, false, 0,          0},
+    {BBS_RST,    false, SLAVE_SENS, 0},
+    {BBS_SYN,    false, SLAVE_SENS, 1},
+    {BBS_GET,    false, SLAVE_SENS, sizeof(struct sens_data)},
 
-    {0},{0},{0},{0},
-    {0},{0},{0},{0},
-    {0},{0},{0},{0},
+    {0}, {0}, {0}, {0},
+    {0}, {0}, {0}, {0},
+    {0}, {0}, {0}, {0},
 };
 
 #endif
