@@ -58,47 +58,45 @@ struct order_blocked {
 };
 
 /* physical bus functions (bus thread) */
-static void receive(const struct bus_cmd *bc, void *msg) {
+static bool receive(const struct bus_cmd *bc, void *msg) {
     bool success = false;
-    while (!success) {
 #ifdef PI
-        cs_t cs = cs_create(bc->cmd, NULL, 0);
-        digitalWrite(GPIO_PINS[bc->slave], 1);
-        digitalWrite(GPIO_PINS[bc->slave], 0);
-        wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
-        wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
-        digitalWrite(GPIO_PINS[bc->slave], 1);
-        success = cs_check(cs, msg, bc->len);
+    cs_t cs = cs_create(bc->cmd, NULL, 0);
+    digitalWrite(GPIO_PINS[bc->slave], 1);
+    digitalWrite(GPIO_PINS[bc->slave], 0);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+    digitalWrite(GPIO_PINS[bc->slave], 1);
+    success = cs_check(cs, msg, bc->len);
 #else
-        for (int i = 0; i < bc->len; i++) {
-            *((uint8_t*)msg+i) = (uint8_t)i;
-        }
-        success = true;
-#endif
+    for (int i = 0; i < bc->len; i++) {
+        *((uint8_t*)msg+i) = (uint8_t)i;
     }
+    success = true;
+#endif
+    return success;
 }
 
-static void transmit(const struct bus_cmd *bc, void *msg) {
+static bool transmit(const struct bus_cmd *bc, void *msg) {
     bool success = false;
-    while (!success) {
 #ifdef PI
-        cs_t cs = cs_create(bc->cmd, msg, bc->len);
-        uint8_t ack = ACKS[bc->slave];
-        digitalWrite(GPIO_PINS[bc->slave], 1);
-        digitalWrite(GPIO_PINS[bc->slave], 0);
-        wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
-        wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
-        wiringPiSPIDataRW(CHANNEL, (unsigned char*)&ack, 1);
-        digitalWrite(GPIO_PINS[bc->slave], 1);
-        success = (ack == ACKS[bc->slave]);
+    cs_t cs = cs_create(bc->cmd, msg, bc->len);
+    uint8_t ack = ACKS[bc->slave];
+    digitalWrite(GPIO_PINS[bc->slave], 1);
+    digitalWrite(GPIO_PINS[bc->slave], 0);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&ack, 1);
+    digitalWrite(GPIO_PINS[bc->slave], 1);
+    success = (ack == ACKS[bc->slave]);
 #else
-        printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
-        for (int i = 0; i < bc->len; i++)
-            printf("%x ", ((uint8_t*)msg)[i]);
-        printf("\n");
-        success = true;
+    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    for (int i = 0; i < bc->len; i++)
+        printf("%x ", ((uint8_t*)msg)[i]);
+    printf("\n");
+    success = true;
 #endif
-    }
+    return success;
 }
 
 /* order functions */
@@ -106,7 +104,6 @@ static void transmit(const struct bus_cmd *bc, void *msg) {
 /* queue an order, from outside thread */
 static void order_queue(struct bus *bus, struct order *order) {
     order->next = NULL;
-    pthread_mutex_lock(&bus->lock);
     struct order *last = bus->queue;
     if (last) {
         while (last->next) last = last->next;
@@ -114,25 +111,30 @@ static void order_queue(struct bus *bus, struct order *order) {
     } else {
         bus->queue = order;
     }
-    pthread_mutex_unlock(&bus->lock);
 }
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
+    bool success;
     if (o->bc->write) {
-        transmit(o->bc, o->src_dst);
+        success = transmit(o->bc, o->src_dst);
     } else {
-        receive(o->bc, o->src_dst);
+        success = receive(o->bc, o->src_dst);
     }
-    if (o->scheduled) {
-        struct order_scheduled *os = (struct order_scheduled*)o;
-        if (os->handler)
-            os->handler(o->src_dst, os->handler_data);
-        free(o->src_dst);
-        free(o);
+
+    if (success) {
+        if (o->scheduled) {
+            struct order_scheduled *os = (struct order_scheduled*)o;
+            if (os->handler)
+                os->handler(o->src_dst, os->handler_data);
+            free(o->src_dst);
+            free(o);
+        } else {
+            struct order_blocked *ob = (struct order_blocked*)o;
+            pthread_cond_signal(&ob->done);
+        }
     } else {
-        struct order_blocked *ob = (struct order_blocked*)o;
-        pthread_cond_signal(&ob->done);
+        order_queue(bus, o);
     }
 }
 
@@ -148,21 +150,24 @@ static void *bus_thread(void *b) {
     while (!quit) {
         pthread_mutex_lock(&bus->lock);
 
-        while (bus->queue) {
-            struct order *order = bus->queue;
-            bus->queue = order->next;
-            order_execute(bus, order);
-        }
+        /* execute one order, allow scheduling new orders inbetween */
+        struct order *order = bus->queue;
+        bus->queue = order->next;
+        order_execute(bus, order);
+        bool empty = bus->queue != NULL;
+
         quit = bus->terminate;
 
         pthread_mutex_unlock(&bus->lock);
 
-        pthread_mutex_lock(&bus->wake_up_mutex);
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += WAITTIME;
-        /* use timedwait to prevent deadlocks */
-        pthread_cond_timedwait(&bus->wake_up, &bus->wake_up_mutex, &ts);
-        pthread_mutex_unlock(&bus->wake_up_mutex);
+        if (!empty) {
+            pthread_mutex_lock(&bus->wake_up_mutex);
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += WAITTIME;
+            /* use timedwait to prevent deadlocks */
+            pthread_cond_timedwait(&bus->wake_up, &bus->wake_up_mutex, &ts);
+            pthread_mutex_unlock(&bus->wake_up_mutex);
+        }
     }
 
     pthread_exit(NULL);
@@ -219,7 +224,9 @@ void bus_tranceive(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     pthread_cond_init(&order->done, NULL);
     pthread_mutex_init(&order->done_mutex, NULL);
 
+    pthread_mutex_lock(&bus->lock);
     order_queue(bus, (struct order*)order);
+    pthread_mutex_unlock(&bus->lock);
 
     pthread_mutex_lock(&order->done_mutex);
     pthread_cond_wait(&order->done, &order->done_mutex);
@@ -242,7 +249,9 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
     order->handler = handler;
     order->handler_data = handler_data;
 
+    pthread_mutex_lock(&bus->lock);
     order_queue(bus, (struct order*)order);
+    pthread_mutex_unlock(&bus->lock);
     
     pthread_cond_signal(&bus->wake_up);
 }
@@ -260,7 +269,9 @@ void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
     order->handler = handler;
     order->handler_data = handler_data;
 
+    pthread_mutex_lock(&bus->lock);
     order_queue(bus, (struct order*)order);
+    pthread_mutex_unlock(&bus->lock);
     
     pthread_cond_signal(&bus->wake_up);
 }
