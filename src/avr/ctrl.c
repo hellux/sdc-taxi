@@ -87,7 +87,8 @@ ISR(SPI_STC_vect){
                 value_new = value_retrieved;
             }
 
-            value_new = MIN(MAX(value_new, -VEL_MAX), VEL_MAX);
+            float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
+            value_new = MIN(MAX(value_new, -max), max);
             float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
 
             if (command & BF_VEL_ROT) {
