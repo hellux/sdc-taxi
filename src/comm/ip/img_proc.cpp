@@ -47,8 +47,8 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     
     cv::imshow("canny:", edge_img);
     
-    int thresh_value = 140; 
-    int max_binary_value = 230; 
+    int thresh_value = 100; /*140*/
+    int max_binary_value =180; /*230*/
 
     //Segmentation. "Assign a label to every pixel in an image such that pixels with the
     // same label share certain characteristics.
@@ -275,15 +275,20 @@ struct ip_res *ip_process(void) {
         return;
     */
     //cv::Mat frame = cv::imread("paso_peatonal.jpg");
-    cv::VideoCapture cap(0);
+    cv::VideoCapture cap(-1);
     if (!cap.isOpened()) {
         std::cout << "Hej Dennis! hitta kameran. Nununununu\n";
         return NULL;
-    } 
+    }
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, 720);
+    
+    std::cout << "Height 1:" << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
+    std::cout << "Width 1:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
     //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
     //cap.set(CV_CAP_PROP_FPS, 60);
     //std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
 
+    std::cout << "Width 2:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
     cv::Mat frame;
     cv::Mat denoised_image;
     cv::Mat edges_image;

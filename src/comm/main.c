@@ -265,16 +265,16 @@ int main(int argc, char* args[]) {
         fprintf(stderr, "WARNING: no acknowledge from sens\n");
     }
 
-    char input[100];
+    //char input[100];
     while (!quit) {
-        /* pause loop, enable exit */
+        /* pause loop, enable exit 
         int len = scanf("%s", input);
         if (len > 0 && input[0] == 'q') {
             pthread_mutex_lock(&quit_lock);
             quit = true;
             pthread_mutex_unlock(&quit_lock);
         }
-
+        */
         bus_receive_schedule(bus, &BCS_GET, bsh_sens_recv, &sens_data);
 
         pthread_mutex_lock(&miss_data.lock);
