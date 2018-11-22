@@ -18,7 +18,6 @@ class NodeType:
     STOPLINE = 1
     PARKING = 2
     ROUNDABOUT = 3
-    NULL = 4
 
 class Command:
     IGNORE = 'ignr'
@@ -30,56 +29,54 @@ class Command:
 class Node:
     def __init__(self, node_type=NodeType.STOPLINE):
         self.type = node_type
-        self.edges = []
+        self.outgoing = []
 
-    def addExit(self, dest, cost):
-        self.edges.append(Edge(self, dest, cost))
+    def addEdge(self, end, cost):
+        self.outgoing.append(Edge(self, end, cost))
+
 
 class Edge:
-    def __init__(self, start = None, end = None, cost=0):
+    def __init__(self, start=None, end=None, cost=0):
         self.start = start
         self.end = end
         self.cost = cost
-        
-        start.addExit(self, end, cost)
 
     def __lt__(self, other):
         return self.cost < other.cost
-        
-class PathPart:
-    def __init__(self, cur=None, prev=None, cost=float('inf')):
+
+class NodeWeight:
+    def __init__(self, cur, path=[], weight=float('inf')):
         self.cur = cur
-        self.prev = prev
-        self.cost = cost
-
+        self.path = path
+        self.weight = weight
+    
     def __lt__(self, other):
-        return self.cost < other.cost
-        
+        return self.weight < other.weight
 
 def closest_path(course, src, dst):
-    inf = float('inf')
     path = [src]
-
-    q = []
-
     unvisited = []
-    visited = []
 
     for node in course:
-        if node != src:
-            heapq.heappush(unvisited, PathPart(node))
+        if node == src:
+            unvisited.append(NodeWeight(src, path, 0))
         else:
-            heapq.heappush(unvisited, PathPart(src, cost=0)
+            unvisited.append(NodeWeight(node, path))
 
     while(unvisited):
-        cur = unvisited.pop()
-        for part in unvisited():
-            for exit in cur.exits:
-                if exit.dest == part.cur:
-                    if cur.cost + exit.dist < part.cost:
-                        part.cost = cur.cost + exit.dist
+        cur = min(unvisited)
+        if cur.cur == dst:
+            path = cur.path
+            break
 
-    # TODO dijkstra
+        for edge in cur.cur.outgoing:
+            for node in unvisited:
+                if edge.end == node.cur:
+                    if cur.weight + edge.cost < node.weight:
+                        node.path = cur.path + [node.cur]
+                        node.weight = cur.weight + edge.cost
+        
+        unvisited.remove(cur)
 
     return path
 
