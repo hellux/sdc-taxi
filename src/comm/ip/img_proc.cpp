@@ -1,8 +1,8 @@
-#include <iostream>
+ #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <cmath>
-
+#include <opencv2/highgui/highgui.hpp>
 using namespace cv;
 
 extern "C" void ip_init(void);
@@ -121,7 +121,7 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
     std::vector<std::vector<cv::Vec4i> > classified_lines(2); //3 when stop
     cv::Point start;
     cv::Point end;
-    std::vector<double> slopes;
+    std::vector<float> slopes;
     std::vector<cv::Vec4i> right_lines, left_lines, stop_lines;
 
     for (auto point : lines) {
