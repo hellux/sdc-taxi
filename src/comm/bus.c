@@ -35,7 +35,6 @@ struct bus {
 };
 
 struct order {
-    bool transmit;
     bool scheduled;
 
     const struct bus_cmd *bc;
@@ -120,7 +119,7 @@ static void order_queue(struct bus *bus, struct order *order) {
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
-    if (o->transmit) {
+    if (o->bc->write) {
         transmit(o->bc, o->src_dst);
     } else {
         receive(o->bc, o->src_dst);
@@ -212,9 +211,8 @@ void bus_destroy(struct bus *bus) {
     free(bus);
 }
 
-void bus_transmit(bus_t *bus, const struct bus_cmd *bc, void *msg) {
+void bus_tranceive(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
-    order->common.transmit = true;
     order->common.scheduled = false;
     order->common.bc = bc;
     order->common.src_dst = msg;
@@ -234,7 +232,6 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
                            void (*handler)(void *src, void *data),
                            void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_blocked));
-    order->common.transmit = true;
     order->common.scheduled = true;
     order->common.bc = bc;
 
@@ -250,29 +247,10 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
     pthread_cond_signal(&bus->wake_up);
 }
 
-void bus_receive(bus_t *bus, const struct bus_cmd *bc, void *dst) {
-    struct order_blocked *order = malloc(sizeof(struct order_blocked));
-    order->common.transmit = false;
-    order->common.scheduled = false;
-    order->common.bc = bc;
-    order->common.src_dst = dst;
-    pthread_cond_init(&order->done, NULL);
-    pthread_mutex_init(&order->done_mutex, NULL);
-
-    order_queue(bus, (struct order*)order);
-
-    pthread_mutex_lock(&order->done_mutex);
-    pthread_cond_wait(&order->done, &order->done_mutex);
-    pthread_mutex_unlock(&order->done_mutex);
-
-    free(order);
-}
-
 void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
                           void (*handler)(void *dst, void *data),
                           void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
-    order->common.transmit = false;
     order->common.scheduled = true;
     order->common.bc = bc;
 
