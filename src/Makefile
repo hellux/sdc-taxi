@@ -1,25 +1,29 @@
 OBJDIR = build
 BINDIR = $(OBJDIR)/bin
-SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
-CFLAGS = -Wall -Werror -Wno-unused -std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb
+CFLAGS.release = -O3
+
+PI_REMOTE = pi@172.20.10.4
 
 CXXC = g++
-CXXFLAGS = -Wall -Werror `pkg-config --cflags opencv`
+CXXFLAGS = `pkg-config --cflags opencv`
+CXXFLAGS.debug = -Wall -Werror -ggdb -Og
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
-AVRCFLAGS = -Wall -Werror -Wno-unused -static -Og -DF_CPU=16000000
+AVRCFLAGS = -static -DF_CPU=16000000 -Wall -Werror -Wno-unused -Og
 
 PROG_CONF = prog.conf
 PROG_DBG = atmelice
 PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
-COMM_MAIN = comm/main
 COMM_BIN = comm
-COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
+COMM_SRC_C_FILES = main.c server.c bus.c protocol.c
+COMM_SRC_C = $(addprefix comm/, $(COMM_SRC_C_FILES))
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
@@ -38,43 +42,33 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .SILENT: init
 
 # communication module
-comm.gdb: CFLAGS += -ggdb -Og
-comm.gdb: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
-comm.gdb: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
+comm.gdb: CFLAGS += $(CFLAGS.debug)
+comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
 comm.pi: CFLAGS += -DPI
-comm.pi: CXXFLAGS += -O3
+comm.pi: CXXFLAGS += $(CXXFLAGS.release)
 comm.pi: COMM_LFLAGS += -lwiringPi
-comm.pi: COMM_OBJS += $(OBJDIR)/$(COMM_MAIN).o
-comm.pi: init $(OBJDIR)/$(COMM_MAIN).o $(BINDIR)/comm
+comm.pi: $(BINDIR)/comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
-comm.server: COMM_OBJS += $(OBJDIR)/dbg/server.o
-comm.server: init $(OBJDIR)/dbg/server.o $(BINDIR)/comm
-comm.ip: CXXFLAGS += -ggdb
-comm.ip: COMM_BIN = comm_ip
-comm.ip: COMM_OBJS += $(OBJDIR)/dbg/ip.o
-comm.ip: init $(OBJDIR)/dbg/ip.o $(BINDIR)/comm
+comm.ip: CXXFLAGS += $(CXXFLAGS.debug)
+comm.ip: $(addprefix $(OBJDIR)/, dbg/ip.o comm/ip/img_proc.o)
+	$(CXXC) $? $(COMM_LFLAGS) $(CXXFLAGS) -o $(BINDIR)/comm_ip
 comm.remote:
-	scp -r comm spi Makefile pi@172.20.10.4:module
-	ssh pi@172.20.10.4 -t 'cd module; make comm.pi'
+	scp -r comm spi Makefile $(PI_REMOTE):module
+	ssh $(PI_REMOTE) -t 'cd module; make comm.pi'
 
 # avr modules
-sens: init $(BINDIR)/sens
-ctrl: init $(BINDIR)/ctrl
-%.sim: AVRCFLAGS += -DSIM
-%.sim: init $(SIMDIR)/% $(BINDIR)/%
-	./$(SIMDIR)/$*
-%.prog: init $(BINDIR)/%.hex
+sens: $(BINDIR)/sens
+ctrl: $(BINDIR)/ctrl
+%.prog: $(BINDIR)/%.hex
 	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
-%.gpio: init $(BINDIR)/%.hex
+%.gpio: $(BINDIR)/%.hex
 	$(MAKE) $*.prog PROG_DBG=gpio_$*
 
 init:
 	mkdir -p $(OBJDIR)
 	mkdir -p $(OBJDIR)/dbg
-	mkdir -p $(OBJDIR)/sim
-	mkdir -p $(OBJDIR)/spi
 	mkdir -p $(OBJDIR)/comm
 	mkdir -p $(OBJDIR)/comm/ip
 	mkdir -p $(OBJDIR)/avr
@@ -83,25 +77,20 @@ clean:
 	rm -rf $(OBJDIR)
 	rm -rf $(BINDIR)
 
-# compile simulator bench
-$(SIMDIR)/%: dbg/sim/%.c
-	$(CC) -lelf -lsimavr $< -o $@
-
 # compile objects for comm c files
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c | init
 	$(CC) -c $(CFLAGS) $< -o $@
 
 # compile objects for comm cpp files (only ip files)
-$(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp
+$(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp | init
 	$(CXXC) -c $(CXXFLAGS) $< -o $@
 
-# TODO fix multiple mains
 # link comm to binary
-$(BINDIR)/comm: $(COMM_OBJS) $(OBJDIR)/$(COMM_MAIN).o
+$(BINDIR)/comm: $(COMM_OBJS)
 	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $(BINDIR)/$(COMM_BIN)
 
 # compile objects for avr c files
-$(OBJDIR)/avr/%.o: avr/%.c
+$(OBJDIR)/avr/%.o: avr/%.c | init
 	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
 
 # link sens to binary
@@ -109,7 +98,7 @@ $(BINDIR)/sens: $(SENS_OBJS)
 	$(AVRCC) $(SENS_OBJS) $(AVRARCH) $(SENS_LFLAGS) -o $@
 
 # link ctrl to binary
-$(BINDIR)/ctrl: $(BINDIR) $(CTRL_OBJS)
+$(BINDIR)/ctrl: $(CTRL_OBJS)
 	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
 
 # create hex from binary
