@@ -95,7 +95,7 @@ cv::Mat mask_image(cv::Mat& image) {
     float ROI_x4 = 0.92 * image.cols;
     std::cout << "x4:" << ROI_x4 << "\n";
     const int pts_amount = 4;
-    cv::Point p1(ROI_x1, ROI_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
+    cv::Point p1(ROI_x1, ROI_y_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
     cv::Point ROI[4] = {p1, p2, p3, p4};
     
     cv::fillConvexPoly(mask, ROI, pts_amount, cv::Scalar(255, 0, 0));
