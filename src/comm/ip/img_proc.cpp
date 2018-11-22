@@ -81,8 +81,21 @@ cv::Mat img_edge_detector(cv::Mat& image) {
 cv::Mat mask_image(cv::Mat& image) {
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
     
+    
+    float ROI_y_start = image.rows;
+    float ROI_y_end = (image.rows / 2);
+    std::cout << "y:" << ROI_y_end << "\n";
+    std::cout << "y:" << ROI_y_start << "\n";
+    float ROI_x1 = 0.08 * image.cols;
+    std::cout << "x1:" << ROI_x1 << "\n";
+    float ROI_x2 = 0.35 * image.cols;
+    std::cout << "x2:" << ROI_x2 << "\n";
+    float ROI_x3 = 0.65 * image.cols;
+    std::cout << "x3:" << ROI_x3 << "\n";
+    float ROI_x4 = 0.92 * image.cols;
+    std::cout << "x4:" << ROI_x4 << "\n";
     const int pts_amount = 4;
-    cv::Point p1(50, 480), p2(250, 250), p3(450, 250), p4(590, 480); //640x480
+    cv::Point p1(ROI_x1, ROI_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
     cv::Point ROI[4] = {p1, p2, p3, p4};
     
     cv::fillConvexPoly(mask, ROI, pts_amount, cv::Scalar(255, 0, 0));
@@ -205,7 +218,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     }*/
 
     int start_y = image.rows;
-    int end_y = 200; //470
+    int end_y = 0.65 * image.rows;
 
     double right_start_x = ((start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
     double right_end_x = ((end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
@@ -290,12 +303,14 @@ struct ip_res *ip_process(void) {
     std::cout << "Set Width2: 352" << "\n";
     std::cout << "Set Height2: 240" << "\n";
 
+    std::cout << "Width 2:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
+    std::cout << "Height 2:" << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
+
     //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
     //cap.set(CV_CAP_PROP_FPS, 60);
     //std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
 
-    std::cout << "Width 2:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
-    std::cout << "Height 2:" << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
+    
     cv::Mat frame;
     cv::Mat denoised_image;
     cv::Mat edges_image;
