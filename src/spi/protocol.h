@@ -1,4 +1,5 @@
 #ifndef protocol_h
+#define protocol_h
 
 #define F_SPI 1000000
 

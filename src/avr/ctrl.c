@@ -18,7 +18,9 @@
 #define DUTY_MAX 0.10
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
+#define VEL_MIN -0.2
 #define VEL_MAX 0.2
+#define ROT_MIN -0.95
 #define ROT_MAX 0.95
 
 #define PWM_T 0.020
@@ -87,7 +89,9 @@ ISR(SPI_STC_vect){
                 value_new = value_retrieved;
             }
 
-            value_new = MIN(MAX(value_new, -VEL_MAX), VEL_MAX);
+            float min = (command & BF_VEL_ROT) ? VEL_MIN : ROT_MIN;
+            float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
+            value_new = MIN(MAX(value_new, min), max);
             float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
 
             if (command & BF_VEL_ROT) {
