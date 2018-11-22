@@ -1,6 +1,6 @@
 from __future__ import print_function
 import tkinter as tk
-from course import Node, NodeType
+from course import Node, NodeType, Edge
 from tasks import Task
 from tkinter import *
 import os
@@ -10,30 +10,68 @@ class Map():
     def __init__(self, window, map_frame):
         self.window = window
         self.map_frame = map_frame
-        self.map_frame.bind('<Button-1>', self.draw_node)
-        self.course = []
+        self.map_frame.bind('<Button-1>', self.select)
+        self.map_frame.bind('<Button-3>', self.node_options)
+        self.nodes = []    
+        self.edges = []
+        self.selected_node = None
         
-    def draw_node(self, event):
-        self.node_popup(event)
-        self.map_frame.create_oval(event.x-5, event.y-5, event.x+5, event.y+5, fill="black", width=2)
+    def node_options(self, event):
+        node_options = tk.Menu(self.window, tearoff=False)
+        node_create = Menu(node_options, tearoff=False)
+        node_options.add_cascade(label="Create", menu=node_create)
+        node_create.add_command(label="Stopline", command=lambda: self.create_node(NodeType.STOPLINE, event.x, event.y))
+        node_create.add_command(label="Parking", command=lambda: self.create_node(NodeType.PARKING, event.x, event.y))
+        node_create.add_command(label="Roundabout", command=lambda: self.create_node(NodeType.ROUNDABOUT, event.x, event.y))
+        node_options.add_command(label="Delete", command=lambda:self.delete_node())
+        node_options.tk_popup(event.x+self.window.winfo_rootx(), event.y+self.window.winfo_rooty()) 
+     
+    def draw(self):
+        self.map_frame.delete("all")
+        for node in self.nodes:
+            if(node == self.selected_node):
+               self.map_frame.create_oval(node.pos_x-5, node.pos_y-5, node.pos_x+5, node.pos_y+5, fill="red", width=2)
+            else:
+                self.map_frame.create_oval(node.pos_x-5, node.pos_y-5, node.pos_x+5, node.pos_y+5, fill="black", width=2)
+                
+        for edge in self.edges:
+            self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="black", width=2)
+            
+    def get_node(self, x, y):
+        for node in self.nodes:
+            if (x-50 < node.pos_x < x+50) and (y-50 < node.pos_y < y+50):
+                return node
+        return None
+        
+    def select(self, event):
+        if self.selected_node:
+            self.create_edge(self.selected_node, self.get_node(event.x, event.y))
+        else:    
+            self.selected_node = self.get_node(event.x, event.y)
+        self.draw()
+        
+    def delete_node(self):
+        if(self.selected_node in self.nodes):
+            self.nodes.remove(self.selected_node)
+            self.draw()
     
-    def node_popup(self, event):
-        node_menu = tk.Menu(self.window, tearoff=False)
-        node_menu.add_command(label="STOPLINE", command=lambda: self.create_node(NodeType.STOPLINE, event.x, event.y))
-        node_menu.add_command(label="PARKING", command=lambda: self.create_node(NodeType.PARKING, event.x, event.y))
-        node_menu.add_command(label="ROUNDABOUT", command=lambda: self.create_node(NodeType.ROUNDABOUT, event.x, event.y))
-        node_menu.tk_popup(event.x+self.window.winfo_x(), event.y+self.window.winfo_y())
-        
+    def create_edge(self, node_start, node_end):
+        if(node_start and node_end):
+            edge = Edge(node_start, node_end)
+            self.edges.append(edge)
+            self.selected_node = None
+            
     def create_node(self, nodetype, x, y):
         node = GraphNode(nodetype, x, y)
-        self.course.append(node)
-        for node in self.course: print(node.type)
+        self.nodes.append(node)
+        self.draw()
         
 class GraphNode(Node):
-    def __init__(self, node_type, pos_x, pos_y):
+    def __init__(self, node_type, pos_x, pos_y, color="black"):
         super().__init__(node_type)
         self.pos_x = pos_x
         self.pos_y = pos_y
+        self.color = color
 
 class GUI():
     LOOP_DELAY = 50
