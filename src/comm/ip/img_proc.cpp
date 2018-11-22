@@ -1,8 +1,8 @@
-#include <iostream>
+ #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <cmath>
-
+#include <opencv2/highgui/highgui.hpp>
 using namespace cv;
 
 extern "C" void ip_init(void);
@@ -95,7 +95,7 @@ cv::Mat mask_image(cv::Mat& image) {
     float ROI_x4 = 0.92 * image.cols;
     std::cout << "x4:" << ROI_x4 << "\n";
     const int pts_amount = 4;
-    cv::Point p1(ROI_x1, ROI_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
+    cv::Point p1(ROI_x1, ROI_y_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
     cv::Point ROI[4] = {p1, p2, p3, p4};
     
     cv::fillConvexPoly(mask, ROI, pts_amount, cv::Scalar(255, 0, 0));
@@ -121,7 +121,7 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
     std::vector<std::vector<cv::Vec4i> > classified_lines(2); //3 when stop
     cv::Point start;
     cv::Point end;
-    std::vector<double> slopes;
+    std::vector<float> slopes;
     std::vector<cv::Vec4i> right_lines, left_lines, stop_lines;
 
     for (auto point : lines) {

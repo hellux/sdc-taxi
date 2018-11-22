@@ -10,13 +10,13 @@ LCD interfacing functions in 4-bit mode
 #define D5 PORTD5
 #define D4 PORTD4
 #define RS PORTD1
-#define EN  PORTD0
+#define EN PORTD0
 
 
 //Transmit instruction set by already assigned values to databuss and RS
-void lcd_send_instruction();
+void lcd_send_instruction(unsigned char instr);
 
-void lcd_send_data();
+void lcd_send_data(unsigned char data);
 
 void lcd_busy_wait();
 
