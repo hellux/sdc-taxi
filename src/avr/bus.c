@@ -4,9 +4,9 @@
 #include <util/delay.h>
 #include <avr/io.h>
 
-#include "../spi/protocol.h"
+#include "protocol.h"
 
-void spi_init(){
+void spi_init() {
     /* set MISO as output */
     DDRB |= (1<<PB6);
 
@@ -40,17 +40,18 @@ uint8_t spi_accept(uint8_t *data, uint8_t ack) {
         spi_tranceive(data, len);
     }
 
-    /* respond with inverse ack, set invalid command */
+    /* if invalid checksum, invert ack and ignore cmd */
     if (!cs_check(cs, data, len)) {
         ack = ~ack;
-        cmd = 0;
+        cmd = BB_INVALID;
     }
 
-    spi_tranceive(&ack, 1);
+    /* acknowledge to master, return retrieved command */
+    spi_tranceive(&ack, sizeof(ack));
     return cmd;
 }
 
-/* return data to master */
+/* return data to master, destroy input data */
 void spi_return(uint8_t cmd, uint8_t *data, int len) {
     cs_t cs = cs_create(cmd, data, len);
     spi_tranceive(&cs, 1);
