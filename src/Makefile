@@ -3,14 +3,14 @@ BINDIR = $(OBJDIR)/bin
 SIMDIR = $(OBJDIR)/sim
 
 CC = gcc
-CFLAGS = -Wall -Werror -std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Werror -Wno-unused -std=c99 -D_POSIX_C_SOURCE=200809L
 
 CXXC = g++
 CXXFLAGS = -Wall -Werror `pkg-config --cflags opencv`
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
-AVRCFLAGS = -Wall -static -Og -DF_CPU=16000000
+AVRCFLAGS = -Wall -Werror -Wno-unused -static -Og -DF_CPU=16000000
 
 PROG_CONF = prog.conf
 PROG_DBG = atmelice
@@ -19,17 +19,17 @@ PROG_PNO = m1284p
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_MAIN = comm/main
 COMM_BIN = comm
-COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,")
+COMM_SRC_C = $(shell find comm -name '*.c' -not -name 'main.c' | sed "s,\./,,") spi/protocol.c
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
 		    $(patsubst %.cpp, $(OBJDIR)/%.o, $(COMM_SRC_CPP))
 
-SENS_SRC_FILES = sens.c bus.c jtag.c lcd.c
+SENS_SRC_FILES = sens.c bus.c jtag.c lcd.c protocol.c
 SENS_LFLAGS =
 SENS_SRC = $(addprefix avr/, $(SENS_SRC_FILES))
 SENS_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(SENS_SRC))
 
-CTRL_SRC_FILES = ctrl.c bus.c jtag.c lcd.c
+CTRL_SRC_FILES = ctrl.c bus.c jtag.c lcd.c protocol.c
 CTRL_LFLAGS =
 CTRL_SRC = $(addprefix avr/, $(CTRL_SRC_FILES))
 CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
@@ -74,6 +74,7 @@ init:
 	mkdir -p $(OBJDIR)
 	mkdir -p $(OBJDIR)/dbg
 	mkdir -p $(OBJDIR)/sim
+	mkdir -p $(OBJDIR)/spi
 	mkdir -p $(OBJDIR)/comm
 	mkdir -p $(OBJDIR)/comm/ip
 	mkdir -p $(OBJDIR)/avr
