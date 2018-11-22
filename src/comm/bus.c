@@ -15,6 +15,14 @@
 #define CHANNEL 0 /* channel to use on RPI */
 #define WAITTIME 1 /* seconds before wake up if nothing scheduled */
 
+#define SLAVE_SENS_GPIO 7
+#define SLAVE_CTRL_GPIO 8
+
+#ifdef PI
+static int GPIO_PINS[2] = {SLAVE_SENS_GPIO, SLAVE_CTRL_GPIO};
+static int ACKS[2] = {SENS_ACK, CTRL_ACK};
+#endif
+
 struct bus {
     pthread_t thread;
 
@@ -27,6 +35,7 @@ struct bus {
 };
 
 struct order {
+    bool transmit;
     bool scheduled;
 
     const struct bus_cmd *bc;
@@ -50,25 +59,47 @@ struct order_blocked {
 };
 
 /* physical bus functions (bus thread) */
-
-static void tranceive(const struct bus_cmd *bc, void *msg) {
-    /* prevent overwriting command by creating a copy */
-    int cmd = bc->cmd;
+static void receive(const struct bus_cmd *bc, void *msg) {
+    bool success = false;
+    while (!success) {
 #ifdef PI
-    digitalWrite(bc->slave, 1);   // SS high - synch with slave
-    digitalWrite(bc->slave, 0);   // SS low - start transmission
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cmd, 1);
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
-    digitalWrite(bc->slave, 1);   // SS high - end transmission
+        cs_t cs = cs_create(bc->cmd, NULL, 0);
+        digitalWrite(GPIO_PINS[bc->slave], 1);
+        digitalWrite(GPIO_PINS[bc->slave], 0);
+        wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
+        wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+        digitalWrite(GPIO_PINS[bc->slave], 1);
+        success = cs_check(cs, msg, bc->len);
 #else
-    printf("transmit via command %d to %d: ", cmd, bc->slave);
-    for (int i = 0; i < bc->len; i++)
-        printf("%x ", ((uint8_t*)msg)[i]);
-    printf("\n");
-    for (int i = 0; i < bc->len; i++) {
-        *((uint8_t*)msg+i) = (uint8_t)i;
-    }
+        for (int i = 0; i < bc->len; i++) {
+            *((uint8_t*)msg+i) = (uint8_t)i;
+        }
+        success = true;
 #endif
+    }
+}
+
+static void transmit(const struct bus_cmd *bc, void *msg) {
+    bool success = false;
+    while (!success) {
+#ifdef PI
+        cs_t cs = cs_create(bc->cmd, msg, bc->len);
+        uint8_t ack = ACKS[bc->slave];
+        digitalWrite(GPIO_PINS[bc->slave], 1);
+        digitalWrite(GPIO_PINS[bc->slave], 0);
+        wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
+        wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+        wiringPiSPIDataRW(CHANNEL, (unsigned char*)&ack, 1);
+        digitalWrite(GPIO_PINS[bc->slave], 1);
+        success = (ack == ACKS[bc->slave]);
+#else
+        printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+        for (int i = 0; i < bc->len; i++)
+            printf("%x ", ((uint8_t*)msg)[i]);
+        printf("\n");
+        success = true;
+#endif
+    }
 }
 
 /* order functions */
@@ -89,7 +120,11 @@ static void order_queue(struct bus *bus, struct order *order) {
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
-    tranceive(o->bc, o->src_dst);
+    if (o->transmit) {
+        transmit(o->bc, o->src_dst);
+    } else {
+        receive(o->bc, o->src_dst);
+    }
     if (o->scheduled) {
         struct order_scheduled *os = (struct order_scheduled*)o;
         if (os->handler)
@@ -179,6 +214,7 @@ void bus_destroy(struct bus *bus) {
 
 void bus_transmit(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
+    order->common.transmit = true;
     order->common.scheduled = false;
     order->common.bc = bc;
     order->common.src_dst = msg;
@@ -198,6 +234,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
                            void (*handler)(void *src, void *data),
                            void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_blocked));
+    order->common.transmit = true;
     order->common.scheduled = true;
     order->common.bc = bc;
 
@@ -215,6 +252,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
 
 void bus_receive(bus_t *bus, const struct bus_cmd *bc, void *dst) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
+    order->common.transmit = false;
     order->common.scheduled = false;
     order->common.bc = bc;
     order->common.src_dst = dst;
@@ -234,6 +272,7 @@ void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
                           void (*handler)(void *dst, void *data),
                           void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
+    order->common.transmit = false;
     order->common.scheduled = true;
     order->common.bc = bc;
 

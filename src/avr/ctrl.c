@@ -69,15 +69,12 @@ float pd_ctrl(volatile struct pd_values *v){
 
 ISR(SPI_STC_vect){
     cli();
-    uint8_t command;
-    spi_tranceive(&command, sizeof(command));
+    ctrl_val_t value_retrieved;
+    uint8_t command = spi_accept((uint8_t*)&value_retrieved, CTRL_ACK);
     
     volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
     if (command & BF_WRITE) {
-        ctrl_val_t value_retrieved;
-        spi_tranceive((uint8_t*)&value_retrieved, sizeof(value_retrieved));
-
         if (command & BF_MOD_REG) {
             ctrl_val_t value_new;
 
@@ -104,11 +101,8 @@ ISR(SPI_STC_vect){
                 (command & BF_KP_KD) ? &pdv->kp : &pdv->kd;
             *dst = value_retrieved;
         }
-    } else if (command == BCBC_RST) {
+    } else if (command == BBC_RST) {
         reset();
-    } else if (command == BCBC_SYN) {
-        uint8_t ack = CTRL_ACK;
-        spi_tranceive(&ack, sizeof(ack));
     }
 
     sei();
@@ -127,7 +121,7 @@ void pwm_init(){
 
 int main() {
     pwm_init();
-    spi_init_slave();
+    spi_init();
     init_jtagport();
     reset();
 

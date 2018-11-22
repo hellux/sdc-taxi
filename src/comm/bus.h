@@ -2,13 +2,9 @@
 
 #include <stdint.h>
 
-typedef struct bus bus_t;
+#include "../spi/protocol.h"
 
-struct bus_cmd {
-    uint8_t cmd;
-    int slave;
-    int len;
-};
+typedef struct bus bus_t;
 
 /* allocate resources and start bus thread */
 bus_t *bus_create(int freq);

@@ -29,7 +29,11 @@ const struct sens_data SENS_EMPTY = {0};
 volatile struct sens_data sensors; 
 volatile unsigned wheel_sensor_cntr;
 
-void adc_init() {
+void reset(void) {
+    sensors = SENS_EMPTY;
+}
+
+void adc_init(void) {
     //mux init
     ADMUX = (1 << REFS0);
 
@@ -66,17 +70,13 @@ ISR(INT1_vect) {
 
 ISR(SPI_STC_vect) {
     cli();
-    uint8_t command;
-    spi_tranceive(&command, sizeof(command));
+    uint8_t command = spi_accept(NULL, SENS_ACK);
 
-    if (command == BCBS_GET) {
+    if (command == BBS_GET) {
         struct sens_data sensors_copy = sensors;
-        spi_tranceive((uint8_t*)&sensors_copy, sizeof(sensors_copy));
-    } else if (command == BCBS_SYN) {
-        uint8_t ack = SENS_ACK;
-        spi_tranceive(&ack, sizeof(ack));
-    } else if (command == BCBS_RST) {
-        sensors = SENS_EMPTY;
+        spi_return(command, (uint8_t*)&sensors_copy, sizeof(sensors_copy));
+    } else if (command == BBS_RST) {
+        reset();
     }
     sei();
 }
@@ -97,9 +97,10 @@ int main(void) {
     /* Trigger on rising edge */
     EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
 
-    spi_init_slave();
+    spi_init();
     init_jtagport();
     adc_init();
+    reset();
 
     sei();
 

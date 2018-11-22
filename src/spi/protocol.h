@@ -1,7 +1,43 @@
 #ifndef protocol_h
 #define protocol_h
 
-#define F_SPI 1000000
+#include <stdint.h>
+#include <stdbool.h>
+
+/* message structure:
+ *  |<cs>|<dt1>|..|<dtn>|
+ *  a cmd sum byte containing command and checksum followed by variable amount
+ *  of data bytes */
+
+#define F_SPI 500000
+
+/* IDs for slaves */
+#define SLAVE_SENS 0
+#define SLAVE_CTRL 1
+
+typedef float ctrl_val_t;
+typedef float sens_dist_t;
+typedef float sens_odom_t;
+
+/* data types on bus */
+
+typedef int8_t ctrl_bus_val_t;
+typedef uint8_t sens_bus_dist_t;
+typedef uint8_t sens_bus_odom_t;
+
+struct sens_data {
+    sens_dist_t dist_front;
+    sens_dist_t dist_right;
+    sens_odom_t distance;
+};
+
+/* cmd sum type */
+
+typedef uint8_t cs_t;
+
+uint8_t cs_cmd(cs_t cs);
+cs_t cs_create(uint8_t cmd, void *data, int len);
+bool cs_check(uint8_t cmd, void *data, int len);
 
 #define BF_WRITE    1
 #define BF_VEL_ROT  2
@@ -10,51 +46,62 @@
 #define BF_KP_KD    8 /* should share with above */
 
 /* ctrl commands */
-#define BCBC_VEL_VAL (BF_WRITE|BF_VEL_ROT|BF_MOD_REG)
-#define BCBC_VEL_ERR (BF_WRITE|BF_VEL_ROT|BF_MOD_REG|BF_ERR_VAL)
-#define BCBC_VEL_KP  (BF_WRITE|BF_VEL_ROT|           BF_KP_KD)
-#define BCBC_VEL_KD  (BF_WRITE|BF_VEL_ROT)
-#define BCBC_ROT_VAL (BF_WRITE|           BF_MOD_REG)
-#define BCBC_ROT_ERR (BF_WRITE|           BF_MOD_REG|BF_ERR_VAL)
-#define BCBC_ROT_KP  (BF_WRITE|                      BF_KP_KD)
-#define BCBC_ROT_KD  (BF_WRITE)          
-#define BCBC_RST     16
-#define BCBC_SYN     32
+#define BBC_RST     0x01
+#define BBC_SYN     0x02
+#define BBC_ROT_KD  (BF_WRITE)          
+#define BBC_ROT_KP  (BF_WRITE|                      BF_KP_KD)
+#define BBC_ROT_VAL (BF_WRITE|           BF_MOD_REG)
+#define BBC_ROT_ERR (BF_WRITE|           BF_MOD_REG|BF_ERR_VAL)
+#define BBC_VEL_KD  (BF_WRITE|BF_VEL_ROT)
+#define BBC_VEL_KP  (BF_WRITE|BF_VEL_ROT|           BF_KP_KD)
+#define BBC_VEL_VAL (BF_WRITE|BF_VEL_ROT|BF_MOD_REG)
+#define BBC_VEL_ERR (BF_WRITE|BF_VEL_ROT|BF_MOD_REG|BF_ERR_VAL)
 
 /* sens commands */
-#define BCBS_GET 1
-#define BCBS_RST 2
-#define BCBS_SYN 3
+#define BBS_RST 0x01
+#define BBS_SYN 0x02
+#define BBS_GET 0x03
+
+struct bus_cmd {
+    uint8_t cmd;
+    bool write;
+    int slave;
+    int len;
+};
+
+static struct bus_cmd BCCS[16] = {
+    {0},
+    {BBC_RST,     false, SLAVE_CTRL, 0},
+    {BBC_SYN,     false, SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {0},
+
+    {0},{0},{0},{0},
+
+    {BBC_ROT_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_ROT_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_ROT_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_ROT_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+
+    {BBC_VEL_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_VEL_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_VEL_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_VEL_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+};
+
+/* bus commands for sens */
+static struct bus_cmd BCSS[16] = {
+    {0},
+    {BBS_GET, false, SLAVE_SENS, sizeof(struct sens_data)},
+    {BBS_SYN, false, SLAVE_SENS, 1},
+    {BBS_RST, false, SLAVE_SENS, 0},
+
+    {0},{0},{0},{0},
+    {0},{0},{0},{0},
+    {0},{0},{0},{0},
+};
 
 /* SYN/ACK magic values */
 #define CTRL_ACK 0xc7
 #define SENS_ACK 0x53
-
-/* data types on bus */
-
-typedef float   ctrl_val_t;
-typedef float   sens_dist_t;
-typedef float   sens_odom_t;
-
-struct ctrl_err {
-    ctrl_val_t vel;
-    ctrl_val_t rot;
-};
-
-struct ctrl_man {
-    ctrl_val_t vel;
-    ctrl_val_t rot;
-};
-
-struct ctrl_reg {
-    ctrl_val_t kp;
-    ctrl_val_t kd;
-};
-
-struct sens_data {
-    sens_dist_t dist_front;
-    sens_dist_t dist_right;
-    sens_odom_t distance;
-};
 
 #endif
