@@ -284,11 +284,11 @@ struct ip_res *ip_process(void) {
     std::cout << "Width 1:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
     std::cout << "Height 1:" << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
     
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 50);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT,50);
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, 160);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT,120);
     
-    std::cout << "Set Width2 50:" << "\n";
-    std::cout << "Set Height2 50 :" << "\n";
+    std::cout << "Set Width2: 160" << "\n";
+    std::cout << "Set Height2: 120" << "\n";
 
     //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
     //cap.set(CV_CAP_PROP_FPS, 60);
