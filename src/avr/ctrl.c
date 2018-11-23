@@ -37,10 +37,10 @@
 
 /* killswitch */
 #define KS_OCR OCR3A
-#define KS_TC  TCNT3
+#define KS_TCNT TCNT3
 
-#define KS_T 0.1
-#define KS_PSC 8
+#define KS_T 0.2
+#define KS_PSC 64
 #define KS_TOP F_CPU*KS_T/KS_PSC
 
 struct pd_values {
@@ -75,7 +75,9 @@ float pd_ctrl(volatile struct pd_values *v){
 
 /* killswitch */
 ISR(TIMER3_COMPA_vect) {
+    cli();
     reset();
+    sei();
 }
 
 ISR(SPI_STC_vect){
@@ -84,7 +86,7 @@ ISR(SPI_STC_vect){
     uint8_t command = spi_accept((uint8_t*)&value_retrieved);
     
     if (command != BB_INVALID)
-        KS_OCR = 0;
+        KS_TCNT = 0;
 
     volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
@@ -123,10 +125,16 @@ ISR(SPI_STC_vect){
 }
 
 void ks_init(void) {
-    TCCR3A |= 0;
-    TCCR3B |= (1<<WGM32)|(1<<CS31);
+    /* enable interrupt on ocr3 match */
+    TIMSK3 = (1<<OCIE3A);
 
-    KS_OCR = 0;
+    TCCR3A = 0;
+
+    /* set prescaling */
+    TCCR3B = (1<<WGM32)|(1<<CS31)|(1<<CS30);
+
+    KS_OCR = KS_TOP;
+    KS_TCNT = 0;
 }
 
 void pwm_init(void) {
@@ -144,12 +152,10 @@ int main(void) {
     ks_init();
     pwm_init();
     spi_init();
+
     reset();
 
     sei();
-    while (1) {
-        /*
-        _delay_ms(3000);
-        */
-    }
+
+    while (1);
 }
