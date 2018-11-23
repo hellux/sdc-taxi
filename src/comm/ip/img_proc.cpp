@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <opencv2/highgui/highgui.hpp>
-
+#include <chrono>
 
 extern "C" void ip_init(void);
 extern "C" struct ip_res *ip_process(void);
@@ -11,7 +11,7 @@ extern "C" struct ip_res *ip_process(void);
 void ip_init(void) {
 
 }
-
+typedef std::chrono::high_resolution_clock Clock;
 double img_center_pt;
 bool lline_found = false;
 bool rline_found = false;
@@ -279,11 +279,14 @@ struct ip_res *ip_process(void) {
     std::cout << "hej från c++" << std::endl;
 
     cv::VideoCapture cap(-1);
+
+    
     if (!cap.isOpened()) {
         std::cout << "Error: Camera not found\n";
         return NULL;
     }
   
+    
     cap.set(CV_CAP_PROP_FRAME_WIDTH, 352);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
     
@@ -314,7 +317,7 @@ struct ip_res *ip_process(void) {
             break;
         }*/
     while (true) {
-	
+    auto start = Clock::now();
 	cap.read(frame);
 	if (frame.empty()) {
 	    std::cout << "Error: Empty frame\n";
@@ -359,6 +362,11 @@ struct ip_res *ip_process(void) {
 
             if (k == 27)
          	break;
+            
+            auto stop = Clock::now();
+    
+            double period = (double)(stop-start).count()/(1000000000);
+            printf("\nFPS: %.1f\n", 1/period);
         }
     frame.release();
     cv::destroyAllWindows();
