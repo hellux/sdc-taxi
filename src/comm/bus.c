@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <time.h>
 
 #include <pthread.h>
 
@@ -19,14 +18,12 @@
 #define SLAVE_SENS_GPIO 7
 #define SLAVE_CTRL_GPIO 8
 
-#define MAX_ATTEMPTS 5
-
 #ifdef PI
 static int GPIO_PINS[2] = {SLAVE_SENS_GPIO, SLAVE_CTRL_GPIO};
 #endif
 
-static unsigned order_count = 0;
-static unsigned packet_count = 0;
+static unsigned packets_sent = 0;
+static unsigned packets_lost = 0;
 
 struct bus {
     pthread_t thread;
@@ -44,7 +41,6 @@ struct order {
 
     const struct bus_cmd *bc;
     void *src_dst;
-    int attempts;
 
     struct order *next;
 };
@@ -85,10 +81,10 @@ static bool receive(const struct bus_cmd *bc, void *msg) {
 
 static bool transmit(const struct bus_cmd *bc, void *msg) {
     bool success = false;
-    //printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
-    //for (int i = 0; i < bc->len; i++)
-        //printf("%x ", ((uint8_t*)msg)[i]);
-    //printf("\n");
+    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    for (int i = 0; i < bc->len; i++)
+        printf("%x ", ((uint8_t*)msg)[i]);
+    printf("\n");
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, msg, bc->len);
     uint8_t ack = ACKS[bc->slave];
@@ -118,20 +114,37 @@ static bool transmit(const struct bus_cmd *bc, void *msg) {
 
 /* order functions */
 
-/* queue an order, from outside thread */
-static void order_queue(struct bus *bus, struct order *order) {
-    order->next = NULL;
-    struct order *last = bus->queue;
-    if (last) {
-        while (last->next) last = last->next;
-        last->next = order;
-    } else {
-        bus->queue = order;
+/* -if not a requeue, the order will replace the previous order with the same
+ *  type of command */
+static void order_queue(struct bus *bus, struct order *o, bool requeue) {
+    o->next = NULL;
+
+    pthread_mutex_lock(&bus->lock);
+    struct order **prev_ptr = &bus->queue;
+    struct order *curr = bus->queue;
+    bool insert = true;
+    if (curr) {
+        while (curr) {
+            if (o->bc == curr->bc) {
+                if (requeue)
+                    insert = false;
+                break;
+            } else {
+                prev_ptr = &curr->next;
+                curr = curr->next;
+            }
+        }
     }
+    if (insert) {
+        o->next = (curr) ? curr->next : NULL;
+        *prev_ptr = o;
+    }
+    pthread_mutex_unlock(&bus->lock);
 }
 
 /* execute an order, from bus thread */
-static void order_execute(struct bus *bus, struct order *o) {
+static bool order_execute(struct bus *bus, struct order *o) {
+    packets_sent++;
     bool success = false;
     if (o->bc->write) {
         void *data_copy = malloc(o->bc->len);
@@ -143,23 +156,13 @@ static void order_execute(struct bus *bus, struct order *o) {
     } else {
         success = receive(o->bc, o->src_dst);
     }
+    if (!success)
+        packets_lost++;
 
-    if (success) {
-        if (o->scheduled) {
-            struct order_scheduled *os = (struct order_scheduled*)o;
-            if (os->handler)
-                os->handler(o->src_dst, os->handler_data);
-            free(o->src_dst);
-            free(o);
-        } else {
-            struct order_blocked *ob = (struct order_blocked*)o;
-            pthread_cond_signal(&ob->done);
-        }
-    } else {
-        o->attempts++;
-        if (o->attempts < MAX_ATTEMPTS)
-            order_queue(bus, o);
-    }
+    printf("packet loss: %.1f\n",
+           ((float)packets_lost/(float)packets_sent)*100);
+
+    return success;
 }
 
 /* bus thread function */
@@ -172,23 +175,33 @@ static void *bus_thread(void *b) {
     struct timespec ts;
 
     while (!quit) {
+        /* get first order in queue, if any */
+        struct order *order;
         pthread_mutex_lock(&bus->lock);
-
-        /* execute one order, allow scheduling new orders inbetween */
-        struct order *order = bus->queue;
-        bool empty = (bus->queue == NULL);
-        if (!empty) {
-            printf("packet loss: %.1f\n", (1-(float)order_count/(float)packet_count)*100);
-            packet_count++;
+        order = bus->queue;
+        if (order)
             bus->queue = order->next;
-            order_execute(bus, order);
-        }
-
         quit = bus->terminate;
-
         pthread_mutex_unlock(&bus->lock);
 
-        if (empty) {
+        /* execute order if any, otherwise go to sleep */
+        if (order) {
+            bool success = order_execute(bus, order);
+            if (success) {
+                if (order->scheduled) {
+                    struct order_scheduled *os = (struct order_scheduled*)order;
+                    if (os->handler)
+                        os->handler(order->src_dst, os->handler_data);
+                    free(order->src_dst);
+                    free(order);
+                } else {
+                    struct order_blocked *ob = (struct order_blocked*)order;
+                    pthread_cond_signal(&ob->done);
+                }
+            } else {
+                order_queue(bus, order, true);
+            }
+        } else {
             pthread_mutex_lock(&bus->wake_up_mutex);
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_sec += WAITTIME;
@@ -258,10 +271,7 @@ void bus_tranceive(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     pthread_cond_init(&order->done, NULL);
     pthread_mutex_init(&order->done_mutex, NULL);
 
-    pthread_mutex_lock(&bus->lock);
-    order_count++;
-    order_queue(bus, (struct order*)order);
-    pthread_mutex_unlock(&bus->lock);
+    order_queue(bus, (struct order*)order, false);
 
     pthread_mutex_lock(&order->done_mutex);
     pthread_cond_wait(&order->done, &order->done_mutex);
@@ -284,10 +294,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
     order->handler = handler;
     order->handler_data = handler_data;
 
-    pthread_mutex_lock(&bus->lock);
-    order_count++;
-    order_queue(bus, (struct order*)order);
-    pthread_mutex_unlock(&bus->lock);
+    order_queue(bus, (struct order*)order, false);
     
     pthread_cond_signal(&bus->wake_up);
 }
@@ -305,10 +312,7 @@ void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
     order->handler = handler;
     order->handler_data = handler_data;
 
-    pthread_mutex_lock(&bus->lock);
-    order_count++;
-    order_queue(bus, (struct order*)order);
-    pthread_mutex_unlock(&bus->lock);
+    order_queue(bus, (struct order*)order, false);
     
     pthread_cond_signal(&bus->wake_up);
 }
