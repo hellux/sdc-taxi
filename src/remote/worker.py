@@ -21,12 +21,19 @@ class Worker(threading.Thread):
 
         self.terminate = False
 
+    def send(self, msg):
+        print("worker: sending cmd: ", msg)
+        return self.client.send_cmd_retry(msg)
+
+    def send_fmt(self, cmd, *args):
+        return self.send(Client.create_msg(cmd, *args))
+
     def task_connect(self, address):
         self.client.addr = address
         return self.client.connect()
 
     def task_send(self, msg):
-        return self.client.send_cmd_retry(msg)
+        return self.send(msg)
 
     def task_kill(self):
         self.terminate = True
@@ -38,12 +45,12 @@ class Worker(threading.Thread):
             vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
             rot = int(keys["RIGHT"]) - int(keys["LEFT"])
 
-            self.client.send_cmd_fmt(Command.SET_VEL, [vel])
-            self.client.send_cmd_fmt(Command.SET_ROT, [rot])
+            self.send_fmt(Command.SET_VEL, vel)
+            self.send_fmt(Command.SET_ROT, rot)
         return None
             
     def set_auto(self, auto):
-        self.client.send_cmd_fmt(Command.SET_STATE, [auto])
+        self.send_fmt(Command.SET_STATE, auto)
         return None
         
     def run(self):
