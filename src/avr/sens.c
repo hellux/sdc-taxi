@@ -73,7 +73,7 @@ ISR(INT1_vect) {
 
 ISR(SPI_STC_vect) {
     cli();
-    uint8_t command = spi_accept(NULL, SENS_ACK);
+    uint8_t command = spi_accept(NULL);
 
     if (command == BBS_GET) {
         struct sens_data sensors_copy = sensors;

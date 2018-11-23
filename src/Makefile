@@ -59,7 +59,9 @@ comm.remote:
 	ssh $(PI_REMOTE) -t 'cd module; make comm.pi'
 
 # avr modules
+sens: AVRCFLAGS += -DSLAVE=0
 sens: $(BINDIR)/sens
+ctrl: AVRCFLAGS += -DSLAVE=1
 ctrl: $(BINDIR)/ctrl
 %.prog: $(BINDIR)/%.hex
 	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
@@ -87,7 +89,7 @@ $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp | init
 
 # link comm to binary
 $(BINDIR)/comm: $(COMM_OBJS)
-	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $(BINDIR)/$(COMM_BIN)
+	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $@
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c | init

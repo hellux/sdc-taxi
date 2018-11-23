@@ -20,7 +20,6 @@
 
 #ifdef PI
 static int GPIO_PINS[2] = {SLAVE_SENS_GPIO, SLAVE_CTRL_GPIO};
-static int ACKS[2] = {SENS_ACK, CTRL_ACK};
 #endif
 
 struct bus {

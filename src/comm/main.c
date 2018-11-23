@@ -92,8 +92,10 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&rc_data.lock);
 
             printf("vel: %f, rot: %f\n", local.val.vel, local.val.rot);
+            /*
             bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL],
                                   (void*)&local.val.vel, NULL, NULL);
+                                  */
             bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL],
                                   (void*)&local.val.rot, NULL, NULL);
         }

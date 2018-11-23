@@ -28,17 +28,19 @@ void spi_tranceive(uint8_t *data, int len) {
 }
 
 /* accept command from master */
-uint8_t spi_accept(uint8_t *data, uint8_t ack) {
+uint8_t spi_accept(uint8_t *data) {
     /* retrieve command */
     cs_t cs;
     spi_tranceive((void*)&cs, 1);
     int cmd = cs_cmd(cs);
-    int len = BCCS[cmd].len;
+    int len = BCMDS[SLAVE][cmd].len;
 
     /* retrieve data, if any */
     if (BCCS[cmd].write) {
         spi_tranceive(data, len);
     }
+
+    uint8_t ack = ACKS[SLAVE];
 
     /* if invalid checksum, invert ack and ignore cmd */
     if (!cs_check(cs, data, len)) {

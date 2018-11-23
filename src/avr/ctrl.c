@@ -68,7 +68,7 @@ float pd_ctrl(volatile struct pd_values *v){
 ISR(SPI_STC_vect){
     cli();
     ctrl_val_t value_retrieved;
-    uint8_t command = spi_accept((uint8_t*)&value_retrieved, CTRL_ACK);
+    uint8_t command = spi_accept((uint8_t*)&value_retrieved);
     
     volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
