@@ -1,16 +1,17 @@
 #include "server_cmds.h"
 
 bool sc_get_sens(struct srv_cmd_args *a) {
-    struct data_sensors *sens_data = (struct data_sensors*)a->data1;
+    pthread_mutex_t lock = ((struct data_sensors*)a->data1)->lock;
+    struct sens_values *sensors = (struct sens_values*)a->data1;
 
     /* read data */
     sens_dist_t df, dr;
     sens_odom_t dist;
-    pthread_mutex_lock(&sens_data->lock);
-    df = sens_data->f.dist_front;
-    dr = sens_data->f.dist_right;
-    dist = sens_data->f.distance;
-    pthread_mutex_unlock(&sens_data->lock);
+    pthread_mutex_lock(&lock);
+    df = sensors->dist_front;
+    dr = sensors->dist_right;
+    dist = sensors->distance;
+    pthread_mutex_unlock(&lock);
 
     /* create string */
     int buf_size = 128;

@@ -20,9 +20,21 @@
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
+struct ctrl_pair {
+    float vel;
+    float rot;
+};
+
+struct sens_values {
+    float dist_front;
+    float dist_right;
+    float distance;
+    float velocity;
+};
+
 /* data from sensors stored on pi */
 struct data_sensors {
-    struct sens_data f;
+    struct sens_values val;
     
     pthread_mutex_t lock;
 };
@@ -39,8 +51,7 @@ struct data_mission {
 };
 
 struct data_rc {
-    ctrl_val_t vel;
-    ctrl_val_t rot;
+    struct ctrl_pair val;
 
     pthread_mutex_t lock;
 };
