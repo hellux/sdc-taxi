@@ -115,7 +115,7 @@ static void order_queue(struct bus *bus, struct order *order) {
 
 /* execute an order, from bus thread */
 static void order_execute(struct bus *bus, struct order *o) {
-    bool success;
+    bool success = false;
     if (o->bc->write) {
         success = transmit(o->bc, o->src_dst);
     } else {
@@ -123,6 +123,7 @@ static void order_execute(struct bus *bus, struct order *o) {
     }
 
     if (success) {
+        printf("success\n");
         if (o->scheduled) {
             struct order_scheduled *os = (struct order_scheduled*)o;
             if (os->handler)
@@ -152,15 +153,17 @@ static void *bus_thread(void *b) {
 
         /* execute one order, allow scheduling new orders inbetween */
         struct order *order = bus->queue;
-        bus->queue = order->next;
-        order_execute(bus, order);
-        bool empty = bus->queue != NULL;
+        bool empty = (bus->queue == NULL);
+        if (!empty) {
+            bus->queue = order->next;
+            order_execute(bus, order);
+        }
 
         quit = bus->terminate;
 
         pthread_mutex_unlock(&bus->lock);
 
-        if (!empty) {
+        if (empty) {
             pthread_mutex_lock(&bus->wake_up_mutex);
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_sec += WAITTIME;
@@ -210,6 +213,12 @@ void bus_destroy(struct bus *bus) {
     pthread_join(bus->thread, NULL);
 
     /* free resources */
+    struct order *current = bus->queue;
+    while (current) {
+        struct order *prev = current;
+        current = current->next;
+        free(prev);
+    }
     pthread_mutex_destroy(&bus->lock);
     pthread_cond_destroy(&bus->wake_up);
     pthread_mutex_destroy(&bus->wake_up_mutex);
