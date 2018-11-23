@@ -7,7 +7,7 @@ void bsh_sens_recv(void *received, void *data) {
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
     pthread_mutex_lock(&sens_data->lock);
-    sens_data->f = *frame;
+    /*sens_data->f = *frame;*/
     pthread_mutex_unlock(&sens_data->lock);
 }
 
@@ -38,8 +38,8 @@ int main(int argc, char* args[]) {
     {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
     {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
-    {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
-    {"set_rot",     1, &rc_data.rot,      &rc_data.lock,   *sc_set_float},
+    {"set_vel",     1, &rc_data.val.vel,  &rc_data.lock,   *sc_set_float},
+    {"set_rot",     1, &rc_data.val.rot,  &rc_data.lock,   *sc_set_float},
     {"set_vel_kp",  1, &BCCS[BBC_VEL_KP], bus,             *sc_bus_send_float},
     {"set_vel_kd",  1, &BCCS[BBC_VEL_KD], bus,             *sc_bus_send_float},
     {"set_rot_kp",  1, &BCCS[BBC_ROT_KP], bus,             *sc_bus_send_float},
@@ -54,9 +54,10 @@ int main(int argc, char* args[]) {
     bus_tranceive(bus, &BCCS[BBC_SYN], (void*)&rsp_ctrl);
     /*bus_receive(bus, &BCSS[BBS_SYN], (void*)&rsp_sens);*/
 
-    //char input[100];
+    char input[100];
     while (!quit) {
-        /* pause loop, enable exit 
+        /* pause loop, enable exit
+        printf("> ");
         int len = scanf("%s", input);
         if (len > 0 && input[0] == 'q') {
             pthread_mutex_lock(&quit_lock);
@@ -90,11 +91,11 @@ int main(int argc, char* args[]) {
             local = rc_data;
             pthread_mutex_unlock(&rc_data.lock);
 
-            printf("vel: %f, rot: %f\n", local.vel, local.rot);
+            printf("vel: %f, rot: %f\n", local.val.vel, local.val.rot);
             bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL],
-                                  (void*)&local.vel, NULL, NULL);
+                                  (void*)&local.val.vel, NULL, NULL);
             bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL],
-                                  (void*)&local.rot, NULL, NULL);
+                                  (void*)&local.val.rot, NULL, NULL);
         }
     }
 

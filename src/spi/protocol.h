@@ -19,12 +19,6 @@
 #define CTRL_ACK 0xc7
 #define SENS_ACK 0x53
 
-/* data types on bus */
-
-typedef float ctrl_val_t;
-typedef float sens_dist_t;
-typedef float sens_odom_t;
-
 /* cmd sum type */
 
 typedef uint8_t cs_t;
@@ -32,6 +26,18 @@ typedef uint8_t cs_t;
 uint8_t cs_cmd(cs_t cs);
 cs_t cs_create(uint8_t cmd, void *data, int len);
 bool cs_check(cs_t cs, void *data, int len);
+
+/* data types on bus */
+
+typedef float ctrl_val_t;
+typedef float sens_dist_t;
+typedef float sens_odom_t;
+
+struct sens_data {
+    sens_dist_t dist_front;
+    sens_dist_t dist_right;
+    sens_odom_t distance;
+};
 
 struct bus_cmd {
     uint8_t cmd;
@@ -78,12 +84,6 @@ static struct bus_cmd BCCS[16] = {
     {BBC_VEL_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
     {BBC_VEL_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
     {BBC_VEL_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-};
-
-struct sens_data {
-    sens_dist_t dist_front;
-    sens_dist_t dist_right;
-    sens_odom_t distance;
 };
 
 /* sens commands */
