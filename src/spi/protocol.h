@@ -88,7 +88,7 @@ static struct bus_cmd BCCS[16] = {
 #define BBS_GET 0x03
 
 /* bus commands for sens */
-static struct bus_cmd BCSS[16] = {
+const static struct bus_cmd BCSS[16] = {
 /*  cmd          write, slave id,   data length */
     {BB_INVALID, false, 0,          0},
     {BBS_RST,    false, SLAVE_SENS, 0},

@@ -131,7 +131,7 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 
     if (endptr > float_str) {
         success = true;
-        struct bus_cmd *bc = (struct bus_cmd*)a->data1;
+        const struct bus_cmd *bc = (struct bus_cmd*)a->data1;
         bus_t *bus = (bus_t*)a->data2;
         bus_transmit_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
         rsp = str_append(rsp, &buf_size, "sending value %f", value);
