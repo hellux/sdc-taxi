@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
 #include <pthread.h>
 
@@ -17,6 +18,8 @@
 
 #define SLAVE_SENS_GPIO 7
 #define SLAVE_CTRL_GPIO 8
+
+#define MAX_ATTEMPTS 5
 
 #ifdef PI
 static int GPIO_PINS[2] = {SLAVE_SENS_GPIO, SLAVE_CTRL_GPIO};
@@ -41,6 +44,7 @@ struct order {
 
     const struct bus_cmd *bc;
     void *src_dst;
+    int attempts;
 
     struct order *next;
 };
@@ -152,7 +156,9 @@ static void order_execute(struct bus *bus, struct order *o) {
             pthread_cond_signal(&ob->done);
         }
     } else {
-        order_queue(bus, o);
+        o->attempts++;
+        if (o->attempts < MAX_ATTEMPTS)
+            order_queue(bus, o);
     }
 }
 
