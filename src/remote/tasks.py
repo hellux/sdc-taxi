@@ -10,7 +10,7 @@ class Task(Enum):
 
 class TaskQueue():
     def __init__(self):
-        self.tasks = queue.Queue()
+        self.tasks = queue.LifoQueue()
         self.completed = queue.Queue()
 
     """

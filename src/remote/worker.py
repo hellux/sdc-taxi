@@ -1,9 +1,9 @@
 import threading
 from remote import Client, Command
 from tasks import Task
+import time
 
 class Worker(threading.Thread):
-    
     def __init__(self, tasks, client):
         threading.Thread.__init__(self)
 
@@ -18,6 +18,8 @@ class Worker(threading.Thread):
             Task.SET_AUTO   : self.set_auto
         }
 
+        self.move_time = 0
+
         self.terminate = False
 
     def task_connect(self, address):
@@ -29,16 +31,23 @@ class Worker(threading.Thread):
 
     def task_kill(self):
         self.terminate = True
+        return None
 
-    def task_move(self, keys):
-        vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
-        rot = int(keys["RIGHT"]) - int(keys["LEFT"])
+    def task_move(self, keys, schedule_time):
+        if self.move_time < schedule_time:
+            self.move_time = schedule_time
+            vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
+            rot = int(keys["RIGHT"]) - int(keys["LEFT"])
 
-        self.client.send_cmd_fmt(Command.SET_VEL, [vel])
-        self.client.send_cmd_fmt(Command.SET_ROT, [rot])
+            time.sleep(0.5)
+
+            self.client.send_cmd_fmt(Command.SET_VEL, [vel])
+            self.client.send_cmd_fmt(Command.SET_ROT, [rot])
+        return None
             
     def set_auto(self, auto):
         self.client.send_cmd_fmt(Command.SET_STATE, [auto])
+        return None
         
     def run(self):
         while not self.terminate:
@@ -46,4 +55,5 @@ class Worker(threading.Thread):
             action = self.actions.get(task)
             if action:
                 result = action(*args)
-                self.tasks.complete(task, result)
+                if result:
+                    self.tasks.complete(task, result)

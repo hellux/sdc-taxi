@@ -5,9 +5,9 @@ from tasks import Task
 from tkinter import *
 import os
 import pickle
+import time
 
 class Map():
-    
     def __init__(self, window, map_frame):
         self.window = window
         self.map_frame = map_frame
@@ -201,11 +201,11 @@ class GUI():
 
     def button_down(self, event, direction):
         self.keys[direction] = True
-        self.tasks.put(Task.MOVE, self.keys.copy())
+        self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
         
     def button_up(self, event, direction):
         self.keys[direction] = False
-        self.tasks.put(Task.MOVE, self.keys.copy())
+        self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
         
     def bind_keys(self):
         self.window.bind("<Left>", lambda e:self.button_down(e, "LEFT"))
@@ -247,7 +247,8 @@ class GUI():
         filename_label = tk.Label(filename_frame, text="Enter filename")
         filename_entry = tk.Entry(filename_frame)
         if(function=="save"):
-            filename_button = tk.Button(filename_frame, text=function, command=self.save_map(filename_entry.get())
+            filename_button = tk.Button(filename_frame, text=function, \
+                command=self.save_map(filename_entry.get()))
         filename_label.grid(row=0, column=0)
         filename_entry.grid(row=1, column=0)
         filename_button.grid(row=2, column=0)
