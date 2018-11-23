@@ -31,7 +31,7 @@ void spi_tranceive(uint8_t *data, int len) {
 uint8_t spi_accept(uint8_t *data) {
     /* retrieve command */
     cs_t cs;
-    spi_tranceive((void*)&cs, 1);
+    spi_tranceive((uint8_t*)&cs, 1);
     int cmd = cs_cmd(cs);
     int len = BCMDS[SLAVE][cmd].len;
 
