@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 
 #include "spi/protocol.h"
 
@@ -53,6 +54,13 @@ int main(void) {
     assert (cs_check(cs2, (void*)&data2, sizeof(data2)));
     assert (cs_cmd(cs2) == cmd2);
 
+    char *data3 = "hej hej hej";
+    char *data3_copy = "hej hej hej";
+    uint8_t cmd3 = 0x33;
+    assert (strcmp(data3, data3_copy) == 0);
+    cs_t cs3 = cs_create(cmd3, (void*)&data3, sizeof(data3));
+    assert (cs_check(cs3, (void*)&data3, sizeof(data3)));
+    assert (strcmp(data3, data3_copy) == 0);
 
     return 0;
 }
