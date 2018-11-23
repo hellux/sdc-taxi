@@ -1,9 +1,9 @@
- #include <iostream>
+#include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <opencv2/highgui/highgui.hpp>
-using namespace cv;
+
 
 extern "C" void ip_init(void);
 extern "C" struct ip_res *ip_process(void);
@@ -31,7 +31,6 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>&, c
 void plotLane(cv::Mat&, std::vector<cv::Point>&);
 
 
-
 cv::Mat img_edge_detector(cv::Mat& image) {
     cv::Mat edge_img;
 
@@ -39,16 +38,8 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     cv::GaussianBlur(image, edge_img, cv::Size(3, 3), 0, 0);
     cv::cvtColor(edge_img, edge_img, cv::COLOR_RGB2GRAY);
     
-    //cv::cornerHarris(edge_img, edge_img, 2, 3, 0.04);
-    /*cv::Point2f perspectiveSrc[] = { cv::Point2f(565,470), cv::Point2f(721,470), cv::Point2f(277,698), cv::Point2f(1142,698) };
-    cv::Point2f perspectiveDst[] = { cv::Point2f(300,0), cv::Point2f(980,0), cv::Point2f(300,720), cv::Point2f(980,720) };
-    cv::getPerspectiveTransform(perspectiveSrc, perspectiveDst);
-    cv::Mat perspectiveMatrix;*/
-    
-    cv::imshow("canny:", edge_img);
-    
-    int thresh_value = 140; /*140*/
-    int max_binary_value =230; /*230*/
+    int thresh_value = 140;
+    int max_binary_value =230;
 
     //Segmentation. "Assign a label to every pixel in an image such that pixels with the
     // same label share certain characteristics.
@@ -81,7 +72,7 @@ cv::Mat img_edge_detector(cv::Mat& image) {
 cv::Mat mask_image(cv::Mat& image) {
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
     
-    
+    /* Region Of Interes */
     float ROI_y_start = image.rows;
     float ROI_y_end = (image.rows / 2);
     std::cout << "y:" << ROI_y_end << "\n";
@@ -164,11 +155,11 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     std::vector<cv::Point> points(4); //6 when stop
     cv::Point start;
     cv::Point end;
-    cv::Vec4d right_line;
-    cv::Vec4d left_line;
-    //cv::Vec4d stop_line;
-    std::vector<cv::Point> right_pts;
-    std::vector<cv::Point> left_pts;
+    cv::Vec4f right_line;
+    cv::Vec4f left_line;
+    //cv::Vec4f stop_line;
+    std::vector<cv::Point2f> right_pts;
+    std::vector<cv::Point2f> left_pts;
     //std::vector<cv::Point> stop_points;
 
     if (rline_found) {
@@ -182,6 +173,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         }
         if (right_pts.size() > 0) {
             cv::fitLine(right_pts, right_line, CV_DIST_L2, 0, 0.01, 0.01);
+	    std::cout << "fitLine has been passed: \n";
             rline_slope = right_line[1] / right_line[0];
             raxis_intersection = cv::Point(right_line[2], right_line[3]);
         }
@@ -197,6 +189,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         }
         if (left_pts.size() > 0) {
             cv::fitLine(left_pts, left_line, CV_DIST_L2, 0, 0.01, 0.01);
+	    std::cout << "fitLine has been passed: \n";
             lline_slope = left_line[1] / left_line[0];
             laxis_intersection = cv::Point(left_line[2], left_line[3]);
         }
@@ -218,7 +211,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     }*/
 
     int start_y = image.rows;
-    int end_y = 0.65 * image.rows;
+    int end_y = 0.6 * image.rows;
 
     double right_start_x = ((start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
     double right_end_x = ((end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
@@ -252,8 +245,8 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     cv::fillConvexPoly(lane, polygon_pts, cv::Scalar(0, 0, 255), CV_AA, 0);
     cv::addWeighted(lane, 0.3, original_img, 1.0 - 0.3, 0, original_img);
 
-    cv::line(original_img, points[0], points[1], cv::Scalar(0, 255, 0), 5, CV_AA);
-    cv::line(original_img, points[2], points[3], cv::Scalar(0, 255, 0), 5, CV_AA);
+    cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
+    cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
     cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
@@ -268,43 +261,34 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     }*/
 
     std::string message = "De baxar dina byxor!!!";
-    cv::putText(original_img, message, cv::Point(50, 150), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(255, 0, 0), 5, CV_FILLED);
+    cv::putText(original_img, message, cv::Point(0.1*original_img.cols, 0.2*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(0, 0, 0), 5, CV_FILLED);
+
+    /*Test: Getting distance between a specified line point and the camera*/ 
 
     std::cout << "point 1: " << points[1] << "\n";
     std::cout << "center: " << img_center_pt << "\n";
     double dist;
-    dist = std::sqrt(pow(points[1].x-img_center_pt, 2) + pow(points[1].y-720, 2));
+    dist = std::sqrt(pow(points[1].x-img_center_pt, 2) + pow(points[1].y-original_img.rows, 2));
     std::string distance = std::to_string(dist);
 
-    cv::putText(original_img, distance, cv::Point(620, 500), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
+    cv::putText(original_img, distance, cv::Point(0.1*original_img.cols, 0.3*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
 }
+
 
 struct ip_res *ip_process(void) {
     std::cout << "hej från c++" << std::endl;
 
-    /*
-    cv::VideoCapture cap("road_car_view.mp4"); //road_car_view
-    if (!cap.isOpened())
-        return;
-    */
-    //cv::Mat frame = cv::imread("paso_peatonal.jpg");
     cv::VideoCapture cap(-1);
     if (!cap.isOpened()) {
-        std::cout << "Hej Dennis! hitta kameran. Nununununu\n";
+        std::cout << "Error: Camera not found\n";
         return NULL;
     }
-    
-    std::cout << "Width 1:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
-    std::cout << "Height 1:" << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
-    
+  
     cap.set(CV_CAP_PROP_FRAME_WIDTH, 352);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
     
-    std::cout << "Set Width2: 352" << "\n";
-    std::cout << "Set Height2: 240" << "\n";
-
-    std::cout << "Width 2:" << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
-    std::cout << "Height 2:" << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
+    std::cout << "Width: " << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
+    std::cout << "Height: " << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
 
     //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
     //cap.set(CV_CAP_PROP_FPS, 60);
@@ -333,11 +317,11 @@ struct ip_res *ip_process(void) {
 	
 	cap.read(frame);
 	if (frame.empty()) {
-	    std::cout << "EmptyFrame \n";
+	    std::cout << "Error: Empty frame\n";
 	    break;
 	}
-        edges_image = img_edge_detector(frame);
 
+        edges_image = img_edge_detector(frame);
         masked_image = mask_image(edges_image);
         cv::imshow("mask", masked_image);
 
@@ -346,7 +330,7 @@ struct ip_res *ip_process(void) {
         if (!lines.empty()) {
             lr_lines = classify_lines(lines, edges_image);
 
-	    if (right_found) {
+	    /*if (right_found) {
 	        for (auto line : lr_lines[0]) {
 		    cv::Point start = cv::Point(line[0], line[1]);
 		    cv::Point end = cv::Point(line[2], line[3]);
@@ -363,22 +347,20 @@ struct ip_res *ip_process(void) {
 		        cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
 		    }
 	        }
-            }
+            }*/
 
-            //lane = linear_regression(lr_lines, frame);
+            lane = linear_regression(lr_lines, frame);
 
-            //plotLane(frame, lane);
+            plotLane(frame, lane);
 
-        } else {
-
-            cv::imshow("Lane", frame);
-            int k = cv::waitKey(25);
-
-            if (k == 27) {
-                cv::destroyAllWindows();
-                break;
-            }
         }
-    }
+            cv::imshow("Lane", frame);
+            int k = cv::waitKey(1);
+
+            if (k == 27)
+         	break;
+        }
+    frame.release();
+    cv::destroyAllWindows();
     return NULL;
 }
