@@ -287,10 +287,11 @@ struct ip_res *ip_process(void) {
     }
   
     
+    cap.set(CV_CAP_PROP_FPS, 10);
     std::cout << "load FPS: " << cap.get(CV_CAP_PROP_FPS)<< "\n";
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 352);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
-    cap.set(CV_CAP_PROP_FPS, 90);
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+    cap.set(CV_CAP_PROP_FPS, 15);
     
     std::cout << "Width: " << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
     std::cout << "Height: " << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
