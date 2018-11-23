@@ -60,11 +60,15 @@ uint16_t adc_read(uint8_t channel) {
 }
 
 ISR(INT0_vect) {
-    wheel_sensor_cntr++;        
+    cli();
+    wheel_sensor_cntr++;
+    sei();
 }
 
 ISR(INT1_vect) {
+    cli();
     wheel_sensor_cntr++;
+    sei();
 }
 
 ISR(SPI_STC_vect) {
