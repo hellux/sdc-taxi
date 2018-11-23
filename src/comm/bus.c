@@ -22,6 +22,9 @@
 static int GPIO_PINS[2] = {SLAVE_SENS_GPIO, SLAVE_CTRL_GPIO};
 #endif
 
+static unsigned order_count = 0;
+static unsigned packet_count = 0;
+
 struct bus {
     pthread_t thread;
 
@@ -78,23 +81,34 @@ static bool receive(const struct bus_cmd *bc, void *msg) {
 
 static bool transmit(const struct bus_cmd *bc, void *msg) {
     bool success = false;
+    //printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    //for (int i = 0; i < bc->len; i++)
+        //printf("%x ", ((uint8_t*)msg)[i]);
+    //printf("\n");
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, msg, bc->len);
     uint8_t ack = ACKS[bc->slave];
+
     digitalWrite(GPIO_PINS[bc->slave], 1);
     digitalWrite(GPIO_PINS[bc->slave], 0);
+
+    /* send cmd sum */
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+
+    /* send data, if any */
+    if (bc->len > 0) {
+        wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+    }
+
+    /* retrieve ack */
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)&ack, 1);
     digitalWrite(GPIO_PINS[bc->slave], 1);
+
     success = (ack == ACKS[bc->slave]);
 #else
-    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
-    for (int i = 0; i < bc->len; i++)
-        printf("%x ", ((uint8_t*)msg)[i]);
-    printf("\n");
     success = true;
 #endif
+
     return success;
 }
 
@@ -116,7 +130,12 @@ static void order_queue(struct bus *bus, struct order *order) {
 static void order_execute(struct bus *bus, struct order *o) {
     bool success = false;
     if (o->bc->write) {
-        success = transmit(o->bc, o->src_dst);
+        void *data_copy = malloc(o->bc->len);
+        memcpy(data_copy, o->src_dst, o->bc->len);
+        success = transmit(o->bc, data_copy);
+        if (success)
+            memcpy(o->src_dst, data_copy, o->bc->len);
+        free(data_copy);
     } else {
         success = receive(o->bc, o->src_dst);
     }
@@ -153,6 +172,8 @@ static void *bus_thread(void *b) {
         struct order *order = bus->queue;
         bool empty = (bus->queue == NULL);
         if (!empty) {
+            printf("packet loss: %.1f\n", (1-(float)order_count/(float)packet_count)*100);
+            packet_count++;
             bus->queue = order->next;
             order_execute(bus, order);
         }
@@ -232,6 +253,7 @@ void bus_tranceive(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     pthread_mutex_init(&order->done_mutex, NULL);
 
     pthread_mutex_lock(&bus->lock);
+    order_count++;
     order_queue(bus, (struct order*)order);
     pthread_mutex_unlock(&bus->lock);
 
@@ -257,6 +279,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
     order->handler_data = handler_data;
 
     pthread_mutex_lock(&bus->lock);
+    order_count++;
     order_queue(bus, (struct order*)order);
     pthread_mutex_unlock(&bus->lock);
     
@@ -277,6 +300,7 @@ void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
     order->handler_data = handler_data;
 
     pthread_mutex_lock(&bus->lock);
+    order_count++;
     order_queue(bus, (struct order*)order);
     pthread_mutex_unlock(&bus->lock);
     
