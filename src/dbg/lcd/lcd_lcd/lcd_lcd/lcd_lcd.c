@@ -10,6 +10,7 @@
 #define F_CPU 16000000
 #include <avr/io.h>
 #include "lcd.h"
+#include <avr/interrupt.h>
 
 void lcd_send_pulse(){
 	PORTD |= (1<<EN);
@@ -122,9 +123,10 @@ void lcd_shift_right(){
 	lcd_send_instruction(0x14);
 }
 
+
 int main(void)
 {
-		
+			
 	/*All pin on port D are outputs to LCD except PD2 and PD3, inputs from halleffect 
 	  PORTD0 (pin 40) and PORTD1(pin 39) are inputs from sensors*/
 	DDRD = 0xFF;
