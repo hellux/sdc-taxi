@@ -70,7 +70,6 @@ class Client():
         response: None if transmission failed, otherwise response from cmd
     """
     def send_cmd(self, msg):
-        print("sending cmd:", msg)
         self.clear_socket()
         sent = False
         try:
@@ -96,6 +95,6 @@ class Client():
                 succ, resp = self.send_cmd(msg)
         return succ, resp
 
-    def send_cmd_fmt(self, cmd, args=[]):
-        msg = cmd + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
-        return self.send_cmd_retry(msg)
+    @staticmethod
+    def create_msg(cmd, *args):
+        return cmd + Client.CMD_SEP + Client.ARG_SEP.join(map(str, args))
