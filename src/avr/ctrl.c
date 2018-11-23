@@ -13,6 +13,7 @@
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
+/* PWM */
 #define DUTY_MAX 0.10
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
@@ -28,12 +29,19 @@
 #define OCR_VEL OCR1B
 #define OCR_ROT OCR1A
 
-/* regulator constants at start */
 #define VEL_KP_DEF 0.1
 #define VEL_KD_DEF 0.0
 
 #define ROT_KP_DEF 0.1
 #define ROT_KD_DEF 0.0
+
+/* killswitch */
+#define KS_OCR OCR3A
+#define KS_TC  TCNT3
+
+#define KS_T 0.1
+#define KS_PSC 8
+#define KS_TOP F_CPU*KS_T/KS_PSC
 
 struct pd_values {
     ctrl_val_t kp;
@@ -47,7 +55,7 @@ const struct pd_values PD_EMPTY = {0};
 volatile struct pd_values vel;
 volatile struct pd_values rot;
 
-void reset() {
+void reset(void) {
     vel = PD_EMPTY;
     vel.kp = VEL_KP_DEF;
     vel.kd = VEL_KD_DEF;
@@ -65,11 +73,19 @@ float pd_ctrl(volatile struct pd_values *v){
     return proportion + derivative;
 }
 
+/* killswitch */
+ISR(TIMER3_COMPA_vect) {
+    reset();
+}
+
 ISR(SPI_STC_vect){
     cli();
     ctrl_val_t value_retrieved;
     uint8_t command = spi_accept((uint8_t*)&value_retrieved);
     
+    if (command != BB_INVALID)
+        KS_OCR = 0;
+
     volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
     if (command & BF_WRITE) {
@@ -106,7 +122,14 @@ ISR(SPI_STC_vect){
     sei();
 }
 
-void pwm_init(){
+void ks_init(void) {
+    TCCR3A |= 0;
+    TCCR3B |= (1<<WGM32)|(1<<CS31);
+
+    KS_OCR = 0;
+}
+
+void pwm_init(void) {
     /* Initialize to phase and frequency correct PWM */
     TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
     TCCR1B |= (1<<WGM13)|(1<<CS11);
@@ -117,7 +140,8 @@ void pwm_init(){
     DDRD |= (1<<PD4)|(1<<PD5);
 }
 
-int main() {
+int main(void) {
+    ks_init();
     pwm_init();
     spi_init();
     reset();
