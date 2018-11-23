@@ -111,7 +111,7 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
     for (auto point : lines) {
         start = cv::Point(point[0], point[1]);
         end = cv::Point(point[2], point[3]);
-        float slope = ((end.y) - start.y) / (end.x - start.x));
+        float slope = ((end.y) - start.y) / (end.x - start.x);
         slopes.push_back(slope);
     }
 
@@ -156,8 +156,8 @@ std::vector<cv::Point2f> linear_regression(std::vector<std::vector<cv::Vec4i>>& 
 
     if (rline_found) {
         for (auto point : lines[0]) {
-            start = cv::Point2f(float(point[0]), float(point[1]));
-            end = cv::Point2f(float(point[2]), float(point[3]));
+            start = cv::Point2f((float)(point[0]), (float)(point[1]));
+            end = cv::Point2f((float)(point[2]), (float)(point[3]));
 
             right_pts.push_back(start);
             right_pts.push_back(end);
@@ -170,8 +170,8 @@ std::vector<cv::Point2f> linear_regression(std::vector<std::vector<cv::Vec4i>>& 
     }
     if (lline_found) {
         for (auto point : lines[1]) {
-            start = cv::Point2f(float(point[0], point[1]));
-            end = cv::Point2f(float(point[2], point[3]));
+            start = cv::Point2f((float)(point[0], point[1]));
+            end = cv::Point2f((float)(point[2], point[3]));
 
             left_pts.push_back(start);
             left_pts.push_back(end);
@@ -184,8 +184,8 @@ std::vector<cv::Point2f> linear_regression(std::vector<std::vector<cv::Vec4i>>& 
     }
     if (sline_found) {
         for (auto point : lines[2]) {
-            start = cv::Point2f(float(point[0], point[1]));
-            end = cv::Point2f(float(point[2], point[3]));
+            start = cv::Point2f((float)(point[0], point[1]));
+            end = cv::Point2f((float)(point[2], point[3]));
 
             stop_points.push_back(start);
             stop_points.push_back(end);
@@ -235,7 +235,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point2f>& points) {
 
     cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
     cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
-    cv::line(original_frame, lines[4], lines[5], cv::Scalar(0, 0, 0), 5, CV_AA);
+    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
     cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
