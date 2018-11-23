@@ -1,7 +1,6 @@
 import threading
 from remote import Client, Command
 from tasks import Task
-import time
 
 class Worker(threading.Thread):
     def __init__(self, tasks, client):
@@ -38,8 +37,6 @@ class Worker(threading.Thread):
             self.move_time = schedule_time
             vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
             rot = int(keys["RIGHT"]) - int(keys["LEFT"])
-
-            time.sleep(0.5)
 
             self.client.send_cmd_fmt(Command.SET_VEL, [vel])
             self.client.send_cmd_fmt(Command.SET_ROT, [rot])
