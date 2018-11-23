@@ -294,7 +294,7 @@ struct ip_res *ip_process(void) {
     std::cout << "Height: " << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
 
     //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
-    //cap.set(CV_CAP_PROP_FPS, 60);
+    cap.set(CV_CAP_PROP_FPS, 90);
     //std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
 
     
