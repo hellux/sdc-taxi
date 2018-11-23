@@ -31,7 +31,7 @@ typedef uint8_t cs_t;
 
 uint8_t cs_cmd(cs_t cs);
 cs_t cs_create(uint8_t cmd, void *data, int len);
-bool cs_check(uint8_t cmd, void *data, int len);
+bool cs_check(cs_t cs, void *data, int len);
 
 struct bus_cmd {
     uint8_t cmd;
