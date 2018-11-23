@@ -225,20 +225,17 @@ class GUI():
         self.window.unbind("<Down>")
         
     def drive_auto(self):
-        os.system('xset r on')
         self.unbind_keys()
         self.tasks.put(Task.SET_AUTO, True)
         self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
         
     def drive_manual(self):
-        os.system('xset r off')
         self.tasks.put(Task.SET_AUTO, False)
         self.bind_keys()
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
         
     def quit(self):
-        os.system('xset r on')
         self.tasks.put(Task.KILL)
         self.window.destroy()
 
