@@ -123,7 +123,6 @@ static void order_execute(struct bus *bus, struct order *o) {
     }
 
     if (success) {
-        printf("success\n");
         if (o->scheduled) {
             struct order_scheduled *os = (struct order_scheduled*)o;
             if (os->handler)
