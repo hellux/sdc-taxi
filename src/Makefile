@@ -54,14 +54,14 @@ comm.pi: $(BINDIR)/comm
 comm.ip: CXXFLAGS += $(CXXFLAGS.debug)
 comm.ip: $(addprefix $(OBJDIR)/, dbg/ip.o comm/ip/img_proc.o)
 	$(CXXC) $? $(COMM_LFLAGS) $(CXXFLAGS) -o $(BINDIR)/comm_ip
+comm.remote.clean:
+	ssh $(PI_REMOTE) -t 'cd module; make clean'
 comm.remote:
-	scp -r comm spi Makefile $(PI_REMOTE):module
+	scp -rp comm spi Makefile $(PI_REMOTE):module
 	ssh $(PI_REMOTE) -t 'cd module; make comm.pi'
 
 # avr modules
-sens: AVRCFLAGS += -DSLAVE=0
 sens: $(BINDIR)/sens
-ctrl: AVRCFLAGS += -DSLAVE=1
 ctrl: $(BINDIR)/ctrl
 %.prog: $(BINDIR)/%.hex
 	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
@@ -96,10 +96,12 @@ $(OBJDIR)/avr/%.o: avr/%.c | init
 	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
 
 # link sens to binary
+$(BINDIR)/sens: AVRCFLAGS += -DSLAVE=0
 $(BINDIR)/sens: $(SENS_OBJS)
 	$(AVRCC) $(SENS_OBJS) $(AVRARCH) $(SENS_LFLAGS) -o $@
 
 # link ctrl to binary
+$(BINDIR)/ctrl: AVRCFLAGS += -DSLAVE=1
 $(BINDIR)/ctrl: $(CTRL_OBJS)
 	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
 
