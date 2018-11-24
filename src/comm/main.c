@@ -54,7 +54,7 @@ int main(int argc, char* args[]) {
     bus_tranceive(bus, &BCCS[BBC_SYN], (void*)&rsp_ctrl);
     /*bus_receive(bus, &BCSS[BBS_SYN], (void*)&rsp_sens);*/
 
-    struct data_rc rc_prev;
+    struct data_rc rc_prev = {0};
 
     char input[100];
     while (!quit) {
