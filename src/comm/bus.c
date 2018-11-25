@@ -8,9 +8,8 @@
 #include <pthread.h>
 
 #ifdef PI
-#include <
-#include <wiringPI.h>
-#include <wiringPISPI.h>
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
 #endif
 
 #define WAITTIME 1 /* seconds before wake up if nothing scheduled */
@@ -57,8 +56,8 @@ static bool receive(const struct bus_cmd *bc, void *msg) {
     bool success = false;
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, NULL, 0);
-    wiringPiSPIDataRW(bc->slave, (unsigned char*)&cs, 1);
-    wiringPiSPIDataRW(bc->slave, (unsigned char*)msg, bc->len);
+    wiringPiSPIDataRW(0, (unsigned char*)&cs, 1);
+    wiringPiSPIDataRW(0, (unsigned char*)msg, bc->len);
     success = cs_check(cs, msg, bc->len);
 #else
     for (int i = 0; i < bc->len; i++) {
@@ -71,29 +70,33 @@ static bool receive(const struct bus_cmd *bc, void *msg) {
 
 static bool transmit(const struct bus_cmd *bc, void *msg) {
     bool success = false;
-    printf("transmit via command %d to %d: ", bc->cmd, bc->slave);
+    printf("transmit:\n");
     for (int i = 0; i < bc->len; i++)
-        printf("%x ", ((uint8_t*)msg)[i]);
+        printf("%02x ", ((uint8_t*)msg)[i]);
     printf("\n");
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, msg, bc->len);
     uint8_t ack = ACKS[bc->slave];
 
     /* send cmd sum */
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
+    wiringPiSPIDataRW(0, (unsigned char*)&cs, 1);
 
     /* send data, if any */
     if (bc->len > 0) {
-        wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
+        wiringPiSPIDataRW(0, (unsigned char*)msg, bc->len);
     }
 
     /* retrieve ack */
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&ack, 1);
+    wiringPiSPIDataRW(0, (unsigned char*)&ack, 1);
 
     success = (ack == ACKS[bc->slave]);
 #else
     success = true;
 #endif
+    printf("received:\n");
+    for (int i = 0; i < bc->len; i++)
+        printf("%02x ", ((uint8_t*)msg)[i]);
+    printf("\n");
 
     return success;
 }

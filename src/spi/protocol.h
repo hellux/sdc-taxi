@@ -13,7 +13,7 @@
 #define SLAVE_SENS 0
 #define SLAVE_CTRL 1
 
-#define F_SPI 700000
+#define F_SPI 1000000
 
 /* cmd sum type */
 

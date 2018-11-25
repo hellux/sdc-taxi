@@ -82,45 +82,6 @@ ISR(TIMER3_COMPA_vect) {
 
 ISR(SPI_STC_vect){
     cli();
-    ctrl_val_t value_retrieved;
-    uint8_t command = spi_accept((uint8_t*)&value_retrieved);
-    
-    if (command != BB_INVALID)
-        KS_TCNT = 0;
-
-    volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
-
-    if (command & BF_WRITE) {
-        if (command & BF_MOD_REG) {
-            ctrl_val_t value_new;
-
-            if (command & BF_ERR_VAL) {
-                pdv->err_prev = pdv->err;
-                pdv->err = value_retrieved;
-                value_new = pd_ctrl(pdv);
-            } else {
-                value_new = value_retrieved;
-            }
-
-            float min = (command & BF_VEL_ROT) ? VEL_MIN : ROT_MIN;
-            float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
-            value_new = MIN(MAX(value_new, min), max);
-            float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
-
-            if (command & BF_VEL_ROT) {
-                OCR_VEL = duty*PWM_TOP; 
-            } else {
-                OCR_ROT = duty*PWM_TOP; 
-            }
-        } else {
-            volatile ctrl_val_t *dst =
-                (command & BF_KP_KD) ? &pdv->kp : &pdv->kd;
-            *dst = value_retrieved;
-        }
-    } else if (command == BBC_RST) {
-        reset();
-    }
-
     sei();
 }
 
@@ -149,7 +110,7 @@ void pwm_init(void) {
 }
 
 int main(void) {
-    ks_init();
+    //ks_init();
     pwm_init();
     spi_init();
 
@@ -157,5 +118,42 @@ int main(void) {
 
     sei();
 
-    while (1);
+    while (1) {
+        ctrl_val_t value_retrieved;
+        uint8_t command = spi_accept((uint8_t*)&value_retrieved);
+        
+        volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
+
+        if (command & BF_WRITE) {
+            KS_TCNT = 0;
+            if (command & BF_MOD_REG) {
+                ctrl_val_t value_new;
+
+                if (command & BF_ERR_VAL) {
+                    pdv->err_prev = pdv->err;
+                    pdv->err = value_retrieved;
+                    value_new = pd_ctrl(pdv);
+                } else {
+                    value_new = value_retrieved;
+                }
+
+                float min = (command & BF_VEL_ROT) ? VEL_MIN : ROT_MIN;
+                float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
+                value_new = MIN(MAX(value_new, min), max);
+                float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
+
+                if (command & BF_VEL_ROT) {
+                    OCR_VEL = duty*PWM_TOP; 
+                } else {
+                    OCR_ROT = duty*PWM_TOP; 
+                }
+            } else {
+                volatile ctrl_val_t *dst =
+                    (command & BF_KP_KD) ? &pdv->kp : &pdv->kd;
+                *dst = value_retrieved;
+            }
+        } else if (command == BBC_RST) {
+            reset();
+        }
+    }
 }

@@ -11,7 +11,7 @@ void spi_init() {
     DDRB |= (1<<PB6);
 
     /* enable SPI Interrupt & SPI */
-    SPCR |= (1<<SPIE)|(1<<SPE);
+    SPCR |= (0<<SPIE)|(1<<SPE);
 
     /* clear data reg */
     SPDR = 0;
@@ -21,7 +21,7 @@ void spi_tranceive(uint8_t *data, int len) {
     for (int i = 0; i < len; i++) {
         SPDR = data[i];
 
-        while(!(SPSR & (1<<SPIF)));
+        while (!(SPSR & (1<<SPIF)));
 
         data[i] = SPDR;
     }
