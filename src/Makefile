@@ -3,10 +3,10 @@ BINDIR = $(OBJDIR)/bin
 
 CC = gcc
 CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
-CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb
+CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb -O3
 CFLAGS.release = -O3
 
-PI_REMOTE = pi@172.20.10.4
+PI_REMOTE = pi@192.168.43.12
 
 CXXC = g++
 CXXFLAGS = `pkg-config --cflags opencv`
@@ -47,7 +47,6 @@ comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
 comm.pi: CFLAGS += -DPI
 comm.pi: CXXFLAGS += $(CXXFLAGS.release)
-comm.pi: COMM_LFLAGS += -lwiringPi
 comm.pi: $(BINDIR)/comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
