@@ -8,6 +8,7 @@
 #include <pthread.h>
 
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 
@@ -56,8 +57,8 @@ struct order_blocked {
 
 static void spi_tranceive(int fd, void *src, void *dst, int len) {
     struct spi_ioc_transfer transfer = {0};
-    transfer.tx_buf = (uint64_t)src;
-    transfer.rx_buf = (uint64_t)dst;
+    transfer.tx_buf = (intptr_t)src;
+    transfer.rx_buf = (intptr_t)dst;
     transfer.len = (uint32_t)len;
 
     ioctl(fd, SPI_IOC_MESSAGE(1), &transfer);
@@ -246,6 +247,8 @@ void bus_destroy(struct bus *bus) {
     pthread_join(bus->thread, NULL);
 
     /* free resources */
+    if (bus->fds[0] >= 0) close(bus->fds[0]);
+    if (bus->fds[1] >= 0) close(bus->fds[1]);
     struct order *current = bus->queue;
     while (current) {
         struct order *prev = current;
