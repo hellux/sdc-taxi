@@ -4,11 +4,7 @@
 #include <util/delay.h>
 #include <avr/io.h>
 
-#include "../spi/protocol.h"
-
-#ifdef SIM
-#include "../dbg/sim/ctrl_header.h"
-#endif
+#include "protocol.h"
 
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
@@ -56,6 +52,7 @@ volatile struct pd_values vel;
 volatile struct pd_values rot;
 
 void reset(void) {
+    cli();
     vel = PD_EMPTY;
     vel.kp = VEL_KP_DEF;
     vel.kd = VEL_KD_DEF;
@@ -64,6 +61,7 @@ void reset(void) {
     rot.kd = ROT_KD_DEF;
     OCR_VEL = DUTY_NEUTRAL*PWM_TOP;
     OCR_ROT = DUTY_NEUTRAL*PWM_TOP;
+    sei();
 }
 
 float pd_ctrl(volatile struct pd_values *v){
@@ -75,14 +73,7 @@ float pd_ctrl(volatile struct pd_values *v){
 
 /* killswitch */
 ISR(TIMER3_COMPA_vect) {
-    cli();
     reset();
-    sei();
-}
-
-ISR(SPI_STC_vect){
-    cli();
-    sei();
 }
 
 void ks_init(void) {
@@ -110,7 +101,7 @@ void pwm_init(void) {
 }
 
 int main(void) {
-    //ks_init();
+    /* ks_init(); */
     pwm_init();
     spi_init();
 
@@ -130,16 +121,20 @@ int main(void) {
                 ctrl_val_t value_new;
 
                 if (command & BF_ERR_VAL) {
+                    cli();
                     pdv->err_prev = pdv->err;
                     pdv->err = value_retrieved;
                     value_new = pd_ctrl(pdv);
+                    sei();
                 } else {
                     value_new = value_retrieved;
                 }
 
                 float min = (command & BF_VEL_ROT) ? VEL_MIN : ROT_MIN;
                 float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
+
                 value_new = MIN(MAX(value_new, min), max);
+
                 float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
 
                 if (command & BF_VEL_ROT) {
@@ -150,7 +145,9 @@ int main(void) {
             } else {
                 volatile ctrl_val_t *dst =
                     (command & BF_KP_KD) ? &pdv->kp : &pdv->kd;
+                cli();
                 *dst = value_retrieved;
+                sei();
             }
         } else if (command == BBC_RST) {
             reset();
