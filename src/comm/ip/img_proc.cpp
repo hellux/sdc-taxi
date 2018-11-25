@@ -17,10 +17,10 @@ float img_center_pt;
 bool lline_found = false;
 bool rline_found = false;
 bool sline_found = false;
-float rline_slope;  // y = m*x + b
+float rline_slope; 
 float lline_slope;
 float sline_slope;
-cv::Point2f raxis_intersection; // y= m*x + b
+cv::Point2f raxis_intersection;
 cv::Point2f laxis_intersection;
 cv::Point2f saxis_intersection;
 
@@ -198,24 +198,26 @@ std::vector<cv::Point2f> linear_regression(std::vector<std::vector<cv::Vec4i>>& 
         }
     }
 
-    float start_y = float(image.rows);
-    float end_y = float(0.6 * image.rows);
+    float lines_start_y = float(image.rows);
+    float lines_end_y = float(0.6 * image.rows);	
+    float sline_start_x = float(0.20*image.cols);
+    float sline_end_x = float(0.80*image.cols);
 
-    float right_start_x = ((start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
-    float right_end_x = ((end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
+    float rline_start_x = ((lines_start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
+	float rline_end_x = ((lines_end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
 
-    float left_start_x = ((start_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
-    float left_end_x = ((end_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
+    float lline_start_x = ((lines_start_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
+	float lline_end_x = ((lines_end_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
 
-    float stop_start_x = ((start_y - saxis_intersection.y) / sline_slope) + saxis_intersection.x;
-    float stop_end_x = ((end_y - saxis_intersection.y) / sline_slope) + saxis_intersection.x;
+    float sline_start_y = (sline_slope * (sline_start_x - saxis_intersection.x)) + saxis_intersection.y;
+	float sline_end_y = (sline_slope * (sline_end_x - saxis_intersection.x)) + saxis_intersection.y;
 
-    points[0] = cv::Point2f(right_start_x, start_y);
-    points[1] = cv::Point2f(right_end_x, end_y);
-    points[2] = cv::Point2f(left_start_x, start_y);
-    points[3] = cv::Point2f(left_end_x, end_y);
-    points[4] = cv::Point2f(stop_start_x, start_y);
-    points[5] = cv::Point2f(stop_end_x, end_y);
+    points[0] = cv::Point2f(rline_start_x, lines_start_y);
+    points[1] = cv::Point2f(rline_end_x, lines_end_y);
+    points[2] = cv::Point2f(lline_start_x, lines_start_y);
+    points[3] = cv::Point2f(lline_end_x, lines_end_y);
+    points[4] = cv::Point2f(sline_start_x, sline_start_y);
+    points[5] = cv::Point2f(sline_end_x, sline_end_y);
     
     return points;
 }
@@ -252,11 +254,12 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point2f>& points) {
 
     /*Test: Getting distance between a specified line point and the camera*/ 
 
-    std::cout << "point 1: " << points[1] << "\n";
-    std::cout << "center: " << img_center_pt << "\n";
-    float dist;
-    dist = std::sqrt(pow(points[1].x-img_center_pt, 2) + pow(points[1].y-original_img.rows, 2));
-    std::string distance = std::to_string(dist);
+    cv::Point2f stop_center_pt = cv::Point2f((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
+    std::cout << "stopLine center pt: " << stop_center_pt << "\n";
+    cv:circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
+
+    float stop_dist = std::sqrt(pow(stop_center_pt.x - img_center_pt, 2) + pow(stop_center_pt.y - original_img.rows, 2));
+    std::string distance = std::to_string(stop_dist);
 
     cv::putText(original_img, distance, cv::Point(float(0.1*original_img.cols), float(0.3*original_img.rows)), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
 }
