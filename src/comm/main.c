@@ -50,10 +50,6 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
-    uint8_t rsp_ctrl, rsp_sens;
-    bus_tranceive(bus, &BCCS[BBC_SYN], (void*)&rsp_ctrl);
-    /*bus_receive(bus, &BCSS[BBS_SYN], (void*)&rsp_sens);*/
-
     struct data_rc rc_prev = {0};
 
     char input[100];
