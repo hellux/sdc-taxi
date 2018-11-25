@@ -8,19 +8,12 @@
 #include <pthread.h>
 
 #ifdef PI
-#include <wiringPi.h>
-#include <wiringPiSPI.h>
+#include <
+#include <wiringPI.h>
+#include <wiringPISPI.h>
 #endif
 
-#define CHANNEL 0 /* channel to use on RPI */
 #define WAITTIME 1 /* seconds before wake up if nothing scheduled */
-
-#define SLAVE_SENS_GPIO 7
-#define SLAVE_CTRL_GPIO 8
-
-#ifdef PI
-static int GPIO_PINS[2] = {SLAVE_SENS_GPIO, SLAVE_CTRL_GPIO};
-#endif
 
 static unsigned packets_sent = 0;
 static unsigned packets_lost = 0;
@@ -64,11 +57,8 @@ static bool receive(const struct bus_cmd *bc, void *msg) {
     bool success = false;
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, NULL, 0);
-    digitalWrite(GPIO_PINS[bc->slave], 1);
-    digitalWrite(GPIO_PINS[bc->slave], 0);
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
-    wiringPiSPIDataRW(CHANNEL, (unsigned char*)msg, bc->len);
-    digitalWrite(GPIO_PINS[bc->slave], 1);
+    wiringPiSPIDataRW(bc->slave, (unsigned char*)&cs, 1);
+    wiringPiSPIDataRW(bc->slave, (unsigned char*)msg, bc->len);
     success = cs_check(cs, msg, bc->len);
 #else
     for (int i = 0; i < bc->len; i++) {
@@ -89,9 +79,6 @@ static bool transmit(const struct bus_cmd *bc, void *msg) {
     cs_t cs = cs_create(bc->cmd, msg, bc->len);
     uint8_t ack = ACKS[bc->slave];
 
-    digitalWrite(GPIO_PINS[bc->slave], 1);
-    digitalWrite(GPIO_PINS[bc->slave], 0);
-
     /* send cmd sum */
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)&cs, 1);
 
@@ -102,7 +89,6 @@ static bool transmit(const struct bus_cmd *bc, void *msg) {
 
     /* retrieve ack */
     wiringPiSPIDataRW(CHANNEL, (unsigned char*)&ack, 1);
-    digitalWrite(GPIO_PINS[bc->slave], 1);
 
     success = (ack == ACKS[bc->slave]);
 #else
@@ -228,8 +214,9 @@ struct bus *bus_create(int freq) {
 
     /* setup spi */
 #ifdef PI
-    wiringPiSetupGpio();
-    wiringPiSPISetup(CHANNEL, freq);
+    wiringPiSetup();
+    wiringPiSPISetup(0, freq);
+    wiringPiSPISetup(1, freq);
 #endif
 
     /* start bus thread */
@@ -263,7 +250,7 @@ void bus_destroy(struct bus *bus) {
     free(bus);
 }
 
-void bus_tranceive(bus_t *bus, const struct bus_cmd *bc, void *msg) {
+void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg) {
     struct order_blocked *order = malloc(sizeof(struct order_blocked));
     order->common.scheduled = false;
     order->common.bc = bc;
@@ -280,7 +267,7 @@ void bus_tranceive(bus_t *bus, const struct bus_cmd *bc, void *msg) {
     free(order);
 }
 
-void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
+void bus_transmit_schedule(struct bus *bus, const struct bus_cmd *bc, void *msg,
                            void (*handler)(void *src, void *data),
                            void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_blocked));
@@ -299,7 +286,7 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
     pthread_cond_signal(&bus->wake_up);
 }
 
-void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
+void bus_receive_schedule(struct bus *bus, const struct bus_cmd *bc,
                           void (*handler)(void *dst, void *data),
                           void *handler_data) {
     struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
