@@ -1,3 +1,6 @@
+#ifndef server_h
+#define server_h
+
 #include <stdbool.h>
 
 typedef struct server srv_t;
@@ -35,3 +38,5 @@ struct srv_cmd {
 srv_t *srv_create(const char *addr, int port_start, int port_end,
                   struct srv_cmd *cmds, int cmdc);
 void srv_destroy(srv_t *server);
+
+#endif

@@ -1,4 +1,5 @@
-/* handle communication with modules via hardware bus */
+#ifndef bus_h
+#define bus_h
 
 #include <stdint.h>
 
@@ -25,3 +26,5 @@ void bus_transmit_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
 void bus_receive_schedule(bus_t *bus, const struct bus_cmd *bc,
                           void (*handler)(void *dst, void *data),
                           void *handler_data);
+
+#endif
