@@ -1,3 +1,6 @@
+#ifndef im_proc_h
+#define im_proc_h
+
 #include <stdbool.h>
 
 struct ip_res {
@@ -8,3 +11,5 @@ struct ip_res {
 
 void ip_init(void);
 struct ip *ip_process(void);
+
+#endif
