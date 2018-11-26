@@ -50,9 +50,7 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
-    uint8_t rsp_ctrl, rsp_sens;
-    bus_tranceive(bus, &BCCS[BBC_SYN], (void*)&rsp_ctrl);
-    /*bus_receive(bus, &BCSS[BBS_SYN], (void*)&rsp_sens);*/
+    struct data_rc rc_prev = {0};
 
     char input[100];
     while (!quit) {
@@ -86,16 +84,21 @@ int main(int argc, char* args[]) {
         } else {
             pthread_mutex_unlock(&miss_data.lock);
 
-            struct data_rc local;
+            struct data_rc rc_local;
             pthread_mutex_lock(&rc_data.lock);
-            local = rc_data;
+            rc_local = rc_data;
             pthread_mutex_unlock(&rc_data.lock);
 
-            printf("vel: %f, rot: %f\n", local.val.vel, local.val.rot);
-            bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL],
-                                  (void*)&local.val.vel, NULL, NULL);
-            bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL],
-                                  (void*)&local.val.rot, NULL, NULL);
+            if (rc_local.val.vel != rc_prev.val.vel) {
+                printf("vel: %f\n", rc_local.val.vel);
+                bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL],
+                                      (void*)&rc_local.val.vel, NULL, NULL);
+            }
+            if (rc_local.val.rot != rc_prev.val.rot) {
+                bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL],
+                                      (void*)&rc_local.val.rot, NULL, NULL);
+            }
+            rc_prev = rc_local;
         }
     }
 

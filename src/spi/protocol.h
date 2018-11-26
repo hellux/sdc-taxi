@@ -9,15 +9,11 @@
  *  a cmd sum byte containing command and checksum followed by variable amount
  *  of data bytes */
 
-#define F_SPI 500000
-
 /* IDs for slaves */
 #define SLAVE_SENS 0
 #define SLAVE_CTRL 1
 
-/* SYN/ACK magic values */
-#define CTRL_ACK 0xc7
-#define SENS_ACK 0x53
+#define F_SPI 1000000
 
 /* cmd sum type */
 
@@ -70,7 +66,7 @@ static struct bus_cmd BCCS[16] = {
 /*  cmd           write, slave id,   data length */
     {BB_INVALID,  false, 0,          0},
     {BBC_RST,     false, SLAVE_CTRL, 0},
-    {BBC_SYN,     false, SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {BBC_SYN,     false, SLAVE_CTRL, 0},
     {0},
 
     {0}, {0}, {0}, {0},
@@ -92,16 +88,23 @@ static struct bus_cmd BCCS[16] = {
 #define BBS_GET 0x03
 
 /* bus commands for sens */
-static struct bus_cmd BCSS[16] = {
+const static struct bus_cmd BCSS[16] = {
 /*  cmd          write, slave id,   data length */
     {BB_INVALID, false, 0,          0},
     {BBS_RST,    false, SLAVE_SENS, 0},
-    {BBS_SYN,    false, SLAVE_SENS, 1},
+    {BBS_SYN,    false, SLAVE_SENS, 0},
     {BBS_GET,    false, SLAVE_SENS, sizeof(struct sens_data)},
 
     {0}, {0}, {0}, {0},
     {0}, {0}, {0}, {0},
     {0}, {0}, {0}, {0},
 };
+
+/* SYN/ACK magic values */
+#define CTRL_ACK 0xc7
+#define SENS_ACK 0x53
+
+const static struct bus_cmd *BCMDS[] = {BCSS, BCCS};
+const static int ACKS[2] = {SENS_ACK, CTRL_ACK};
 
 #endif

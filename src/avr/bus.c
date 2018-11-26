@@ -11,7 +11,7 @@ void spi_init() {
     DDRB |= (1<<PB6);
 
     /* enable SPI Interrupt & SPI */
-    SPCR |= (1<<SPIE)|(1<<SPE);
+    SPCR |= (0<<SPIE)|(1<<SPE);
 
     /* clear data reg */
     SPDR = 0;
@@ -21,24 +21,26 @@ void spi_tranceive(uint8_t *data, int len) {
     for (int i = 0; i < len; i++) {
         SPDR = data[i];
 
-        while(!(SPSR & (1<<SPIF)));
+        while (!(SPSR & (1<<SPIF)));
 
         data[i] = SPDR;
     }
 }
 
 /* accept command from master */
-uint8_t spi_accept(uint8_t *data, uint8_t ack) {
+uint8_t spi_accept(uint8_t *data) {
     /* retrieve command */
     cs_t cs;
-    spi_tranceive((void*)&cs, 1);
+    spi_tranceive((uint8_t*)&cs, 1);
     int cmd = cs_cmd(cs);
-    int len = BCCS[cmd].len;
+    int len = BCMDS[SLAVE][cmd].len;
 
     /* retrieve data, if any */
     if (BCCS[cmd].write) {
         spi_tranceive(data, len);
     }
+
+    uint8_t ack = ACKS[SLAVE];
 
     /* if invalid checksum, invert ack and ignore cmd */
     if (!cs_check(cs, data, len)) {

@@ -3,10 +3,10 @@ BINDIR = $(OBJDIR)/bin
 
 CC = gcc
 CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
-CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb
+CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb -O3
 CFLAGS.release = -O3
 
-PI_REMOTE = pi@172.20.10.4
+PI_REMOTE = pi@192.168.43.12
 
 CXXC = g++
 CXXFLAGS = `pkg-config --cflags opencv`
@@ -47,15 +47,16 @@ comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
 comm.pi: CFLAGS += -DPI
 comm.pi: CXXFLAGS += $(CXXFLAGS.release)
-comm.pi: COMM_LFLAGS += -lwiringPi
 comm.pi: $(BINDIR)/comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 comm.ip: CXXFLAGS += $(CXXFLAGS.debug)
 comm.ip: $(addprefix $(OBJDIR)/, dbg/ip.o comm/ip/img_proc.o)
 	$(CXXC) $? $(COMM_LFLAGS) $(CXXFLAGS) -o $(BINDIR)/comm_ip
+comm.remote.clean:
+	ssh $(PI_REMOTE) -t 'cd module; make clean'
 comm.remote:
-	scp -r comm spi Makefile $(PI_REMOTE):module
+	scp -rp comm spi Makefile $(PI_REMOTE):module
 	ssh $(PI_REMOTE) -t 'cd module; make comm.pi'
 
 # avr modules
@@ -87,17 +88,19 @@ $(OBJDIR)/comm/ip/%.o: comm/ip/%.cpp | init
 
 # link comm to binary
 $(BINDIR)/comm: $(COMM_OBJS)
-	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $(BINDIR)/$(COMM_BIN)
+	$(CXXC) $(COMM_OBJS) $(COMM_LFLAGS) -o $@
 
 # compile objects for avr c files
 $(OBJDIR)/avr/%.o: avr/%.c | init
 	$(AVRCC) -c $(AVRARCH) $(AVRCFLAGS) $< -o $@
 
 # link sens to binary
+$(BINDIR)/sens: AVRCFLAGS += -DSLAVE=0
 $(BINDIR)/sens: $(SENS_OBJS)
 	$(AVRCC) $(SENS_OBJS) $(AVRARCH) $(SENS_LFLAGS) -o $@
 
 # link ctrl to binary
+$(BINDIR)/ctrl: AVRCFLAGS += -DSLAVE=1
 $(BINDIR)/ctrl: $(CTRL_OBJS)
 	$(AVRCC) $(CTRL_OBJS) $(AVRARCH) $(CTRL_LFLAGS) -o $@
 
