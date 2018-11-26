@@ -15,11 +15,11 @@ void ip_init(void) {
 double img_center_pt;
 bool lline_found = false;
 bool rline_found = false;
-//bool sline_found = false;
-double rline_slope;  // y = m*x + b
+bool sline_found = false;
+double rline_slope;
 double lline_slope;
 double sline_slope;
-cv::Point raxis_intersection; // y= m*x + b
+cv::Point raxis_intersection;
 cv::Point laxis_intersection;
 cv::Point saxis_intersection;
 
@@ -48,23 +48,22 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     cv::threshold(edge_img, edge_img, thresh_value, max_binary_value, cv::THRESH_OTSU);
     cv::imshow("threshold", edge_img);
     
-    float data[3] = { -1, 0, 1};
+    /*float data[3] = { -1, 0, 1};
     cv::Mat kernel(1, 3, CV_32F, data);
     
     //recommended values when using filter2D
     cv::Point anchor  = cv::Point(-1, -1);
     const int DELTA = 0;
-    const int DDEPTH = -1;
+    const int DDEPTH = -1;*/
 
     //cv::warpPerspective(denoised_image, denoised_image, kernel, denoised_image.size());
     //cv::inRange(denoised_image, cv::Scalar(1), cv::Scalar(255), denoised_image);
 
-    /*
-    	cv::Canny(edge_img, edge_img, 100, 150, 3);
-	Supposedly, a more simple alternative for filter2D. But it has not shown improvement
-    */
-    cv::filter2D(edge_img, edge_img, DDEPTH, kernel, anchor, DELTA, cv::BORDER_DEFAULT);
-    cv::imshow("2Dfiltering: ", edge_img);
+  
+    cv::Canny(edge_img, edge_img, 100, 150, 3);
+	//Supposedly, a more simple alternative for filter2D. But it has not shown improvement
+    //cv::filter2D(edge_img, edge_img, DDEPTH, kernel, anchor, DELTA, cv::BORDER_DEFAULT);
+    cv::imshow("CannyEdges: ", edge_img);
 
     return edge_img;
 }
@@ -99,9 +98,9 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
 
     double rho = 1;
     double theta = CV_PI / 180;
-    int threshold = 75; //20
+    int threshold = 130; //20
     double minLineLength = 20;//20
-    double maxLineGap = 100; //30
+    double maxLineGap = 75; //30
 
     cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
 
@@ -109,7 +108,7 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
 }
 
 std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& lines, cv::Mat& image) {
-    std::vector<std::vector<cv::Vec4i> > classified_lines(2); //3 when stop
+    std::vector<std::vector<cv::Vec4i> > classified_lines(3); //3 when stop
     cv::Point start;
     cv::Point end;
     std::vector<float> slopes;
@@ -128,7 +127,12 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
         start = cv::Point(lines[x][0], lines[x][1]);
         end = cv::Point(lines[x][2], lines[x][3]);
 
-        if (slopes[x] > 0 && end.x > img_center_pt && start.x > img_center_pt) {
+        
+  	if (slopes[x] == 0 || (start.x < img_center_pt && end.x > img_center_pt)) {
+        	stop_lines.push_back(lines[x]);
+        	stop_found = true;
+        }
+  	else if (slopes[x] > 0 && end.x > img_center_pt && start.x > img_center_pt) {
             right_lines.push_back(lines[x]);
             rline_found = true;
         }
@@ -136,31 +140,26 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
             left_lines.push_back(lines[x]);
             lline_found = true;
         }
-        //else if (slopes[x] == 0) {
-        //	stop_lines.push_back(lines[x]);
-        //	stop_found = true;
-        //	std::cout << "stop linessss: \n";
-        //}
         x++;
     }
 
     classified_lines[0] = right_lines;
     classified_lines[1] = left_lines;
-    //classified_lines[2] = stop_lines;
+    classified_lines[2] = stop_lines;
 
     return classified_lines;
 }
 
 std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image) {
-    std::vector<cv::Point> points(4); //6 when stop
+    std::vector<cv::Point> points(6); //6 when stop
     cv::Point start;
     cv::Point end;
     cv::Vec4f right_line;
     cv::Vec4f left_line;
-    //cv::Vec4f stop_line;
+    cv::Vec4f stop_line;
     std::vector<cv::Point2f> right_pts;
     std::vector<cv::Point2f> left_pts;
-    //std::vector<cv::Point> stop_points;
+    std::vector<cv::Points> stop_pts;
 
     if (rline_found) {
         for (auto points : lines[0]) {
@@ -185,16 +184,14 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
 
             left_pts.push_back(start);
             left_pts.push_back(end);
-            std::cout << "left_ " << start << "-" << end << "\n";
         }
         if (left_pts.size() > 0) {
             cv::fitLine(left_pts, left_line, CV_DIST_L2, 0, 0.01, 0.01);
-	    std::cout << "fitLine has been passed: \n";
             lline_slope = left_line[1] / left_line[0];
             laxis_intersection = cv::Point(left_line[2], left_line[3]);
         }
     }
-    /*if (stop_found) {
+    if (sline_found) {
         for (auto j : lines[2]) {
             start = cv::Point(j[0], j[1]);
             end = cv::Point(j[2], j[3]);
@@ -204,30 +201,32 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         }
 
         if (stop_points.size() > 0) {
-            cv::fitLine(stop_points, stop_line, CV_DIST_L2, 0, 0.01, 0.01);
+            cv::fitLine(stop_pts, stop_line, CV_DIST_L2, 0, 0.01, 0.01);
             sline_slope = stop_line[1] / stop_line[0];
             saxis_intersection = cv::Point(stop_line[2], stop_line[3]);
         }
-    }*/
+    }
 
-    int start_y = image.rows;
-    int end_y = 0.6 * image.rows;
+    int lines_start_y = image.rows;
+    int lines_end_y = 0.6 * image.rows;
+    int sline_start_x = 0.20*image.cols;
+    int sline_end_x = 0.80*image.cols;
 
-    double right_start_x = ((start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
-    double right_end_x = ((end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
+    double rline_start_x = ((lines_start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
+    double rline_end_x = ((lines_end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
 
-    double left_start_x = ((start_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
-    double left_end_x = ((end_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
+    double lline_start_x = ((lines_start_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
+    double lline_end_x = ((lines_end_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
 
-    /*double stop_start_x = ((start_y - saxis_intersection.y) / sline_slope) + saxis_intersection.x;
-    double stop_end_x = ((end_y - saxis_intersection.y) / sline_slope) + saxis_intersection.x;*/
+    double sline_start_y = (sline_slope * (sline_start_x - saxis_intersection.x)) + saxis_intersection.y;
+    double sline_end_y = (sline_slope * (sline_end_x - saxis_intersection.x)) + saxis_intersection.y;
 
-    points[0] = cv::Point(right_start_x, start_y);
-    points[1] = cv::Point(right_end_x, end_y);
-    points[2] = cv::Point(left_start_x, start_y);
-    points[3] = cv::Point(left_end_x, end_y);
-    //points[4] = cv::Point(stop_start_x, start_y);
-    //points[5] = cv::Point(stop_end_x, end_y);
+    points[0] = cv::Point(rline_start_x, lines_start_y);
+    points[1] = cv::Point(rline_end_x, lines_end_y);
+    points[2] = cv::Point(lline_start_x, lines_start_y);
+    points[3] = cv::Point(lline_end_x, lines_end_y);
+    points[4] = cv::Point(sline_start_x, sline_start_y);
+    points[5] = cv::Point(sline_end_x, sline_end_y);
     
     return points;
 }
@@ -247,29 +246,29 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
 
     cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
     cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
+    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
     cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+    cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
+    cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
 
     rline_found = false;
     lline_found = false;
-
-    /*if (is_stop_line) {
-        cv::line(original_frame, lines[4], lines[5], cv::Scalar(255, 0, 0), 5, CV_AA);
-        is_stop_line = false;
-    }*/
+    sline_found = false;
 
     std::string message = "De baxar dina byxor!!!";
     cv::putText(original_img, message, cv::Point(0.1*original_img.cols, 0.2*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(0, 0, 0), 5, CV_FILLED);
 
     /*Test: Getting distance between a specified line point and the camera*/ 
-
-    std::cout << "point 1: " << points[1] << "\n";
+    cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
+    std::cout << "stopLine center pt: " << stop_center_pt << "\n";
+    cv:circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
     std::cout << "center: " << img_center_pt << "\n";
-    double dist;
-    dist = std::sqrt(pow(points[1].x-img_center_pt, 2) + pow(points[1].y-original_img.rows, 2));
-    std::string distance = std::to_string(dist);
+
+    float stop_dist = std::sqrt(pow(stop_center_pt.x - img_center_pt, 2) + pow(stop_center_pt.y - original_img.rows, 2));
+	std::string distance = std::to_string(stop_dist);
 
     cv::putText(original_img, distance, cv::Point(0.1*original_img.cols, 0.3*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
 }
@@ -329,25 +328,6 @@ struct ip_res *ip_process(void) {
         
         if (!lines.empty()) {
             lr_lines = classify_lines(lines, edges_image);
-
-	    /*if (right_found) {
-	        for (auto line : lr_lines[0]) {
-		    cv::Point start = cv::Point(line[0], line[1]);
-		    cv::Point end = cv::Point(line[2], line[3]);
-		    if (start.y > 500) {
-		        cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
-		    }
-	        }
-            }
-	    if (left_found) {
-	        for (auto line : lr_lines[1]) {
-		    cv::Point start = cv::Point(line[0], line[1]);
-		    cv::Point end = cv::Point(line[2], line[3]);
-		    if (start.y > 500) {
-		        cv::line(frame, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
-		    }
-	        }
-            }*/
 
             lane = linear_regression(lr_lines, frame);
 
