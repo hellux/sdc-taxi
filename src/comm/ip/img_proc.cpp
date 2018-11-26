@@ -98,9 +98,9 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
 
     double rho = 1;
     double theta = CV_PI / 180;
-    int threshold = 130; //20
+    int threshold = 75; //20
     double minLineLength = 20;//20
-    double maxLineGap = 75; //30
+    double maxLineGap = 100; //30
 
     cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
 
@@ -337,9 +337,9 @@ struct ip_res *ip_process(void) {
             cv::imshow("Lane", frame);
             int k = cv::waitKey(1);
 
-            if (k == 27)
-         	break;
-        }
+        if (k == 27)
+            break;
+    }
     frame.release();
     cv::destroyAllWindows();
     return NULL;

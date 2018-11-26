@@ -5,18 +5,31 @@
  *  Author: emiha868
  * 
  * All characters in the rom are ASCII-encoded, 8 bits
- */ 
+ *
+ * LCD interfacing functions in 4-bit mode
+ *
+ */
+
+
+
+#define D7 PORTA7
+#define D6 PORTA6
+#define D5 PORTA5
+#define D4 PORTA4
+#define RS PORTA3
+#define EN PORTA2
 
 #define F_CPU 16000000
+#include<util/delay.h>
 #include <avr/io.h>
-#include "lcd.h"
 #include <avr/interrupt.h>
+#include <string.h>
 
 void lcd_send_pulse(){
-	PORTD |= (1<<EN);
-	_delay_ms(10);
-	PORTD &= ~(1<<EN);
-	_delay_ms(10);
+	PORTA |= (1<<EN);
+	_delay_ms(2);
+	PORTA &= ~(1<<EN);
+	_delay_ms(2);
 }
  
 //Transmit instruction set by already assigned values to databuss and RS
@@ -25,48 +38,75 @@ void lcd_send_instruction(unsigned char instr){
 	upper &= 0xF0;
 	upper &= ~(1<<RS);
 	
-	PORTD = upper;
+	PORTA = upper;
 	lcd_send_pulse();
 	
 	unsigned char lower = instr;
 	lower = (lower << 4);
 	lower &= ~(1<<RS);
 	
-	PORTD = lower;
+	PORTA = lower;
 	lcd_send_pulse();
 }
 
+//part of init
 void lcd_set_4bit_interface(){
-	PORTD = 0x20;
-	PORTD &= ~(1<<RS);
+	PORTA = 0x20;
+	PORTA &= ~(1<<RS);
 	lcd_send_pulse();
 }
 
+//Write a character to display
 void lcd_send_data(unsigned char data){
 	unsigned char upper = data;
 	upper &= 0xF0;
 	upper |= (1<<RS);
 	
-	PORTD = upper;
+	PORTA = upper;
 	lcd_send_pulse();
 	
 	unsigned char lower = data;
 	lower = (lower << 4);
 	lower |= (1<<RS);
 	
-	PORTD = lower;
+	PORTA = lower;
 	lcd_send_pulse();
 }
 
+//send a string to display, 2x16, hardcoded scrolling.
+void lcd_send_string(char *string) {
+	
+	int len = strlen(string);
+	
+	for (int i = 0; i < len; i++){
+		
+		//RADBRYTNING OM SISTA BOKSTAV I RAD
+		if( i ==0x0F || i == 0x1F ){
+			//2x16, 0F är sista bokstav i rad 1 hoppa till 0x40, first letter second row
+			// 1F är sista bosktav i rad 2, hoppa tillbaka hem
+			lcd_send_data(string[i]);
+			char c = (i == 0x0F) ? 0x40 : 0x00;
+			c |= ( 1 << D7 );
+			lcd_send_instruction(c);
+			
+		}else{
+			lcd_send_data(string[i]);
+		}
+	
+	}
+	
+}
 
+//part of init
 void lcd_busy_wait(){
 	//D5,D4 = 1, RS = 0 R/W = 0
-	PORTD = 0x00; // Reset port values from previous
-	PORTD |= (1<<D5)|(1<<D4);
-	PORTD &= ~(1<<RS);
+	PORTA = 0x00; // Reset port values from previous
+	PORTA |= (1<<D5)|(1<<D4);
+	PORTA &= ~(1<<RS);
 	lcd_send_pulse();
 }
 
+//part of init
 void lcd_reset(){
 	//PORTD = 0xFF;
 	_delay_ms(20);
@@ -78,7 +118,7 @@ void lcd_reset(){
 	_delay_ms(1);
 }
 
-
+//initialize 4 bit mode
 void lcd_init(){
 	lcd_reset();
 
@@ -96,29 +136,27 @@ void lcd_init(){
 	
 	//STAGE 5 I/D = 1 D6 = 1 S = 0
 	lcd_send_instruction(0x06);
+	
+	// Display cursor, no blink
+	lcd_send_instruction(0x0F);
 }
 
 
+//instruction for clear
 void lcd_clear(){
 	lcd_send_instruction(0x01);
 	_delay_ms(3);
 }
 
-/*
-void lcd_set_ddram(){
-	PORTD = 0x00;
-	lcd_send_instruction();
-	PORTD = 0x20;
-	lcd_send_instruction();
-}
-*/
 
+//instruction for display on
 void lcd_display_on(){
 	//turn on lcd
 	lcd_send_instruction(0x0F);
 	_delay_ms(300);
 }
 
+//instruction shift cursor to right
 void lcd_shift_right(){
 	lcd_send_instruction(0x14);
 }
@@ -137,27 +175,14 @@ int main(void)
     lcd_init();
 	_delay_ms(5);
 	
-	// Display cursor, no blink
-	lcd_send_instruction(0x0F);
 	
-	
-	lcd_clear();
-	for(int i = 0; i < 4; i++){
-		_delay_ms(1000);
-		lcd_shift_right();
-	}
 	
 	
 	lcd_clear();
-	_delay_ms(100);
 	
-	lcd_send_data(0x41);
-	_delay_ms(20);
-	lcd_send_data(0x31);
+
 	
-	_delay_ms(20);
-	lcd_send_data(0x32);
-	
+	lcd_send_string("0123456789ABCDEF0123456789ABCDEFCAESAR");
 	while(1)
     {
 		//lcd_send_data(0x41);
@@ -174,5 +199,5 @@ int main(void)
 		lcd_send_pulse();
 		_delay_ms(1);
 		*/
-	}
+	 }
 }
