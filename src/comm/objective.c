@@ -67,12 +67,7 @@ void objq_destroy(struct obj_item *queue) {
     }
 }
 
-void slow_down(struct obj_args *args) {
-    args->override_vel = true;
-    args->val->vel = 0.9 * args->sens->velocity;
-}
-
-ctrl_val_t wtd_speed(float stop_dist, float cur_vel, float des_vel) {
+ctrl_val_t wtd_speed(float distance, float current, float target) {
     //TODO Calculate smooth transition from current to desired speed
     float new_vel = 0;
     return new_vel;
