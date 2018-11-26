@@ -1,8 +1,66 @@
 #include "objective.h"
+
+#include <string.h>
+
+#include "main.h"
+
 #define break_dist 40
 #define still_dist 0
 #define LEFT -100
 #define RIGHT 100
+
+bool obj_ignore(struct obj_args *args);
+bool obj_stop(struct obj_args *args);
+bool obj_park(struct obj_args *args);
+bool obj_enter(struct obj_args *args);
+bool obj_exit(struct obj_args *args);
+
+const struct obj OBJS[] = {
+    {"ignr", obj_ignore},
+    {"stop", obj_stop},
+    {"park", obj_park},
+    {"entr", obj_enter},
+    {"exit", obj_exit},
+};
+const int OBJC = sizeof(OBJS)/sizeof(*OBJS);
+
+struct obj_item *objq_create(int cmdc, char **cmds) {
+    bool valid = true;
+    struct obj_item *root = NULL;
+    struct obj_item **prev_ptr = &root;
+    struct obj_item *current;
+    for (int i = 0; i < cmdc; i++) {
+        current = calloc(1, sizeof(*current));
+        *prev_ptr = current;
+
+        for (int j = 0; j < OBJC; j++) {
+            if (strcmp(cmds[i], OBJS[j].name) == 0) {
+                current->obj = &OBJS[j];
+                break;
+            }
+        }
+        if (!current->obj) {
+            valid = false;
+            break;
+        }
+    }
+
+    if (valid) {
+        return root;
+    } else {
+        objq_destroy(root);
+        return NULL;
+    }
+
+}
+
+void objq_destroy(struct obj_item *queue) {
+    while (queue) {
+        struct obj_item *prev = queue;
+        queue = queue->next;
+        free(queue);
+    }
+}
 
 void slow_down(struct obj_args *args){
     args->override_vel = true;
@@ -75,4 +133,3 @@ bool obj_exit(struct obj_args *args){
     }
     return false;
 }
-
