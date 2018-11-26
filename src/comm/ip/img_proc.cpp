@@ -121,7 +121,7 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
         start = cv::Point(lines[x][0], lines[x][1]);
         end = cv::Point(lines[x][2], lines[x][3]);
 
-	if (slopes[x] == 0 || start.x < img_center_pt && end.x > img_center_pt) {
+	if (slopes[x] == 0 || (start.x < img_center_pt && end.x > img_center_pt)) {
             stop_lines.push_back(lines[x]);
             sline_found = true;
         }
@@ -256,7 +256,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point2f>& points) {
 
     cv::Point2f stop_center_pt = cv::Point2f((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
     std::cout << "stopLine center pt: " << stop_center_pt << "\n";
-    cv:circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
+    circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
 
     float stop_dist = std::sqrt(pow(stop_center_pt.x - img_center_pt, 2) + pow(stop_center_pt.y - original_img.rows, 2));
     std::string distance = std::to_string(stop_dist);
