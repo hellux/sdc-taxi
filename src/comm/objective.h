@@ -10,6 +10,7 @@ struct obj_args {
     struct ctrl_pair *val;
     bool override_vel;
     bool override_rot;
+    bool on_road;
     struct sens_values *sens; 
 };
 
