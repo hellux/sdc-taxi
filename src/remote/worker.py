@@ -14,7 +14,8 @@ class Worker(threading.Thread):
             Task.SEND       : self.task_send,
             Task.KILL       : self.task_kill,
             Task.MOVE       : self.task_move,
-            Task.SET_AUTO   : self.set_auto
+            Task.SET_AUTO   : self.set_auto,
+            Task.GET_SENSOR : self.get_sensor
         }
 
         self.move_time = 0
@@ -38,6 +39,9 @@ class Worker(threading.Thread):
     def task_kill(self):
         self.terminate = True
         return None
+        
+    def get_sensor(self):
+        return self.send_fmt(Command.GET_SENSOR).split(',')
 
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
