@@ -38,7 +38,7 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     cv::GaussianBlur(image, edge_img, cv::Size(3, 3), 0, 0);
     cv::cvtColor(edge_img, edge_img, cv::COLOR_RGB2GRAY);
     
-    int thresh_value = 140;
+    int thresh_value = 20;
     int max_binary_value =230;
 
     //Segmentation. "Assign a label to every pixel in an image such that pixels with the
@@ -48,7 +48,7 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     cv::threshold(edge_img, edge_img, thresh_value, max_binary_value, cv::THRESH_OTSU);
     cv::imshow("threshold", edge_img);
     
-    /*float data[3] = { -1, 0, 1};
+   /* float data[3] = { -1, 0, 1};
     cv::Mat kernel(1, 3, CV_32F, data);
     
     //recommended values when using filter2D
@@ -76,13 +76,13 @@ cv::Mat mask_image(cv::Mat& image) {
     float ROI_y_end = (image.rows / 2);
     std::cout << "y:" << ROI_y_end << "\n";
     std::cout << "y:" << ROI_y_start << "\n";
-    float ROI_x1 = 0.08 * image.cols;
+    float ROI_x1 = 0.05 * image.cols;
     std::cout << "x1:" << ROI_x1 << "\n";
-    float ROI_x2 = 0.35 * image.cols;
+    float ROI_x2 = 0.15 * image.cols;
     std::cout << "x2:" << ROI_x2 << "\n";
-    float ROI_x3 = 0.65 * image.cols;
+    float ROI_x3 = 0.85 * image.cols;
     std::cout << "x3:" << ROI_x3 << "\n";
-    float ROI_x4 = 0.92 * image.cols;
+    float ROI_x4 = 0.95 * image.cols;
     std::cout << "x4:" << ROI_x4 << "\n";
     const int pts_amount = 4;
     cv::Point p1(ROI_x1, ROI_y_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
@@ -98,9 +98,9 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
 
     double rho = 1;
     double theta = CV_PI / 180;
-    int threshold = 75; //20
-    double minLineLength = 20;//20
-    double maxLineGap = 100; //30
+    int threshold = 110; //20
+    double minLineLength = 50;//20
+    double maxLineGap = 200; //30
 
     cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
 
@@ -129,8 +129,8 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
 
         
   	if (slopes[x] == 0 || (start.x < img_center_pt && end.x > img_center_pt)) {
-        	stop_lines.push_back(lines[x]);
-        	sline_found = true;
+            stop_lines.push_back(lines[x]);
+            sline_found = true;
         }
   	else if (slopes[x] > 0 && end.x > img_center_pt && start.x > img_center_pt) {
             right_lines.push_back(lines[x]);
@@ -168,11 +168,9 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
 
             right_pts.push_back(start);
             right_pts.push_back(end);
-            std::cout << "right_ " << start << "-" << end << "\n";
         }
         if (right_pts.size() > 0) {
             cv::fitLine(right_pts, right_line, CV_DIST_L2, 0, 0.01, 0.01);
-	    std::cout << "fitLine has been passed: \n";
             rline_slope = right_line[1] / right_line[0];
             raxis_intersection = cv::Point(right_line[2], right_line[3]);
         }
@@ -192,14 +190,13 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         }
     }
     if (sline_found) {
-        for (auto j : lines[2]) {
-            start = cv::Point(j[0], j[1]);
-            end = cv::Point(j[2], j[3]);
+        for (auto point : lines[2]) {
+            start = cv::Point(point[0], point[1]);
+            end = cv::Point(point[2], point[3]);
 
             stop_pts.push_back(start);
             stop_pts.push_back(end);
         }
-
         if (stop_pts.size() > 0) {
             cv::fitLine(stop_pts, stop_line, CV_DIST_L2, 0, 0.01, 0.01);
             sline_slope = stop_line[1] / stop_line[0];
@@ -208,7 +205,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     }
 
     int lines_start_y = image.rows;
-    int lines_end_y = 0.6 * image.rows;
+    int lines_end_y = 0.60 * image.rows;
     int sline_start_x = 0.20*image.cols;
     int sline_end_x = 0.80*image.cols;
 
@@ -289,11 +286,6 @@ struct ip_res *ip_process(void) {
     std::cout << "Width: " << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
     std::cout << "Height: " << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
 
-    //std::cout << "FPS: " << cap.get(CV_CAP_PROP_FPS) << "\n";
-    //cap.set(CV_CAP_PROP_FPS, 60);
-    //std::cout << "FPS2: " << cap.get(CV_CAP_PROP_FPS) << "\n";
-
-    
     cv::Mat frame;
     cv::Mat denoised_image;
     cv::Mat edges_image;
