@@ -23,7 +23,28 @@
 #include<util/delay.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
+
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+
+
+#define ADC_PRESCALER_128 0x07
+#define CNV_FRONT_MUL 17391
+#define CNV_FRONT_EXP 1.071
+
+#define CNV_RIGHT_MUL 2680
+#define CNV_RIGHT_EXP 1.018
+
+#define CHN_SENS_FRONT 0
+#define CHN_SENS_RIGHT 1
+
+#define WHEEL_DIAM 0.08
+#define WHEEL_SENS_FREQ 5
+#define PI 3.14
+
 
 void lcd_send_pulse(){
 	PORTA |= (1<<EN);
@@ -161,43 +182,58 @@ void lcd_shift_right(){
 	lcd_send_instruction(0x14);
 }
 
+void adc_init(void) {
+	//mux init
+	ADMUX = (1 << REFS0);
+
+	//ADC enable
+	ADCSRA |= (1 << ADEN);
+
+	/* F_ADC = F_CPU/prescaler */
+	ADCSRA |= ADC_PRESCALER_128;
+
+	//ADC interrupt enabled
+	ADCSRA |= (1 << ADIE);
+}
+
+uint16_t adc_read(uint8_t channel) {
+	//Set multiplexer for given channel (0-7) (front or back sensor)
+	ADMUX = (ADMUX & 0xF8) | channel; //ADMUX &= 0xE0; //Clear the older channel that was read?
+
+	// start single convertion
+	ADCSRA |= (1 << ADSC);
+
+	// wait until it is ready (=0)
+	while (ADCSRA & (1 << ADSC));
+
+	return (ADC); //ADCL-ADCH
+}
+
+
 
 int main(void)
 {
 			
-	/*All pin on port D are outputs to LCD except PD2 and PD3, inputs from halleffect 
-	  PORTD0 (pin 40) and PORTD1(pin 39) are inputs from sensors*/
-	DDRD = 0xFF;
-	DDRB = 0xFF;
-	DDRA = 0xFF;
-	//DDRA = 0x00; // inputs from sensors to AD converter
+	DDRA = 0xFA;
 	
     lcd_init();
 	_delay_ms(5);
-	
-	
-	
-	
 	lcd_clear();
 	
 
 	
-	lcd_send_string("0123456789ABCDEF0123456789ABCDEFCAESAR");
+	lcd_send_string( "Initializing m8" );
+	_delay_ms(2000);
+	lcd_clear();
+	
 	while(1)
-    {
-		//lcd_send_data(0x41);
-		//_delay_ms(20);
-		
-		/*
-		PORTD = 0x42;
-		//PORTD |= (1<<RS);
-		lcd_send_pulse();
-		
+	{
+		uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
+		float dist = CNV_FRONT_EXP * pow(adc_right, -CNV_RIGHT_EXP);
 		_delay_ms(10);
-		
-		PORTD = 0x12;
-		lcd_send_pulse();
-		_delay_ms(1);
-		*/
-	 }
+		char* buf[32];
+		efgcvt(dist, 4, buf);
+		lcd_send_string(strcat("RIGHT: ", buf));
+			
+	}
 }

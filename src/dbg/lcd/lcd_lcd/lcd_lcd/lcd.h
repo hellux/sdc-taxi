@@ -3,7 +3,7 @@ LCD interfacing functions in 4-bit mode
 
 */
 
-#include<util/delay.h>
+
 
 #define D7 PORTA7
 #define D6 PORTA6
