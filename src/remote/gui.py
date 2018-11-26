@@ -119,6 +119,7 @@ class GUI():
         self.complete_actions = {
             Task.CONNECT    : print,
             Task.SEND       : print,
+            Task.GET_SENSOR : self.set_sensor,
         }
 
         self.window = tk.Tk()
@@ -166,8 +167,8 @@ class GUI():
         menuBar = tk.Menu(self.window)
 
         map_menu = tk.Menu(menuBar, tearoff=False)
-        map_menu.add_command(label="Open map", command=self.open_map)
-        map_menu.add_command(label="Save map", command=self.save_map)
+        map_menu.add_command(label="Open map", command=lambda:self.get_filename("open"))
+        map_menu.add_command(label="Save map", command=lambda:self.get_filename("save"))
         map_menu.add_command(label="Clear", command=self.map.clear_map)
         
         system_menu = tk.Menu(menuBar, tearoff=False)
@@ -198,7 +199,8 @@ class GUI():
                 action(*result)
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
-
+        self.window.after(0.01, lambda:self.tasks.put(Task.GET_SENSOR))
+        
     def button_down(self, event, direction):
         self.keys[direction] = True
         self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
@@ -234,32 +236,41 @@ class GUI():
         self.bind_keys()
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
+    
+    def set_sensor(self, speed_data):
+        self.car_speed.set(GUI.PREFIX_SPEED + speed_data[3])
         
     def quit(self):
         self.tasks.put(Task.KILL)
         self.window.destroy()
 
     def get_filename(self, function):
-        filename_frame = tk.Tk()
-        filename_label = tk.Label(filename_frame, text="Enter filename")
-        filename_entry = tk.Entry(filename_frame)
+        self.filename_frame = tk.Tk()
+        filename_label = tk.Label(self.filename_frame, text="Enter filename")
+        filename_entry = tk.Entry(self.filename_frame)
         if(function=="save"):
-            filename_button = tk.Button(filename_frame, text=function, \
-                command=self.save_map(filename_entry.get()))
+            filename_button = tk.Button(self.filename_frame, text=function, \
+                command=lambda:self.save_map(filename_entry.get()))
+        elif(function=="open"):
+            filename_button = tk.Button(self.filename_frame, text=function, \
+                command=lambda:self.open_map(filename_entry.get()))
         filename_label.grid(row=0, column=0)
         filename_entry.grid(row=1, column=0)
         filename_button.grid(row=2, column=0)
+        filename_entry.focus_force()
         
     def save_map(self, filename):
         self.file = open(filename, 'wb')
         pickle.dump((self.map.nodes, self.map.edges), self.file)
         self.file.close()
+        self.filename_frame.destroy()
 
     def open_map(self, filename):
         self.file = open(filename, 'rb')
         self.map.clear_map()
         self.map.nodes, self.map.edges = pickle.load(self.file)
         self.map.draw()
+        self.filename_frame.destroy()
 
     def clear(self, console):
         console.delete(0, tk.END)
@@ -272,3 +283,4 @@ class GUI():
             command=lambda:self.tasks.put(Task.CONNECT, ip_input.get()))
         ip_input.grid(row=0, column=0)
         ip_button.grid(row=0, column=1)
+        ip_input.focus_force()

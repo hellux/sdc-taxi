@@ -3,14 +3,14 @@ LCD interfacing functions in 4-bit mode
 
 */
 
-#include<util/delay.h>
 
-#define D7 PORTD7
-#define D6 PORTD6
-#define D5 PORTD5
-#define D4 PORTD4
-#define RS PORTD1
-#define EN PORTD0
+
+#define D7 PORTA7
+#define D6 PORTA6
+#define D5 PORTA5
+#define D4 PORTA4
+#define RS PORTA3
+#define EN PORTA2
 
 
 //Transmit instruction set by already assigned values to databuss and RS
