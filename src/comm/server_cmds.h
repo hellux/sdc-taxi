@@ -1,4 +1,5 @@
-#include "main.h"
+#include "protocol.h"
+#include "server.h"
 
 bool sc_get_sens(struct srv_cmd_args *a);
 bool sc_get_mission(struct srv_cmd_args *a);

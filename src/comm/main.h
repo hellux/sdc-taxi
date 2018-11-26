@@ -10,13 +10,6 @@
 
 #include <pthread.h>
 
-#include "bus.h"
-#include "server.h"
-#include "server_cmds.h"
-#include "ip/img_proc.h"
-
-#include "protocol.h"
-
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
@@ -42,10 +35,8 @@ struct data_sensors {
 struct data_mission {
     bool active;
 
-    /* TODO commands */
-    //struct obj cmd_queue;
+    struct obj_item *queue;
     int cmds_completed;
-    int cmds_remaining;
 
     pthread_mutex_t lock;
 };

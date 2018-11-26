@@ -7,6 +7,7 @@ class Task(Enum):
     KILL = auto()
     MOVE = auto()
     SET_AUTO = auto()
+    GET_SENSOR = auto()
 
 class TaskQueue():
     def __init__(self):
