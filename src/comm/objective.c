@@ -67,6 +67,18 @@ void objq_destroy(struct obj_item *queue) {
     }
 }
 
+struct obj_item *objq_execute(struct obj_item *queue, struct obj_args *args) {
+    bool finished = queue->obj.func(args);
+
+    if (finished) {
+        struct obj_item next = queue->next;
+        queue = queue->next;
+        free(queue);
+    }
+
+    return queue;
+}
+
 ctrl_val_t wtd_speed(float distance, float current, float target) {
     //TODO Calculate smooth transition from current to desired speed
     float new_vel = 0;
