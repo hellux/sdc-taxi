@@ -130,7 +130,7 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
         
   	if (slopes[x] == 0 || (start.x < img_center_pt && end.x > img_center_pt)) {
         	stop_lines.push_back(lines[x]);
-        	stop_found = true;
+        	sline_found = true;
         }
   	else if (slopes[x] > 0 && end.x > img_center_pt && start.x > img_center_pt) {
             right_lines.push_back(lines[x]);
@@ -159,7 +159,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     cv::Vec4f stop_line;
     std::vector<cv::Point2f> right_pts;
     std::vector<cv::Point2f> left_pts;
-    std::vector<cv::Points> stop_pts;
+    std::vector<cv::Point2f> stop_pts;
 
     if (rline_found) {
         for (auto points : lines[0]) {
@@ -196,11 +196,11 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
             start = cv::Point(j[0], j[1]);
             end = cv::Point(j[2], j[3]);
 
-            stop_points.push_back(start);
-            stop_points.push_back(end);
+            stop_pts.push_back(start);
+            stop_pts.push_back(end);
         }
 
-        if (stop_points.size() > 0) {
+        if (stop_pts.size() > 0) {
             cv::fitLine(stop_pts, stop_line, CV_DIST_L2, 0, 0.01, 0.01);
             sline_slope = stop_line[1] / stop_line[0];
             saxis_intersection = cv::Point(stop_line[2], stop_line[3]);
@@ -264,7 +264,7 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     /*Test: Getting distance between a specified line point and the camera*/ 
     cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
     std::cout << "stopLine center pt: " << stop_center_pt << "\n";
-    cv:circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
+    cv::circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
     std::cout << "center: " << img_center_pt << "\n";
 
     float stop_dist = std::sqrt(pow(stop_center_pt.x - img_center_pt, 2) + pow(stop_center_pt.y - original_img.rows, 2));
