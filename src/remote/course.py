@@ -23,6 +23,7 @@ class Command:
     IGNORE = 'ignr'
     STOP = 'stop'
     PARK = 'park'
+    UN_PARK = 'un_park'
     ENTER = 'entr'
     EXIT = 'exit'
 
@@ -85,7 +86,7 @@ def create_mission(path):
     if node.type is NodeType.STOPLINE:
         return ([Command.IGNORE] if rest else [Command.STOP]) + create_mission(rest)
     elif node.type is NodeType.PARKING:
-        return ([Command.IGNORE] if rest else [Command.PARK]) + create_mission(rest)
+        return ([Command.IGNORE] if rest else [Command.PARK]) + [Command.UN_PARK] + create_mission(rest)
     else: # ROUNDABOUT
         src, dst = 0, 0
         exit_count = len(node.exits)
