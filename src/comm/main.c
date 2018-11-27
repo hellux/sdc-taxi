@@ -59,11 +59,10 @@ int main(int argc, char* args[]) {
 
     struct data_rc rc_prev = {0};
 
+    ip_t *ip = ip_init();
+
     char input[100];
     while (!quit) {
-        struct timespec ts = {0};
-        ts.tv_nsec = 100000000; 
-        nanosleep(&ts, NULL);
         /* pause loop, enable exit
         printf("> ");
         int len = scanf("%s", input);
@@ -82,15 +81,14 @@ int main(int argc, char* args[]) {
         if (miss_data.active) {
             pthread_mutex_unlock(&miss_data.lock);
 
-            ctrl_val_t err_vel = 0;
-            ctrl_val_t err_rot = 0;
+            struct ip_res res;
+            float speed = 0.1;
+            ip_process(ip, &res);
 
-            /* TODO img proc + mission */
-
-            bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL], (void*)&err_vel,
-                    NULL, NULL);
-            bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL], (void*)&err_rot,
-                    NULL, NULL);
+            bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL], (void*)&speed,
+                                  NULL, NULL);
+            bus_transmit_schedule(bus, &BCCS[BBC_ROT_ERR], (void*)&res.error,
+                                  NULL, NULL);
         } else {
             pthread_mutex_unlock(&miss_data.lock);
 
@@ -100,11 +98,11 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&rc_data.lock);
 
             if (rc_local.val.vel != rc_prev.val.vel) {
-                bus_transmit_schedule(bus, &BCCS[BBC_VEL_ERR],
+                bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL],
                                       (void*)&rc_local.val.vel, NULL, NULL);
             }
             if (rc_local.val.rot != rc_prev.val.rot) {
-                bus_transmit_schedule(bus, &BCCS[BBC_ROT_ERR],
+                bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL],
                                       (void*)&rc_local.val.rot, NULL, NULL);
             }
             rc_prev = rc_local;

@@ -70,7 +70,7 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     return edge_img;
 }
 
-cv::Mat mask_image(cv::Mat& image) {
+cv::Mat mask_image(cv::Mat image) {
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
     
     /* Region Of Interes */
@@ -92,6 +92,7 @@ cv::Mat mask_image(cv::Mat& image) {
     
     cv::fillConvexPoly(mask, ROI, pts_amount, cv::Scalar(255, 0, 0));
     cv::bitwise_and(image, mask, image);
+
     return image;
 }
 
@@ -317,7 +318,7 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
         printf("right_top.y: %d, lefty: %d, error: %f\n", lane[0].y, lane[3].y, res->error);
 
 #ifdef DEBUG
-        plotLane(frame, lane, rline_found, lline_found, sline_fonud);
+        plotLane(frame, lane, rline_found, lline_found, sline_found);
 #endif
     }
 
@@ -327,12 +328,12 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     double period = (double)(stop-start).count()/(1000000000);
     printf("\nFPS: %.1f\n", 1/period);
     cv::imshow("threshold", thres_img);
-    cv::imshow("CannyEdges: ", edge_img);
+    cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
     cv::imshow("Lane", frame);
-    if (k == 27)
-        break;
     int k = cv::waitKey(1);
+    if (k == 27)
+        exit(0);
 #endif
 
     frame.release();
