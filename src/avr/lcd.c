@@ -105,8 +105,8 @@ void lcd_send_string(char *string) {
 		//RADBRYTNING OM SISTA BOKSTAV I RAD
 		if( ((mask &= 0x0F) && mask == 0x0F)){
 			//´Var 16:de bokstav, hoppa till nästa rad.
-			lcd_send_data(string[i]);
 			row = ~(row);
+			lcd_send_data(string[i]);
 			//FÖRSTA BOKSTAV I RAD 2 BÖRJAR På 0x40
 			// FÖRSTA BOKSTVV I RAD 1 BÖRJAR PÅ adress 0x00
 			char c = (row == 0) ? 0x40 : 0x00;
