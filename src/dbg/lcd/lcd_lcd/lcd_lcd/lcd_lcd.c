@@ -232,7 +232,7 @@ int main(void)
 		float dist = CNV_FRONT_EXP * pow(adc_right, -CNV_RIGHT_EXP);
 		_delay_ms(10);
 		char* buf[32];
-		sprintf(buf,"%f", dist);
+		sprintf(buf,"%0.2f", dist);
 		lcd_send_string(strcat("RIGHT: ", buf));
 			
 	}
