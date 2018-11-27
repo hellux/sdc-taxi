@@ -32,7 +32,7 @@ struct ip_data *ip_init() {
     ip->cap->set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
     ip->cap->set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 
-#ifdef DEBUG
+#ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
 #endif
 
@@ -280,10 +280,8 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     res->error_valid = false;
     res->stopline_found = false;
 
-#ifdef DEBUG
     typedef std::chrono::high_resolution_clock Clock;
 	auto start = Clock::now();
-#endif
 
     cv::Mat frame;
 	ip->cap->read(frame);
@@ -317,20 +315,21 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
         res->error = ((left_top+right_top)/2 - 120)/120;
         printf("right_top.y: %d, lefty: %d, error: %f\n", lane[0].y, lane[3].y, res->error);
 
-#ifdef DEBUG
+#ifdef VISUAL
         plotLane(frame, lane, rline_found, lline_found, sline_found);
 #endif
     }
 
-#ifdef DEBUG
     auto stop = Clock::now();
-
     double period = (double)(stop-start).count()/(1000000000);
     printf("\nFPS: %.1f\n", 1/period);
+
+#ifdef VISUAL
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
     cv::imshow("Lane", frame);
+
     int k = cv::waitKey(1);
     if (k == 27)
         exit(0);

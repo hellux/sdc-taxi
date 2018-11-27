@@ -11,6 +11,7 @@ PI_REMOTE = pi@192.168.43.245
 CXXC = g++
 CXXFLAGS = -DCPP `pkg-config --cflags opencv`
 CXXFLAGS.debug = -Wall -Werror -ggdb -Og
+CXXFLAGS.release = -O3
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
@@ -42,15 +43,23 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 .SILENT: init
 
 # communication module
+comm.gdb: CXXFLAGS += $(CXXFLAGS.debug)
 comm.gdb: CFLAGS += $(CFLAGS.debug)
 comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
+comm.pi.release: CXXFLAGS += $(CXXFLAGS.release)
+comm.pi.release: CFLAGS += $(CFLAGS.release)
+comm.pi.release: comm.pi
+comm.pi.visual: CXXFLAGS += -DVISUAL
+comm.pi.visual: comm.pi
+comm.pi.debug: CXXFLAGS += $(CXXFLAGS.debug)
+comm.pi.debug: CFLAGS += $(CFLAGS.debug)
+comm.pi.debug: comm.pi
 comm.pi: CFLAGS += -DPI
-comm.pi: CXXFLAGS += $(CXXFLAGS.release) -DDEBUG
 comm.pi: $(BINDIR)/comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
-comm.ip: CXXFLAGS += $(CXXFLAGS.debug)
+comm.ip: CXXFLAGS += $(CXXFLAGS.debug) -DVISUAL
 comm.ip: $(addprefix $(OBJDIR)/, dbg/ip.o comm/ip/img_proc.o)
 	$(CXXC) $? $(COMM_LFLAGS) $(CXXFLAGS) -o $(BINDIR)/comm_ip
 comm.remote.clean:
