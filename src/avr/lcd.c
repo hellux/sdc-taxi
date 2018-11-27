@@ -7,11 +7,6 @@
  * All characters in the rom are ASCII-encoded, 8 bits
  *
  * LCD interfacing functions in 4-bit mode
- * PA2-PA7 is used
- * PA2 = EN
- * PA3 = RS
- *
- * Call the lcd_init() funciton to initalize lcd otherwise it wont work.
  *
  */
 
@@ -28,7 +23,28 @@
 #include<util/delay.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
+
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+
+
+#define ADC_PRESCALER_128 0x07
+#define CNV_FRONT_MUL 17391
+#define CNV_FRONT_EXP 1.071
+
+#define CNV_RIGHT_MUL 2680
+#define CNV_RIGHT_EXP 1.018
+
+#define CHN_SENS_FRONT 0
+#define CHN_SENS_RIGHT 1
+
+#define WHEEL_DIAM 0.08
+#define WHEEL_SENS_FREQ 5
+#define PI 3.14
+
 
 void lcd_send_pulse(){
 	PORTA |= (1<<EN);
@@ -82,16 +98,19 @@ void lcd_send_data(unsigned char data){
 void lcd_send_string(char *string) {
 	
 	int len = strlen(string);
+	char row = 0;
 	
 	for (int i = 0; i < len; i++){
-		
+		int mask = i;
 		//RADBRYTNING OM SISTA BOKSTAV I RAD
-		if( i ==0x0F || i == 0x1F ){
-			//2x16, 0F är sista bokstav i rad 1 hoppa till 0x40, first letter second row
-			// 1F är sista bosktav i rad 2, hoppa tillbaka hem
+		if( ((mask &= 0x0F) && mask == 0x0F)){
+			//´Var 16:de bokstav, hoppa till nästa rad.
 			lcd_send_data(string[i]);
-			char c = (i == 0x0F) ? 0x40 : 0x00;
-			c |= ( 1 << D7 );
+			row = ~(row);
+			//FÖRSTA BOKSTAV I RAD 2 BÖRJAR På 0x40
+			// FÖRSTA BOKSTVV I RAD 1 BÖRJAR PÅ adress 0x00
+			char c = (row == 0) ? 0x40 : 0x00;
+			c |= ( 1 << D7 );  // SET DDRAM ADDRESS INSTRUCTION
 			lcd_send_instruction(c);
 			
 		}else{
