@@ -19,6 +19,7 @@ class Map():
         self.edges = []
         self.selected_node = None
         self.selected_edge = None
+        self.select_mission = False
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -59,16 +60,23 @@ class Map():
                 if abs(y-(x*k + m)) < 5:
                     return edge
         return None
+    
         
     def select(self, event):
         self.selected_edge = self.get_edge(event.x, event.y)
 
-        if self.selected_node:
+        if self.select_mission and selected_node:
+            self.select_mission = False
+            path = Course.closest_path(self.course, self.selected_node, self.get_node(event.x, event.y))
+            Course.create_mission(path)
+            
+        elif self.selected_node:
             self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
+            
         else:    
             self.selected_node = self.get_node(event.x, event.y)
         self.draw()
-        
+    
     def delete(self):
         if(self.selected_node in self.nodes):
             self.nodes.remove(self.selected_node)
@@ -231,7 +239,8 @@ class GUI():
         self.window.after(1, self.get_sensor_data)
         
     def set_mission(self):
-        return
+        print("SELECT START AND DESTINATION")
+        self.map.select_mission = True
         
     def button_down(self, direction):
         self.keys[direction] = True
