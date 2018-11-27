@@ -173,6 +173,7 @@ static void *bus_thread(void *b) {
                 packets_lost++;
             packets_sent++;
 
+            printf("cmd: %d\n", order->bc->cmd);
             printf("packet loss: %.1f\n",
                ((float)packets_lost/(float)packets_sent)*100);
 

@@ -98,16 +98,19 @@ void lcd_send_data(unsigned char data){
 void lcd_send_string(char *string) {
 	
 	int len = strlen(string);
+	char row = 0;
 	
 	for (int i = 0; i < len; i++){
-		
+		int mask = i;
 		//RADBRYTNING OM SISTA BOKSTAV I RAD
-		if( i ==0x0F || i == 0x1F ){
-			//2x16, 0F är sista bokstav i rad 1 hoppa till 0x40, first letter second row
-			// 1F är sista bosktav i rad 2, hoppa tillbaka hem
+		if( ((mask &= 0x0F) && mask == 0x0F)){
+			//´Var 16:de bokstav, hoppa till nästa rad.
+			row = ~(row);
 			lcd_send_data(string[i]);
-			char c = (i == 0x0F) ? 0x40 : 0x00;
-			c |= ( 1 << D7 );
+			//FÖRSTA BOKSTAV I RAD 2 BÖRJAR På 0x40
+			// FÖRSTA BOKSTVV I RAD 1 BÖRJAR PÅ adress 0x00
+			char c = (row == 0) ? 0x00 : 0x40;
+			c |= ( 1 << D7 );  // SET DDRAM ADDRESS INSTRUCTION
 			lcd_send_instruction(c);
 			
 		}else{
@@ -214,7 +217,7 @@ uint16_t adc_read(uint8_t channel) {
 int main(void)
 {
 			
-	DDRA = 0xFA;
+	DDRA = 0xFF;
 	
     lcd_init();
 	_delay_ms(5);
@@ -226,14 +229,22 @@ int main(void)
 	_delay_ms(2000);
 	lcd_clear();
 	
+	lcd_send_string("0123456789abcdef0123456789abcdefHADZISALIHOVIC");
+	/*
 	while(1)
-	{
+	{	
+		_delay_ms(1000);
+		lcd_clear();
+		
 		uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
 		float dist = CNV_FRONT_EXP * pow(adc_right, -CNV_RIGHT_EXP);
+		char buf[32];
+		sprintf(buf,"%f", dist);
 		_delay_ms(10);
 		char* buf[32];
 		sprintf(buf,"%0.2f", dist);
 		lcd_send_string(strcat("RIGHT: ", buf));
-			
+		
 	}
+	*/
 }
