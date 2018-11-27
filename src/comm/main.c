@@ -42,7 +42,7 @@ int main(int argc, char* args[]) {
     struct srv_cmd cmds[] = {
     {"get_sensor",  0, &sens_data,        NULL,            *sc_get_sens},
     {"get_mission", 0, &miss_data,        NULL,            *sc_get_mission},
-    {"set_mission", 1, &miss_data,        NULL,            *sc_set_mission},
+    {"set_mission", 1, &miss_data,        &miss_data.lock, *sc_set_mission},
     {"set_state",   1, &miss_data.active, NULL,            *sc_set_bool},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
     {"set_vel",     1, &rc_data.val.vel,  &rc_data.lock,   *sc_set_float},
