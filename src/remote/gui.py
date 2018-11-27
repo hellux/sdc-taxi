@@ -64,7 +64,7 @@ class Map():
         self.selected_edge = self.get_edge(event.x, event.y)
 
         if self.selected_node:
-            self.create_edge(self.selected_node, self.get_node(event.x, event.y))
+            self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
         else:    
             self.selected_node = self.get_node(event.x, event.y)
         self.draw()
@@ -76,17 +76,25 @@ class Map():
             self.edges.remove(self.selected_edge)
         self.draw()
     
-    def create_edge(self, node_start, node_end):
+    def get_edge_cost(self, node_start, node_end):
+        self.cost_popup = tk.Tk()
+        cost_label = tk.Label(self.cost_popup, text="Enter cost: ")
+        cost_entry = tk.Entry(self.cost_popup)
+        cost_button = tk.Button(self.cost_popup, text="OK", command=lambda:self.create_edge(node_start, node_end, cost_entry.get()))
+        cost_label.grid(row=0, column=0)
+        cost_entry.grid(row=1, column=0)
+        cost_button.grid(row=2, column=0)
+        cost_entry.focus_force()
+
+    def create_edge(self, node_start, node_end, cost):
         if(node_start and node_end):
-            cost_popup = tk.Frame(self.window)
-            cost_label = tk.Label(cost_popup, text="Cost: ")
-            cost_entry = tk.Entry(cost_popup)
-            #cost_popup.tk_popup(node_end.pos_x+self.window.winfo_rootx(), node_end.pos_y+self.window.winfo_rooty()) 
-            edge = GraphEdge(node_start, node_end)
+            edge = GraphEdge(node_start, node_end, cost)
             self.edges.append(edge)
             self.selected_node = None
+            self.draw()
         else:
             self.selected_node = None
+        self.cost_popup.destroy()
             
     def create_node(self, nodetype, x, y, color):
         node = GraphNode(nodetype, x, y, color)
@@ -121,21 +129,28 @@ class GUI():
         self.complete_actions = {
             Task.CONNECT    : print,
             Task.SEND       : print,
-            Task.GET_SENSOR : self.set_sensor,
+            Task.GET_SENSOR : self.set_car_info,
         }
 
         self.window = tk.Tk()
         self.init_gui()
         self.window.protocol('WM_DELETE_WINDOW', self.quit)
-        self.window.after(2000, self.main_loop)
+        
+        self.window.after(0, self.main_loop)
+        self.window.after(0, self.get_sensor_data)
 
     def init_gui(self):
     
         #VARIABLES
         self.car_speed = tk.StringVar()
         self.driving_mode = tk.StringVar()
+        self.car_distance = tk.StringVar()
         self.keys = {"LEFT":False, "RIGHT":False, "FORWARD":False, "REVERSE":False}
         self.file = None
+        self.cost_is_showing = False
+        
+        self.center_x = (self.window.winfo_screenwidth() - self.window.winfo_reqwidth()) / 2
+        self.center_y = (self.window.winfo_screenheight() - self.window.winfo_reqheight()) / 2
         
         self.car_speed.set(GUI.PREFIX_SPEED)
         self.driving_mode.set(GUI.PREFIX_MODE)
@@ -152,19 +167,19 @@ class GUI():
         sendCommandButton = tk.Button(self.window, text="Send command",
             command=lambda:self.tasks.put(Task.SEND, console.get()))
 
-        car_label = tk.Label(info_frame, text="Car info")
-        drive_label = tk.Label(info_frame, textvariable=self.driving_mode)
-        speed_label = tk.Label(info_frame, textvariable=self.car_speed)
+        self.mode_label = tk.Label(info_frame, textvariable=self.driving_mode)
+        self.speed_label = tk.Label(info_frame, textvariable=self.car_speed)
+        self.distance_label = tk.Label(info_frame, textvariable=self.car_distance)
 
-        car_label.grid(row=0, column=0)
-        speed_label.grid(row=1, column=0)
-        drive_label.grid(row=2, column=0)
-
-        info_frame.grid(row=0, column=0)
-        self.map_frame.grid(row=0, column=1)
-        console.grid(row=1, column=1)
-        sendCommandButton.grid(row=1, column=2)
-
+        self.speed_label.pack(fill="both")
+        self.mode_label.pack(fill="both")
+        self.distance_label.pack(fill="both")
+        
+        info_frame.pack(fill="both")
+        self.map_frame.pack(fill="both", expand=True)
+        console.pack(fill="both")
+        sendCommandButton.pack(fill="both")
+        
         #MENU
         menuBar = tk.Menu(self.window)
 
@@ -185,12 +200,20 @@ class GUI():
         driving_menu.add_command(label="Auto", command=self.drive_auto)
         driving_menu.add_command(label="Manual", command=self.drive_manual)
         
+        mission_menu = tk.Menu(menuBar, tearoff=False)
+        mission_menu.add_command(label="Set mission", command=self.set_mission)
+        
         menuBar.add_cascade(label="Map", menu=map_menu)
+        menuBar.add_cascade(label="Mission", menu=mission_menu)
         menuBar.add_cascade(label="Driving", menu=driving_menu)
         menuBar.add_cascade(label="System", menu=system_menu)
 
         self.window.title("SvartTaxi AB")
         self.window.config(menu=menuBar)
+        self.window.geometry("+%d+%d" % (self.center_x, self.center_y))
+        
+        #KEYBOARD BINDINGS
+        self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
         
     def main_loop(self):
         task_pair = self.tasks.get_completed(block=False)
@@ -201,25 +224,33 @@ class GUI():
                 action(*result)
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
+        
 
-    def button_down(self, event, direction):
+    def get_sensor_data(self):
+        self.tasks.put(Task.GET_SENSOR)
+        self.window.after(1, self.get_sensor_data)
+        
+    def set_mission(self):
+        return
+        
+    def button_down(self, direction):
         self.keys[direction] = True
         self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
         
-    def button_up(self, event, direction):
+    def button_up(self, direction):
         self.keys[direction] = False
         self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
         
     def bind_keys(self):
-        self.window.bind("<Left>", lambda e:self.button_down(e, "LEFT"))
-        self.window.bind("<Right>", lambda e:self.button_down(e, "RIGHT"))
-        self.window.bind("<Up>", lambda e:self.button_down(e, "FORWARD"))
-        self.window.bind("<Down>", lambda e:self.button_down(e, "REVERSE"))
+        self.window.bind("<Left>", lambda e:self.button_down("LEFT"))
+        self.window.bind("<Right>", lambda e:self.button_down("RIGHT"))
+        self.window.bind("<Up>", lambda e:self.button_down("FORWARD"))
+        self.window.bind("<Down>", lambda e:self.button_down("REVERSE"))
         
-        self.window.bind("<KeyRelease-Left>", lambda e: self.button_up(e, "LEFT"))
-        self.window.bind("<KeyRelease-Right>", lambda e: self.button_up(e, "RIGHT"))
-        self.window.bind("<KeyRelease-Up>", lambda e: self.button_up(e, "FORWARD"))
-        self.window.bind("<KeyRelease-Down>", lambda e: self.button_up(e, "REVERSE"))
+        self.window.bind("<KeyRelease-Left>", lambda e: self.button_up("LEFT"))
+        self.window.bind("<KeyRelease-Right>", lambda e: self.button_up("RIGHT"))
+        self.window.bind("<KeyRelease-Up>", lambda e: self.button_up("FORWARD"))
+        self.window.bind("<KeyRelease-Down>", lambda e: self.button_up("REVERSE"))
         
     def unbind_keys(self):
         self.window.unbind("<Left>")
@@ -238,13 +269,24 @@ class GUI():
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
     
-    def set_sensor(self, speed_data):
-        self.car_speed.set(speed_data[3] + GUI.PREFIX_SPEED)
+    def set_car_info(self, sensor_data):
+        self.car_distance.set("Distance: " + sensor_data[2])
+        self.car_speed.set(GUI.PREFIX_SPEED + sensor_data[3])
         
     def quit(self):
         self.tasks.put(Task.KILL)
         self.window.destroy()
-
+        
+    def show_edge_cost(self, event):
+        if not self.cost_is_showing:
+            for edge in self.map.edges:
+                self.map_frame.create_text((edge.start.pos_x+edge.end.pos_x)/2, (edge.start.pos_y+edge.end.pos_y)/2, text=edge.cost)
+            self.cost_is_showing = True
+        elif self.cost_is_showing:
+            self.cost_is_showing = False
+            self.map.clear_map
+            self.map.draw()
+            
     def get_filename(self, function):
         self.filename_frame = tk.Tk()
         filename_label = tk.Label(self.filename_frame, text="Enter filename")
@@ -258,6 +300,7 @@ class GUI():
         filename_label.grid(row=0, column=0)
         filename_entry.grid(row=1, column=0)
         filename_button.grid(row=2, column=0)
+        self.filename_frame.geometry("+%d+%d" % (self.center_x, self.center_y))
         filename_entry.focus_force()
         
     def save_map(self, filename):
