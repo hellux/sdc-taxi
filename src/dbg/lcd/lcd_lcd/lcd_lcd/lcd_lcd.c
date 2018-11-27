@@ -45,6 +45,8 @@
 #define WHEEL_SENS_FREQ 5
 #define PI 3.14
 
+#define ROW1ADR 0x00
+#define ROW2ADR 0x40
 
 void lcd_send_pulse(){
 	PORTA |= (1<<EN);
@@ -94,32 +96,6 @@ void lcd_send_data(unsigned char data){
 	lcd_send_pulse();
 }
 
-//send a string to display, 2x16, hardcoded scrolling.
-void lcd_send_string(char *string) {
-	
-	int len = strlen(string);
-	char row = 0;
-	
-	for (int i = 0; i < len; i++){
-		int mask = i;
-		//RADBRYTNING OM SISTA BOKSTAV I RAD
-		if( ((mask &= 0x0F) && mask == 0x0F)){
-			//´Var 16:de bokstav, hoppa till nästa rad.
-			row = ~(row);
-			lcd_send_data(string[i]);
-			//FÖRSTA BOKSTAV I RAD 2 BÖRJAR På 0x40
-			// FÖRSTA BOKSTVV I RAD 1 BÖRJAR PÅ adress 0x00
-			char c = (row == 0) ? 0x00 : 0x40;
-			c |= ( 1 << D7 );  // SET DDRAM ADDRESS INSTRUCTION
-			lcd_send_instruction(c);
-			
-		}else{
-			lcd_send_data(string[i]);
-		}
-	
-	}
-	
-}
 
 //part of init
 void lcd_busy_wait(){
@@ -168,7 +144,7 @@ void lcd_init(){
 
 //instruction for clear
 void lcd_clear(){
-	lcd_send_instruction(0x01);
+	lcd_send_instruction(0x01); //D0 = 1
 	_delay_ms(3);
 }
 
@@ -183,6 +159,50 @@ void lcd_display_on(){
 //instruction shift cursor to right
 void lcd_shift_right(){
 	lcd_send_instruction(0x14);
+}
+
+void lcd_set_ddram(char c){
+	//MOVES CURSOR TO ADDRESS c
+	c |= ( 1 << D7 );  // SET DDRAM ADDRESS INSTRUCTION
+	lcd_send_instruction(c);	
+}
+
+
+void lcd_return_cursor_home(){
+	/*
+	Set ddram address to 0x00 from AC,
+	Return cursor to its original position if shifted.
+	The contents of ddram are not changed.
+	*/
+	lcd_send_instruction(0x02); //D1 =1
+	_delay_ms(2);
+}
+
+//send a string to display, 2x16, hardcoded scrolling.
+void lcd_send_string(char *string) {
+	
+	int len = strlen(string);
+	char row = 0;
+	
+	for (int i = 0; i < len; i++){
+		int mask = i;
+		//RADBRYTNING OM SISTA BOKSTAV I RAD
+		if( ((mask &= 0x0F) && mask == 0x0F)){
+			//´Var 16:de bokstav, hoppa till nästa rad.
+			row = ~(row);
+			lcd_send_data(string[i]);
+			//FÖRSTA BOKSTAV I RAD 2 BÖRJAR På 0x40
+			// FÖRSTA BOKSTVV I RAD 1 BÖRJAR PÅ adress 0x00
+			char c = (row == 0) ? ROW1ADR : ROW2ADR;
+			lcd_set_ddram(c);
+			
+			}
+		else{
+			lcd_send_data(string[i]);
+			}
+		
+	}
+	
 }
 
 void adc_init(void) {
@@ -217,7 +237,7 @@ uint16_t adc_read(uint8_t channel) {
 int main(void)
 {
 			
-	DDRA = 0xFF;
+	DDRA = 0xFC;
 	
     lcd_init();
 	_delay_ms(5);
@@ -226,25 +246,51 @@ int main(void)
 
 	
 	lcd_send_string( "Initializing m8" );
-	_delay_ms(2000);
+	_delay_ms(500);
 	lcd_clear();
 	
-	lcd_send_string("0123456789abcdef0123456789abcdefHADZISALIHOVIC");
-	/*
+	lcd_send_string("0123456789abcdeffedcba9876543210");
+	_delay_ms(750);
+	lcd_clear();
+	uint16_t sensor = 10;
+	float dist = CNV_RIGHT_EXP * pow(sensor, -CNV_RIGHT_EXP);
+	char buf[16];
+	
+	//width = 8 and precision of float = 2
+	dtostrf(dist, 8, 2, buf); //convert float to string
+	_delay_ms(10);
+	lcd_send_string("R: ");
+	lcd_send_string(buf);
+	
+	lcd_set_ddram(ROW2ADR);
+	lcd_send_string("F: ");
+	lcd_send_string(buf);
+	
+	lcd_clear();
+	lcd_send_string("INIT ADC");
+	_delay_ms(750);
+	adc_init();
+
+	
 	while(1)
 	{	
 		_delay_ms(1000);
 		lcd_clear();
 		
-		uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
-		float dist = CNV_FRONT_EXP * pow(adc_right, -CNV_RIGHT_EXP);
-		char buf[32];
-		sprintf(buf,"%f", dist);
-		_delay_ms(10);
-		char* buf[32];
-		sprintf(buf,"%0.2f", dist);
-		lcd_send_string(strcat("RIGHT: ", buf));
+		char buf[16];
+		uint16_t adc_right = adc_read(CHN_SENS_FRONT);
+		//float dist_sensor = CNV_RIGHT_EXP * pow(adc_right, -CNV_RIGHT_EXP);
+		//dtostrf(dist_sensor, 14, 2, buf);
+		itoa(adc_right, buf, 9);
+		//char adc_right_lower = adc_right >> 8;
+		//char adc_right_upper = adc_right >> 8;
 		
+		lcd_send_string("R: ");
+		lcd_send_string(buf);
+		_delay_ms(500);
+		lcd_clear();
 	}
-	*/
+	
+	
+
 }
