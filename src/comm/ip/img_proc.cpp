@@ -19,9 +19,9 @@ bool sline_found = false;
 double rline_slope;
 double lline_slope;
 double sline_slope;
-cv::Point raxis_intersection;
-cv::Point laxis_intersection;
-cv::Point saxis_intersection;
+cv::Point rline_intercept;
+cv::Point lline_intercept;
+cv::Point sline_intercept;
 
 cv::Mat img_edge_detector(cv::Mat&); 
 cv::Mat mask_image(cv::Mat&);
@@ -98,9 +98,9 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
 
     double rho = 1;
     double theta = CV_PI / 180;
-    int threshold = 110; //20
-    double minLineLength = 50;//20
-    double maxLineGap = 200; //30
+    int threshold = 75; //20
+    double minLineLength = 30;//20
+    double maxLineGap = 100; //30
 
     cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
 
@@ -132,11 +132,11 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
             stop_lines.push_back(lines[x]);
             sline_found = true;
         }
-  	else if (slopes[x] > 0 && end.x > img_center_pt && start.x > img_center_pt) {
+  	else if (slopes[x] > 0 && (end.x > img_center_pt && start.x > img_center_pt && end.y > (0.95 * image.rows))) {
             right_lines.push_back(lines[x]);
             rline_found = true;
         }
-        else if (slopes[x] < 0 && end.x < img_center_pt && start.x < img_center_pt) {
+        else if (slopes[x] < 0 && (end.x < img_center_pt && start.x < img_center_pt && start.y > (0.95 * image.rows))) {
             left_lines.push_back(lines[x]);
             lline_found = true;
         }
@@ -172,7 +172,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         if (right_pts.size() > 0) {
             cv::fitLine(right_pts, right_line, CV_DIST_L2, 0, 0.01, 0.01);
             rline_slope = right_line[1] / right_line[0];
-            raxis_intersection = cv::Point(right_line[2], right_line[3]);
+            rline_intercept = cv::Point(right_line[2], right_line[3]);
         }
     }
     if (lline_found) {
@@ -186,7 +186,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         if (left_pts.size() > 0) {
             cv::fitLine(left_pts, left_line, CV_DIST_L2, 0, 0.01, 0.01);
             lline_slope = left_line[1] / left_line[0];
-            laxis_intersection = cv::Point(left_line[2], left_line[3]);
+            lline_intercept = cv::Point(left_line[2], left_line[3]);
         }
     }
     if (sline_found) {
@@ -200,7 +200,7 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
         if (stop_pts.size() > 0) {
             cv::fitLine(stop_pts, stop_line, CV_DIST_L2, 0, 0.01, 0.01);
             sline_slope = stop_line[1] / stop_line[0];
-            saxis_intersection = cv::Point(stop_line[2], stop_line[3]);
+            sline_intercept = cv::Point(stop_line[2], stop_line[3]);
         }
     }
 
@@ -209,14 +209,14 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     int sline_start_x = 0.20*image.cols;
     int sline_end_x = 0.80*image.cols;
 
-    double rline_start_x = ((lines_start_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
-    double rline_end_x = ((lines_end_y - raxis_intersection.y) / rline_slope) + raxis_intersection.x;
+    double rline_start_x = ((lines_start_y - rline_intercept.y) / rline_slope) + rline_intercept.x;
+    double rline_end_x = ((lines_end_y - rline_intercept.y) / rline_slope) + rline_intercept.x;
 
-    double lline_start_x = ((lines_start_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
-    double lline_end_x = ((lines_end_y - laxis_intersection.y) / lline_slope) + laxis_intersection.x;
+    double lline_start_x = ((lines_start_y - lline_intercept.y) / lline_slope) + lline_intercept.x;
+    double lline_end_x = ((lines_end_y - lline_intercept.y) / lline_slope) + lline_intercept.x;
 
-    double sline_start_y = (sline_slope * (sline_start_x - saxis_intersection.x)) + saxis_intersection.y;
-    double sline_end_y = (sline_slope * (sline_end_x - saxis_intersection.x)) + saxis_intersection.y;
+    double sline_start_y = (sline_slope * (sline_start_x - sline_intercept.x)) + sline_intercept.y;
+    double sline_end_y = (sline_slope * (sline_end_x - sline_intercept.x)) + sline_intercept.y;
 
     points[0] = cv::Point(rline_start_x, lines_start_y);
     points[1] = cv::Point(rline_end_x, lines_end_y);
@@ -241,20 +241,25 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     cv::fillConvexPoly(lane, polygon_pts, cv::Scalar(0, 0, 255), CV_AA, 0);
     cv::addWeighted(lane, 0.3, original_img, 1.0 - 0.3, 0, original_img);
 
-    cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
-    cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
-    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
-    cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-    cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-
-    rline_found = false;
-    lline_found = false;
-    sline_found = false;
-
+    if (rline_found ) {
+	cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
+        cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+        cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+   	rline_found = false;
+    }
+    if (lline_found) {
+	cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
+        cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+        cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+	lline_found = false;
+    }
+    if (sline_found) {
+	cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
+        cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
+        cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
+	sline_found = false;
+    }
+    
     std::string message = "De baxar dina byxor!!!";
     cv::putText(original_img, message, cv::Point(0.1*original_img.cols, 0.2*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(0, 0, 0), 5, CV_FILLED);
 
