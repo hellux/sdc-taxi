@@ -3,9 +3,12 @@
 #include "../comm/ip/img_proc.h"
 
 int main(int argc, char* args[]) {
-    printf("hej från C\n");
-
-    ip_process();
+    ip_t *ip = ip_init();
+    struct ip_res result;
+    while (ip) {
+        ip_process(ip, &result);
+    }
+    ip_destroy(ip);
 
     return 0;
 }
