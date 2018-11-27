@@ -5,7 +5,9 @@
 int main(int argc, char* args[]) {
     printf("hej från C\n");
 
-    ip_process();
+    ip_t *ip = ip_init();
+    struct ip_res result;
+    ip_process(ip, &result);
 
     return 0;
 }
