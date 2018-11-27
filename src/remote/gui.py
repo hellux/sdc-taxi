@@ -2,7 +2,6 @@ from __future__ import print_function
 import tkinter as tk
 from course import Node, NodeType, Edge
 from tasks import Task
-from tkinter import *
 import os
 import pickle
 import time
