@@ -199,8 +199,7 @@ class GUI():
                 action(*result)
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
-        self.window.after(0.01, lambda:self.tasks.put(Task.GET_SENSOR))
-        
+
     def button_down(self, event, direction):
         self.keys[direction] = True
         self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
@@ -238,7 +237,7 @@ class GUI():
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
     
     def set_sensor(self, speed_data):
-        self.car_speed.set(GUI.PREFIX_SPEED + speed_data[3])
+        self.car_speed.set(speed_data[3] + GUI.PREFIX_SPEED)
         
     def quit(self):
         self.tasks.put(Task.KILL)

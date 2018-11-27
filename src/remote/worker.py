@@ -41,8 +41,7 @@ class Worker(threading.Thread):
         return None
         
     def get_sensor(self):
-        return ('1,0,2,30').split(',')
-        #return self.send_fmt(Command.GET_SENSOR).split(',')
+        return self.send_fmt(Command.GET_SENSOR).split(',')
 
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
