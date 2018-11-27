@@ -1,3 +1,5 @@
+#include "img_proc.h"
+
 #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
@@ -5,34 +7,40 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono>
 
+#define WIDTH 352
+#define HEIGHT 240
 
-extern "C" void ip_init(void);
-extern "C" struct ip_res *ip_process(void);
+struct ip_data {
+    cv::VideoCapture cap;
+};
 
-void ip_init(void) {
+struct ip_data *ip_init(void) {
+    struct ip_data *ip = (struct ip_data*)malloc(sizeof(*ip));
+
+    ip->cap = cv::VideoCapture(-1);
+
+    if (!ip->cap.isOpened()) {
+        std::cout << "Error: Camera not found\n";
+        ip_destroy(ip);
+        return NULL;
+    }
+  
+    ip->cap.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
+    ip->cap.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+
+#ifdef DEBUG
+    cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
+#endif
+
+    return ip;
 }
 
-typedef std::chrono::high_resolution_clock Clock;
-double img_center_pt;
-bool lline_found = false;
-bool rline_found = false;
-bool sline_found = false;
-double rline_slope;
-double lline_slope;
-double sline_slope;
-cv::Point rline_intercept;
-cv::Point lline_intercept;
-cv::Point sline_intercept;
+void ip_destroy(struct ip_data *ip) {
+    free(ip);
+    cv::destroyAllWindows();
+}
 
-cv::Mat img_edge_detector(cv::Mat&); 
-cv::Mat mask_image(cv::Mat&);
-std::vector<cv::Vec4i> find_lines(cv::Mat&);
-std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>&, cv::Mat&);
-std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>&, cv::Mat&);
-void plotLane(cv::Mat&, std::vector<cv::Point>&);
-
-
-cv::Mat img_edge_detector(cv::Mat& image) {
+cv::Mat threshold(cv::Mat& image) {
     cv::Mat edge_img;
 
     //smoothing to reduce noise úsing Gaussian filter (most used but not fastest)
@@ -47,24 +55,13 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     //Threshold: simplest and not expensive
     // Otsu better than binary but maybe much more expensive
     cv::threshold(edge_img, edge_img, thresh_value, max_binary_value, cv::THRESH_OTSU);
-    cv::imshow("threshold", edge_img);
-    
-   /* float data[3] = { -1, 0, 1};
-    cv::Mat kernel(1, 3, CV_32F, data);
-    
-    //recommended values when using filter2D
-    cv::Point anchor  = cv::Point(-1, -1);
-    const int DELTA = 0;
-    const int DDEPTH = -1;*/
 
-    //cv::warpPerspective(denoised_image, denoised_image, kernel, denoised_image.size());
-    //cv::inRange(denoised_image, cv::Scalar(1), cv::Scalar(255), denoised_image);
+    return edge_img;
+}
 
-  
-    cv::Canny(edge_img, edge_img, 100, 150, 3);
-	//Supposedly, a more simple alternative for filter2D. But it has not shown improvement
-    //cv::filter2D(edge_img, edge_img, DDEPTH, kernel, anchor, DELTA, cv::BORDER_DEFAULT);
-    cv::imshow("CannyEdges: ", edge_img);
+cv::Mat img_edge_detector(cv::Mat& image) {
+    cv::Mat edge_img;
+    cv::Canny(image, edge_img, 100, 150, 3);
 
     return edge_img;
 }
@@ -108,7 +105,8 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
     return lines;
 }
 
-std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& lines, cv::Mat& image) {
+std::vector<std::vector<cv::Vec4i>> classify_lines(std::vector<cv::Vec4i>& lines,
+                                                   cv::Mat& image) {
     std::vector<std::vector<cv::Vec4i> > classified_lines(3); //3 when stop
     cv::Point start;
     cv::Point end;
@@ -122,26 +120,17 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
         slopes.push_back(slope);
     }
 
-    img_center_pt = static_cast<double>((image.cols / 2));
-    size_t x = 0;
-    while (x < lines.size()) {
+    double center_x = static_cast<double>((image.cols / 2));
+    for (size_t x = 0; x < lines.size(); x++) {
         start = cv::Point(lines[x][0], lines[x][1]);
         end = cv::Point(lines[x][2], lines[x][3]);
-
-        
-  	if (slopes[x] == 0 || (start.x < img_center_pt && end.x > img_center_pt)) {
+        if (slopes[x] == 0 || (start.x < center_x && end.x > center_x)) {
             stop_lines.push_back(lines[x]);
-            sline_found = true;
-        }
-  	else if (slopes[x] > 0 && (end.x > img_center_pt && start.x > img_center_pt && end.y > (0.95 * image.rows))) {
+        } else if (slopes[x] > 0 && (end.x > center_x && start.x > center_x && end.y > (0.95 * image.rows))) {
             right_lines.push_back(lines[x]);
-            rline_found = true;
-        }
-        else if (slopes[x] < 0 && (end.x < img_center_pt && start.x < img_center_pt && start.y > (0.95 * image.rows))) {
+        } else if (slopes[x] < 0 && (end.x < center_x && start.x < center_x && start.y > (0.95 * image.rows))) {
             left_lines.push_back(lines[x]);
-            lline_found = true;
         }
-        x++;
     }
 
     classified_lines[0] = right_lines;
@@ -151,7 +140,9 @@ std::vector<std::vector<cv::Vec4i> > classify_lines(std::vector<cv::Vec4i>& line
     return classified_lines;
 }
 
-std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image) {
+std::vector<cv::Point>
+linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
+                  bool rline_found, bool lline_found, bool sline_found) {
     std::vector<cv::Point> points(6); //6 when stop
     cv::Point start;
     cv::Point end;
@@ -161,6 +152,13 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     std::vector<cv::Point2f> right_pts;
     std::vector<cv::Point2f> left_pts;
     std::vector<cv::Point2f> stop_pts;
+
+    double rline_slope = 0;
+    double lline_slope = 0;
+    double sline_slope = 0;
+    cv::Point rline_intercept = {0};
+    cv::Point lline_intercept = {0};
+    cv::Point sline_intercept = {0};
 
     if (rline_found) {
         for (auto points : lines[0]) {
@@ -229,7 +227,8 @@ std::vector<cv::Point> linear_regression(std::vector<std::vector<cv::Vec4i>>& li
     return points;
 }
 
-void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
+void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points,
+              bool rline_found, bool lline_found, bool sline_found) {
     std::vector<cv::Point> polygon_pts;
     cv::Mat lane;
 
@@ -242,23 +241,20 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     cv::fillConvexPoly(lane, polygon_pts, cv::Scalar(0, 0, 255), CV_AA, 0);
     cv::addWeighted(lane, 0.3, original_img, 1.0 - 0.3, 0, original_img);
 
-    if (rline_found ) {
-	cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
+    if (rline_found) {
+        cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
         cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
         cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-   	rline_found = false;
     }
     if (lline_found) {
-	cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
+	    cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
         cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
         cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-	lline_found = false;
     }
     if (sline_found) {
-	cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
+	    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
         cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
         cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-	sline_found = false;
     }
     
     std::string message = "De baxar dina byxor!!!";
@@ -268,82 +264,72 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
     std::cout << "stopLine center pt: " << stop_center_pt << "\n";
     cv::circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
-    std::cout << "center: " << img_center_pt << "\n";
 
-    float stop_dist = std::sqrt(pow(stop_center_pt.x - img_center_pt, 2) + pow(stop_center_pt.y - original_img.rows, 2));
+    float stop_dist = std::sqrt(pow(stop_center_pt.x-WIDTH/2, 2) + pow(stop_center_pt.y - original_img.rows, 2));
 	std::string distance = std::to_string(stop_dist);
 
     cv::putText(original_img, distance, cv::Point(0.1*original_img.cols, 0.3*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
 }
 
+void ip_process(struct ip_data *ip, struct ip_res *res) {
+    res->error_valid = false;
+    res->stopline_found = false;
 
-struct ip_res *ip_process(void) {
-    std::cout << "hej från c++" << std::endl;
-
-    cv::VideoCapture cap(-1);
-    if (!cap.isOpened()) {
-        std::cout << "Error: Camera not found\n";
-        return NULL;
-    }
-  
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 352);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
-    
-    std::cout << "Width: " << cap.get(CV_CAP_PROP_FRAME_WIDTH)<< "\n";
-    std::cout << "Height: " << cap.get(CV_CAP_PROP_FRAME_HEIGHT)<< "\n";
+#ifdef DEBUG
+    typedef std::chrono::high_resolution_clock Clock;
+	auto start = Clock::now();
+#endif
 
     cv::Mat frame;
-    cv::Mat denoised_image;
-    cv::Mat edges_image;
-    cv::Mat masked_image;
-    cv::Mat img_lines;
-    std::vector<cv::Vec4i> lines;
-    std::vector<std::vector<cv::Vec4i> > lr_lines;
-    std::vector<cv::Point> lane;
-    
-    cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
+	ip->cap.read(frame);
 
-    /*while (true) {
-        //grab and decode latest frame 
-        while (cap.get(CV_CAP_PROP_FRAME_COUNT) > 0) cap.grab();
-        bool succ = cap.retrieve(frame);
-        if (succ != true) {
-            break;
-        }*/
-    while (true) {
-	auto start = Clock::now();
-	cap.read(frame);
 	if (frame.empty()) {
 	    std::cout << "Error: Empty frame\n";
-	    break;
+	    return;
 	}
 
-        edges_image = img_edge_detector(frame);
-        masked_image = mask_image(edges_image);
-        cv::imshow("mask", masked_image);
+    cv::Mat thres_img = threshold(frame);
+    cv::Mat edges_image = img_edge_detector(thres_img);
+    cv::Mat masked_image = mask_image(edges_image);
 
-        lines = find_lines(masked_image);
-        
-        if (!lines.empty()) {
-            lr_lines = classify_lines(lines, edges_image);
-
-            lane = linear_regression(lr_lines, frame);
-
-            plotLane(frame, lane);
-
-        }
-            cv::imshow("Lane", frame);
-            int k = cv::waitKey(1);
-
-        if (k == 27)
-            break;
-        
-        auto stop = Clock::now();
+    std::vector<cv::Vec4i> hough_lines = find_lines(masked_image);
     
-        double period = (double)(stop-start).count()/(1000000000);
-        printf("\nFPS: %.1f\n", 1/period);
+    if (!hough_lines.empty()) {
+        std::vector<std::vector<cv::Vec4i>> lines;
+        lines = classify_lines(hough_lines, edges_image);
+
+        bool rline_found = !lines[0].empty();
+        bool lline_found = !lines[1].empty();
+        bool sline_found = !lines[2].empty();
+        res->error_valid = lline_found && rline_found;
+
+        std::vector<cv::Point> lane;
+        lane = linear_regression(lines, frame, rline_found,
+                                 lline_found, sline_found);
+
+        int left_top = lane[3].x;
+        int right_top = lane[0].x;
+        res->error = ((left_top+right_top)/2 - 120)/120;
+        printf("right_top.y: %d, lefty: %d, error: %f\n", lane[0].y, lane[3].y, res->error);
+
+#ifdef DEBUG
+        plotLane(frame, lane, rline_found, lline_found, sline_fonud);
+#endif
     }
+
+#ifdef DEBUG
+    auto stop = Clock::now();
+
+    double period = (double)(stop-start).count()/(1000000000);
+    printf("\nFPS: %.1f\n", 1/period);
+    cv::imshow("threshold", thres_img);
+    cv::imshow("CannyEdges: ", edge_img);
+    cv::imshow("mask", masked_image);
+    cv::imshow("Lane", frame);
+    if (k == 27)
+        break;
+    int k = cv::waitKey(1);
+#endif
+
     frame.release();
-    cv::destroyAllWindows();
-    return NULL;
 }

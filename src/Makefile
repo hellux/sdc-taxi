@@ -6,7 +6,7 @@ CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
 CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb -O3
 CFLAGS.release = -O3
 
-PI_REMOTE = pi@192.168.43.12
+PI_REMOTE = pi@172.20.10.4
 
 CXXC = g++
 CXXFLAGS = `pkg-config --cflags opencv`
