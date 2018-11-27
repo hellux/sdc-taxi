@@ -3,13 +3,13 @@ BINDIR = $(OBJDIR)/bin
 
 CC = gcc
 CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
-CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb -O3
+CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb -Og
 CFLAGS.release = -O3
 
 PI_REMOTE = pi@172.20.10.4
 
 CXXC = g++
-CXXFLAGS = `pkg-config --cflags opencv`
+CXXFLAGS = -DCPP `pkg-config --cflags opencv`
 CXXFLAGS.debug = -Wall -Werror -ggdb -Og
 
 AVRCC = avr-gcc

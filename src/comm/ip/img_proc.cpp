@@ -10,23 +10,27 @@
 #define WIDTH 352
 #define HEIGHT 240
 
+extern "C" struct ip_data *ip_init();
+extern "C" void ip_destroy(struct ip_data *ip);
+extern "C" void ip_process(struct ip_data *ip, struct ip_res *res);
+
 struct ip_data {
-    cv::VideoCapture cap;
+    cv::VideoCapture *cap;
 };
 
-struct ip_data *ip_init(void) {
+struct ip_data *ip_init() {
     struct ip_data *ip = (struct ip_data*)malloc(sizeof(*ip));
 
-    ip->cap = cv::VideoCapture(-1);
+    ip->cap = new cv::VideoCapture(-1);
 
-    if (!ip->cap.isOpened()) {
+    if (!ip->cap->isOpened()) {
         std::cout << "Error: Camera not found\n";
         ip_destroy(ip);
         return NULL;
     }
   
-    ip->cap.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
-    ip->cap.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+    ip->cap->set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
+    ip->cap->set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 
 #ifdef DEBUG
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
@@ -36,7 +40,7 @@ struct ip_data *ip_init(void) {
 }
 
 void ip_destroy(struct ip_data *ip) {
-    free(ip);
+    delete ip->cap;
     cv::destroyAllWindows();
 }
 
@@ -281,7 +285,7 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
 #endif
 
     cv::Mat frame;
-	ip->cap.read(frame);
+	ip->cap->read(frame);
 
 	if (frame.empty()) {
 	    std::cout << "Error: Empty frame\n";
