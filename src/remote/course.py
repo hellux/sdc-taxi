@@ -45,9 +45,9 @@ class Edge:
     def __lt__(self, other):
         return self.cost < other.cost
 
-class NodeWeight:
-    def __init__(self, cur, path=[], weight=float('inf')):
-        self.cur = cur
+class WeightedNode:
+    def __init__(self, node, path=[], weight=float('inf')):
+        self.node = node
         self.path = path
         self.weight = weight
     
@@ -60,21 +60,21 @@ def closest_path(course, src, dst):
 
     for node in course:
         if node == src:
-            unvisited.append(NodeWeight(src, path, 0))
+            unvisited.append(WeightedNode(src, path, 0))
         else:
-            unvisited.append(NodeWeight(node, path))
+            unvisited.append(WeightedNode(node, path))
 
     while(unvisited):
         cur = min(unvisited)
-        if cur.cur == dst:
+        if cur.node == dst:
             path = cur.path
             break
 
-        for edge in cur.cur.outgoing:
+        for edge in cur.node.outgoing:
             for node in unvisited:
-                if edge.end == node.cur:
+                if edge.end == node.node:
                     if cur.weight + edge.cost < node.weight:
-                        node.path = cur.path + [node.cur]
+                        node.path = cur.path + [node.node]
                         node.weight = cur.weight + edge.cost
         
         unvisited.remove(cur)

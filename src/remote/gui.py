@@ -1,11 +1,13 @@
 from __future__ import print_function
-import tkinter as tk
-from course import Node, NodeType, Edge
-from tasks import Task
-from tkinter import *
+
 import os
 import pickle
 import time
+import tkinter as tk
+
+from course import Edge, Node, NodeType
+from tasks import Task
+
 
 class Map():
     def __init__(self, window, map_frame):
@@ -20,7 +22,7 @@ class Map():
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
-        node_create = Menu(node_options, tearoff=False)
+        node_create = tk.Menu(node_options, tearoff=False)
         node_options.add_cascade(label="Create", menu=node_create)
         node_create.add_command(label="Stopline", command=lambda: self.create_node(NodeType.STOPLINE, event.x, event.y, "red"))
         node_create.add_command(label="Parking", command=lambda: self.create_node(NodeType.PARKING, event.x, event.y, "yellow"))
@@ -77,8 +79,8 @@ class Map():
     def create_edge(self, node_start, node_end):
         if(node_start and node_end):
             cost_popup = tk.Frame(self.window)
-            cost_label = tk.Label(cost_popup, text="Cost: ").pack()
-            cost_entry = tk.Entry(cost_popup).pack()
+            cost_label = tk.Label(cost_popup, text="Cost: ")
+            cost_entry = tk.Entry(cost_popup)
             #cost_popup.tk_popup(node_end.pos_x+self.window.winfo_rootx(), node_end.pos_y+self.window.winfo_rooty()) 
             edge = GraphEdge(node_start, node_end)
             self.edges.append(edge)
