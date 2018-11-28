@@ -4,8 +4,8 @@
 
 #include "main.h"
 
-#define brake_dist 40 //distance from line when braking starts
-#define still_dist 0  //distance from line when car should be still
+#define brake_dist 40 //distance from line when braking starts          (cm)
+#define still_dist 0  //distance from line when car should be still     (cm)
 #define LEFT -100
 #define RIGHT 100
 #define stop_vel 0
