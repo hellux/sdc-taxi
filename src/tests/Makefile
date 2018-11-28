@@ -13,10 +13,14 @@ $(BINDIR)/bus: $(patsubst %.c, $(OBJDIR)/%.o, $(SRC.bus))
 
 .SILENT:
 
-all: test.proto test.bus
-	echo "All tests passed, yyyyyess."
+all: testc.proto testc.bus testpy.course
+	echo "All tests passed, yeeeeeess."
 
-test.%: $(BINDIR)/%
+testpy.%:
+	python $*.py
+	echo "PASS: $*"
+
+testc.%: $(BINDIR)/%
 	./$<
 	echo "PASS: $*"
 

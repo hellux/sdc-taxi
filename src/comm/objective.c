@@ -4,8 +4,8 @@
 
 #include "main.h"
 
-#define break_dist 40
-#define still_dist 0
+#define brake_dist 40 //distance from line when braking starts          (cm)
+#define still_dist 0  //distance from line when car should be still     (cm)
 #define LEFT -100
 #define RIGHT 100
 #define stop_vel 0
@@ -107,7 +107,7 @@ bool obj_stop(struct obj_args *args){
     float cur_vel = args->sens->velocity;
     if (cur_vel == 0) {
         return true;
-    } else if (stop_dist <= break_dist) {
+    } else if (stop_dist <= brake_dist) {
         args->override_vel = true;
         args->val->vel = wtd_speed(stop_dist, cur_vel, stop_vel);
     }
@@ -125,7 +125,7 @@ bool obj_park(struct obj_args *args){
         args->val->vel = wtd_speed(stop_dist, cur_vel, stop_vel);
         args->on_road = false;
         return true;
-    } else if (stop_dist <= break_dist) {
+    } else if (stop_dist <= brake_dist) {
         args->override_vel = true;
         args->val->vel = wtd_speed(stop_dist, cur_vel, slow_vel);
     }
@@ -155,7 +155,7 @@ bool obj_enter(struct obj_args *args) {
         steer_dir(args, RIGHT);
         //Wait for some time
         return true;
-    } else if (stop_dist <= break_dist) {
+    } else if (stop_dist <= brake_dist) {
         args->override_vel = true;
         args->val->vel = wtd_speed(stop_dist, cur_vel, slow_vel);
     }
@@ -169,7 +169,7 @@ bool obj_exit(struct obj_args *args) {
         steer_dir(args, RIGHT);
         //Wait for some time
         return true;
-    } else if (stop_dist <= break_dist) {
+    } else if (stop_dist <= brake_dist) {
         args->override_vel = true;
         args->val->vel = wtd_speed(stop_dist, cur_vel, slow_vel);
     }
