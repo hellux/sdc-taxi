@@ -89,10 +89,9 @@ class Map():
         self.cost_popup = tk.Tk()
         cost_label = tk.Label(self.cost_popup, text="Enter cost: ")
         cost_entry = tk.Entry(self.cost_popup)
-        cost_button = tk.Button(self.cost_popup, text="OK", command=lambda:self.create_edge(node_start, node_end, cost_entry.get()))
-        cost_label.grid(row=0, column=0)
-        cost_entry.grid(row=1, column=0)
-        cost_button.grid(row=2, column=0)
+        self.cost_popup.bind("<Return>", lambda e:self.create_edge(node_start, node_end, cost_entry.get()))
+        cost_label.pack()
+        cost_entry.pack()
         cost_entry.focus_force()
 
     def create_edge(self, node_start, node_end, cost):
@@ -151,7 +150,6 @@ class GUI():
     def init_gui(self):
     
         #VARIABLES
-        self.car_speed = tk.StringVar()
         self.driving_mode = tk.StringVar()
         self.car_distance = tk.StringVar()
         self.keys = {"LEFT":False, "RIGHT":False, "FORWARD":False, "REVERSE":False}
@@ -163,11 +161,9 @@ class GUI():
         self.center_x = (self.window.winfo_screenwidth() - self.window.winfo_reqwidth()) / 2
         self.center_y = (self.window.winfo_screenheight() - self.window.winfo_reqheight()) / 2
         
-        self.car_speed.set(GUI.PREFIX_SPEED)
         self.driving_mode.set(GUI.PREFIX_MODE)
 
         #self.window COMPONENTS
-        info_frame = tk.Frame(self.window, highlightbackground="red")
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
         console = tk.Entry(self.window, highlightbackground="black")
 
@@ -302,14 +298,11 @@ class GUI():
         filename_label = tk.Label(self.filename_frame, text="Enter filename")
         filename_entry = tk.Entry(self.filename_frame)
         if(function=="save"):
-            filename_button = tk.Button(self.filename_frame, text=function, \
-                command=lambda:self.save_map(filename_entry.get()))
+            self.filename_frame.bind("<Return>", lambda e:self.save_map(filename_entry.get()))
         elif(function=="open"):
-            filename_button = tk.Button(self.filename_frame, text=function, \
-                command=lambda:self.open_map(filename_entry.get()))
-        filename_label.grid(row=0, column=0)
-        filename_entry.grid(row=1, column=0)
-        filename_button.grid(row=2, column=0)
+           self.filename_frame.bind("<Return>", lambda e:self.open_map(filename_entry.get()))
+        filename_label.pack()
+        filename_entry.pack()
         self.filename_frame.geometry("+%d+%d" % (self.center_x, self.center_y))
         filename_entry.focus_force()
         
@@ -332,9 +325,9 @@ class GUI():
     def connect(self):
         ip_popup = tk.Tk()
         ip_popup.title("Connect to server")
+        ip_label = tk.Label(ip_popup, text="Enter IP-address")
         ip_input = tk.Entry(ip_popup)
-        ip_button = tk.Button(ip_popup, text="Connect to server", \
-            command=lambda:self.tasks.put(Task.CONNECT, ip_input.get()))
-        ip_input.grid(row=0, column=0)
-        ip_button.grid(row=0, column=1)
+        ip_popup.bind("<Return>", lambda e:self.tasks.put(Task.CONNECT, ip_input.get()))
+        ip_label.pack()
+        ip_input.pack()
         ip_input.focus_force()
