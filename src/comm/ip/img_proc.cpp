@@ -74,24 +74,32 @@ cv::Mat mask_image(cv::Mat& image) {
     cv::Mat masked_image;
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
     
-    /* Region Of Interes */
-    float ROI_y_start = image.rows;
-    float ROI_y_end = (image.rows / 2);
-    std::cout << "y:" << ROI_y_end << "\n";
-    std::cout << "y:" << ROI_y_start << "\n";
-    float ROI_x1 = 0.05 * image.cols;
-    std::cout << "x1:" << ROI_x1 << "\n";
-    float ROI_x2 = 0.15 * image.cols;
-    std::cout << "x2:" << ROI_x2 << "\n";
-    float ROI_x3 = 0.85 * image.cols;
-    std::cout << "x3:" << ROI_x3 << "\n";
-    float ROI_x4 = 0.95 * image.cols;
-    std::cout << "x4:" << ROI_x4 << "\n";
+    const float WIDTH_TOP = 0.85;
+    const float WIDTH_BOT = 1;
+    const float START_Y = 0;
+    const float END_Y = 0.5;
+
+    /* Region Of Interest */
+    float bot_y = image.rows*START_Y;
+    float top_y = image.rows*END_Y;
+    float bot_lx = (image.cols-WIDTH_BOT)/2;
+    float top_lx = (image.cols-WIDTH_TOP)/2;
+    float top_rx = (image.cols+WIDTH_TOP)/2;
+    float bot_rx = (image.cols+WIDTH_BOT)/2;
+
+    std::cout << "y:" << bot_y << "\n";
+    std::cout << "y:" << top_y << "\n";
+    std::cout << "x1:" << bot_lx << "\n";
+    std::cout << "x2:" << top_rx << "\n";
+    std::cout << "x3:" << top_lx << "\n";
+    std::cout << "x4:" << bot_rx << "\n";
+
     const int pts_amount = 4;
-    cv::Point p1(ROI_x1, ROI_y_start), p2(ROI_x2, ROI_y_end), p3(ROI_x3, ROI_y_end), p4(ROI_x4, ROI_y_start);
-    cv::Point ROI[4] = {p1, p2, p3, p4};
+    cv::Point p1(bot_lx, bot_y), p2(top_lx, top_y),
+              p3(top_rx, top_y), p4(bot_rx, bot_y);
+    cv::Point roi[4] = {p1, p2, p3, p4};
     
-    cv::fillConvexPoly(mask, ROI, pts_amount, cv::Scalar(255, 0, 0));
+    cv::fillConvexPoly(mask, roi, pts_amount, cv::Scalar(255, 0, 0));
     cv::bitwise_and(image, mask, masked_image);
 
     return masked_image;
