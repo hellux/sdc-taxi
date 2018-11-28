@@ -73,6 +73,8 @@ sens: $(BINDIR)/sens
 ctrl: $(BINDIR)/ctrl
 %.prog: $(BINDIR)/%.hex
 	sudo avrdude -C +$(PROG_CONF) -c $(PROG_DBG) -p $(PROG_PNO) -U flash:w:$(BINDIR)/$*.hex
+%.erase:
+	sudo avrdude -c $(PROG_DBG) -p $(PROG_PNO) -e
 %.gpio: $(BINDIR)/%.hex
 	$(MAKE) $*.prog PROG_DBG=gpio_$*
 
