@@ -76,16 +76,17 @@ cv::Mat mask_image(cv::Mat& image) {
     
     const float WIDTH_TOP = 0.85;
     const float WIDTH_BOT = 1;
-    const float START_Y = 0;
+    const float START_Y = 1;
     const float END_Y = 0.5;
 
     /* Region Of Interest */
-    float bot_y = image.rows*START_Y;
     float top_y = image.rows*END_Y;
-    float bot_lx = (image.cols-WIDTH_BOT)/2;
-    float top_lx = (image.cols-WIDTH_TOP)/2;
-    float top_rx = (image.cols+WIDTH_TOP)/2;
-    float bot_rx = (image.cols+WIDTH_BOT)/2;
+    float top_rx = image.cols*(1+WIDTH_TOP)/2;
+    float top_lx = image.cols*(1-WIDTH_TOP)/2;
+
+    float bot_y = image.rows*START_Y;
+    float bot_lx = image.cols*(1-WIDTH_BOT)/2;
+    float bot_rx = image.cols*(1+WIDTH_BOT)/2;
 
     std::cout << "y:" << bot_y << "\n";
     std::cout << "y:" << top_y << "\n";
@@ -320,9 +321,9 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
                                  lline_found, sline_found);
 
         int left_top = lane[3].x;
-        int right_top = lane[0].x;
-        res->error = ((left_top+right_top)/2 - 120)/120;
-        printf("right_top.y: %d, lefty: %d, error: %f\n", lane[0].y, lane[3].y, res->error);
+        int right_top = lane[1].x;
+        res->error = ((float)(left_top+right_top)/2 - WIDTH/2)/((float)WIDTH/2);
+        printf("right_top.y: %d, lefty: %d, error: %f\n", lane[1].y, lane[3].y, res->error);
 
 #ifdef VISUAL
         plotLane(frame, lane, rline_found, lline_found, sline_found);
@@ -334,6 +335,14 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     printf("\nFPS: %.1f\n", 1/period);
 
 #ifdef VISUAL
+    cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
+    for (auto l : hough_lines) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(lines_img, start, end, cv::Scalar(255, 255, 255), 5, CV_AA);
+    }
+
+    cv::imshow("lines", lines_img);
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
