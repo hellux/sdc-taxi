@@ -5,7 +5,7 @@ import pickle
 import time
 import tkinter as tk
 
-from course import Edge, Node, NodeType
+from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
 
 
@@ -65,10 +65,10 @@ class Map():
     def select(self, event):
         self.selected_edge = self.get_edge(event.x, event.y)
 
-        if self.select_mission and selected_node:
+        if self.select_mission and self.selected_node:
             self.select_mission = False
-            path = Course.closest_path(self.course, self.selected_node, self.get_node(event.x, event.y))
-            Course.create_mission(path)
+            path = closest_path(self.nodes, self.selected_node, self.get_node(event.x, event.y))
+            create_mission(path)
             
         elif self.selected_node:
             self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
@@ -82,6 +82,7 @@ class Map():
             self.nodes.remove(self.selected_node)
         if self.selected_edge in self.edges:
             self.edges.remove(self.selected_edge)
+            
         self.draw()
     
     def get_edge_cost(self, node_start, node_end):
@@ -137,7 +138,7 @@ class GUI():
         self.complete_actions = {
             Task.CONNECT    : print,
             Task.SEND       : print,
-            Task.GET_SENSOR : self.set_car_info,
+            Task.GET_SENSOR : self.display_info,
         }
 
         self.window = tk.Tk()
@@ -157,6 +158,8 @@ class GUI():
         self.file = None
         self.cost_is_showing = False
         
+        self.info_list = tk.Listbox(self.window, highlightbackground="black")
+        
         self.center_x = (self.window.winfo_screenwidth() - self.window.winfo_reqwidth()) / 2
         self.center_y = (self.window.winfo_screenheight() - self.window.winfo_reqheight()) / 2
         
@@ -166,7 +169,7 @@ class GUI():
         #self.window COMPONENTS
         info_frame = tk.Frame(self.window, highlightbackground="red")
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
-        console = tk.Entry(self.window, highlightbackground="blue")
+        console = tk.Entry(self.window, highlightbackground="black")
 
         #MAP
         self.map = Map(self.window, self.map_frame)
@@ -175,18 +178,13 @@ class GUI():
         sendCommandButton = tk.Button(self.window, text="Send command",
             command=lambda:self.tasks.put(Task.SEND, console.get()))
 
-        self.mode_label = tk.Label(info_frame, textvariable=self.driving_mode)
-        self.speed_label = tk.Label(info_frame, textvariable=self.car_speed)
-        self.distance_label = tk.Label(info_frame, textvariable=self.car_distance)
-
-        self.speed_label.pack(fill="both")
-        self.mode_label.pack(fill="both")
-        self.distance_label.pack(fill="both")
-        
-        info_frame.pack(fill="both")
-        self.map_frame.pack(fill="both", expand=True)
-        console.pack(fill="both")
-        sendCommandButton.pack(fill="both")
+        self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
+  
+        self.mode_label.pack(side=tk.TOP)
+        self.info_list.pack(side=tk.LEFT, fill="both", expand=True, padx=10, pady=10)
+        self.map_frame.pack(fill="both", expand=True, pady=10, padx=10)
+        sendCommandButton.pack(side=tk.RIGHT, padx=10)
+        console.pack(side=tk.RIGHT, fill="both", expand=True, pady=10, padx=10)
         
         #MENU
         menuBar = tk.Menu(self.window)
@@ -222,6 +220,7 @@ class GUI():
         
         #KEYBOARD BINDINGS
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
+        self.window.bind('<m>', self.drive_manual)
         
     def main_loop(self):
         task_pair = self.tasks.get_completed(block=False)
@@ -272,15 +271,17 @@ class GUI():
         self.tasks.put(Task.SET_AUTO, True)
         self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
         
-    def drive_manual(self):
+    def drive_manual(self, event):
         self.tasks.put(Task.SET_AUTO, False)
         self.bind_keys()
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
     
-    def set_car_info(self, sensor_data):
-        self.car_distance.set("Distance: " + sensor_data[2])
-        self.car_speed.set(GUI.PREFIX_SPEED + sensor_data[3])
+    def display_info(self, sensor_data):
+        info_labels = ["Front", "Rear", "Speed", "Distance"]
+        for x in range(0,3):
+            self.info_list.insert(x, info_labels[x] + ": " + sensor_data[x])
+        self.info_list.insert(4, "")
         
     def quit(self):
         self.tasks.put(Task.KILL)
