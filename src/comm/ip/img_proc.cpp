@@ -70,7 +70,8 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     return edge_img;
 }
 
-cv::Mat mask_image(cv::Mat image) {
+cv::Mat mask_image(cv::Mat& image) {
+    cv::Mat masked_image;
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
     
     /* Region Of Interes */
@@ -91,9 +92,9 @@ cv::Mat mask_image(cv::Mat image) {
     cv::Point ROI[4] = {p1, p2, p3, p4};
     
     cv::fillConvexPoly(mask, ROI, pts_amount, cv::Scalar(255, 0, 0));
-    cv::bitwise_and(image, mask, image);
+    cv::bitwise_and(image, mask, masked_image);
 
-    return image;
+    return masked_image;
 }
 
 std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
