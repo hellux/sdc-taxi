@@ -29,7 +29,7 @@ class Map():
         node_create.add_command(label="Parking", command=lambda: self.create_node(NodeType.PARKING, event.x, event.y, "yellow"))
         node_create.add_command(label="Roundabout", command=lambda: self.create_node(NodeType.ROUNDABOUT, event.x, event.y, "blue"))
         node_options.add_command(label="Delete", command=lambda:self.delete())
-        node_options.tk_popup(event.x+self.window.winfo_rootx(), event.y+self.window.winfo_rooty()) 
+        node_options.tk_popup(int(self.map_frame.canvasx(self.map_frame.winfo_pointerx())), int(self.map_frame.canvasx(self.map_frame.winfo_pointery())))
      
     def draw(self):
         self.map_frame.delete("all")
@@ -92,6 +92,7 @@ class Map():
         self.cost_popup.bind("<Return>", lambda e:self.create_edge(node_start, node_end, cost_entry.get()))
         cost_label.pack()
         cost_entry.pack()
+        self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
         cost_entry.focus_force()
 
     def create_edge(self, node_start, node_end, cost):
@@ -128,7 +129,6 @@ class GraphEdge(Edge):
         
 class GUI():
     LOOP_DELAY = 50
-    PREFIX_SPEED = "Speed: "
     PREFIX_MODE = "Mode: "
 
     def __init__(self, tasks):
@@ -303,7 +303,7 @@ class GUI():
            self.filename_frame.bind("<Return>", lambda e:self.open_map(filename_entry.get()))
         filename_label.pack()
         filename_entry.pack()
-        self.filename_frame.geometry("+%d+%d" % (self.center_x, self.center_y))
+        self.filename_frame.geometry("+%d+%d" % ((int(self.filename_frame.winfo_pointerx()), int((self.filename_frame.winfo_pointery())))))
         filename_entry.focus_force()
         
     def save_map(self, filename):
@@ -330,4 +330,5 @@ class GUI():
         ip_popup.bind("<Return>", lambda e:self.tasks.put(Task.CONNECT, ip_input.get()))
         ip_label.pack()
         ip_input.pack()
+        ip_popup.geometry("+%d+%d" % ((int(ip_popup.winfo_pointerx()), int((ip_popup.winfo_pointery())))))
         ip_input.focus_force()
