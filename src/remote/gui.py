@@ -10,6 +10,8 @@ from tasks import Task
 
 
 class Map():
+    NODE_SIZE = 5
+    
     def __init__(self, window, map_frame):
         self.window = window
         self.map_frame = map_frame
@@ -42,13 +44,13 @@ class Map():
         
         for node in self.nodes:
             if(node == self.selected_node):
-               self.map_frame.create_oval(node.pos_x-5, node.pos_y-5, node.pos_x+5, node.pos_y+5, fill="green", width=2)
+               self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill="green", width=2)
             else:
-                self.map_frame.create_oval(node.pos_x-5, node.pos_y-5, node.pos_x+5, node.pos_y+5, fill=node.color, width=2)    
+                self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill=node.color, width=2)    
     
     def get_node(self, x, y):
         for node in self.nodes:
-            if (x-5 < node.pos_x < x+5) and (y-5 < node.pos_y < y+5):
+            if (x-Map.NODE_SIZE < node.pos_x < x+Map.NODE_SIZE) and (y-Map.NODE_SIZE < node.pos_y < y+Map.NODE_SIZE):
                 return node
         return None
         
@@ -57,7 +59,7 @@ class Map():
             if(edge.end.pos_x-edge.start.pos_x != 0):
                 k = (edge.end.pos_y-edge.start.pos_y)/(edge.end.pos_x-edge.start.pos_x)
                 m = edge.start.pos_y-k*edge.start.pos_x
-                if abs(y-(x*k + m)) < 5:
+                if abs(y-(x*k + m)) < Map.NODE_SIZE:
                     return edge
         return None
     
@@ -70,7 +72,7 @@ class Map():
             path = closest_path(self.nodes, self.selected_node, self.get_node(event.x, event.y))
             create_mission(path)
             
-        elif self.selected_node:
+        elif self.selected_node and self.get_node(event.x, event.y):
             self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
             
         else:    
