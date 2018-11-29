@@ -188,7 +188,8 @@ class GUI():
         self.map = Map(self.window, self.map_frame)
         
         #BUTTONS
-        sendCommandButton = tk.Button(self.window, text="Send command", command=self.send_command)
+        sendCommandButton = tk.Button(self.window, text="Send command", \
+                command=lambda:self.tasks.put(Task.SEND, self.console.get()))
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
@@ -289,7 +290,7 @@ class GUI():
         self.tasks.put(Task.SET_AUTO, True)
         self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
         
-    def drive_manual(self, event):
+    def drive_manual(self):
         self.tasks.put(Task.SET_AUTO, False)
         self.bind_keys()
         self.window.focus_set()
