@@ -7,8 +7,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono>
 
-#define WIDTH 352
-#define HEIGHT 240
+#define WIDTH 256
+#define HEIGHT 144
 
 const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
                          cv::THRESH_TRUNC, cv::THRESH_TOZERO,
@@ -19,13 +19,13 @@ const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
 
 static int thresh_value = 20;
 static int thresh_type = 6;
-static int hough_threshold = 75;
-static int line_min_length = 30;
-static int line_max_gap = 100;
+static int hough_threshold = 7;
+static int line_min_length = 0;
+static int line_max_gap = 40;
 static int mask_width_top = 0.85*WIDTH;
 static int mask_width_bot = 1*WIDTH;
 static int mask_start_y = 0.9*HEIGHT;
-static int mask_end_y = 0.5*HEIGHT;
+static int mask_end_y = 0.6*HEIGHT;
 
 extern "C" struct ip_data *ip_init();
 extern "C" void ip_destroy(struct ip_data *ip);
