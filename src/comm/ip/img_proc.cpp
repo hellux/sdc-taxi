@@ -127,7 +127,7 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
     double rho = 1;
     double theta = CV_PI / 180;
 
-    cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
+    cv::HoughLinesP(image, lines, rho, theta, threshold, line_min_length, line_max_gap);
 
     return lines;
 }
@@ -348,8 +348,12 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
 
 #ifdef VISUAL
 
+    std::string window_name = "TrackBar";
     std::string threshold_type = "Type: \n 0: Binary \n 1: Binary Inverted \n 2: Truncate \n 3: To Zero \n 4: To Zero Inverted \n 5: Otsu";
     std::string threshold_value = "Value";
+    cv::string hough_tresh = "HoughTreshold";
+    cv::string hough_min_lenght = "HoughMinLenght";
+    cv::string hough_max_gap = "HoughMaxGap";
     cv::namedWindow(window_name, CV_WINDOW_AUTOSIZE);
     cv::createTrackbar(threshold_type, window_name, &thresh_value, max_thresh_type, trackbar);
     cv::createTrackbar(threshhold_value, window_name, &thresh_value, max_value, trackbar);
