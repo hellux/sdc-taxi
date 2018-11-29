@@ -13,11 +13,6 @@
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
-struct ctrl_pair {
-    float vel;
-    float rot;
-};
-
 struct sens_values {
     float dist_front;
     float dist_right;
@@ -42,9 +37,27 @@ struct data_mission {
 };
 
 struct data_rc {
-    struct ctrl_pair val;
+    float vel;
+    float rot;
 
     pthread_mutex_t lock;
+};
+
+struct val {
+    float value;
+    bool regulate;
+};
+
+struct data_ctrl {
+    struct val vel;
+    struct val rot;
+};
+
+struct car_state {
+    const struct sens_values *sens; 
+    const struct ip_res *ip;
+
+    bool in_roundabout;
 };
 
 #endif

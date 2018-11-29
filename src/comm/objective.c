@@ -68,11 +68,9 @@ void objq_destroy(struct obj_item *queue) {
 }
 
 struct obj_item *objq_execute(struct obj_item *queue, struct obj_args *args) {
-    bool finished = queue->obj->func(args);
 
     if (finished) {
         struct obj_item *next = queue->next;
-        queue = queue->next;
         free(queue);
     }
 

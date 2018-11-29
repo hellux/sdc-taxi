@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include <string.h>
+
 #include "objective.h"
 #include "bus.h"
 #include "server.h"
@@ -57,55 +59,95 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
-    struct data_rc rc_prev = {0};
-
     ip_t *ip = ip_init();
 
-    char input[100];
+    struct data_ctrl ctrl_prev = {0};
+    struct obj_item *current = NULL;
+
+    struct sens_values sens;
+    struct data_ctrl ctrl;
+    struct ip_res ip_res;
+
+    struct car_state state;
+    state->sens = sens;
+    state->ip = ip_res;
+
+    struct obj_args args;
+    args->state = &state;
+    args->ctrl = &ctrl;
+
+    //char input[100];
     while (!quit) {
-        /* pause loop, enable exit
-        printf("> ");
-        int len = scanf("%s", input);
-        if (len > 0 && input[0] == 'q') {
-            pthread_mutex_lock(&quit_lock);
-            quit = true;
-            pthread_mutex_unlock(&quit_lock);
-        }
-        */
+        ctrl = ctrl_prev;
+        pthread_mutex_lock(&sens_data.lock);
+        sens = sens_data.val;
+        pthread_mutex_unlock(&sens_data.lock);
 
         /*
         bus_receive_schedule(bus, &BCSS[BBS_GET], bsh_sens_recv, &sens_data);
         */
 
         pthread_mutex_lock(&miss_data.lock);
-        if (miss_data.active) {
+        bool mission = miss_data.active;
+        pthread_mutex_unlock(&miss_data.lock);
+
+        /* determine new ctrl values */
+        if (mission) {
+            pthread_mutex_lock(&miss_data.lock);
+            if (miss_data.current) {
+            } else {
+                if (miss_data.queue) {
+                    miss_data.current = miss_data.queue;
+                    miss_data.queue = miss_data.queue->next;
+                } else {
+                    miss_data.state = false;
+                    mission = false;
+                }
+            }
             pthread_mutex_unlock(&miss_data.lock);
 
-            struct ip_res res;
-            float speed = 0.1;
-            ip_process(ip, &res);
+            if (mission) {
+                ip_process(ip, &ip_res);
 
-            bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL], (void*)&speed,
-                                  NULL, NULL);
-            bus_transmit_schedule(bus, &BCCS[BBC_ROT_ERR], (void*)&res.error,
-                                  NULL, NULL);
+                ctrl.vel.value = NORMAL_SPEED;
+                ctrl.vel.regulate = false;
+                ctrl.rot.value = ip_res.error;
+                ctrl.rot.regulate = true;
+
+                if (ip_res.stopline_found) {
+                    bool finished = current->obj->func(args);
+                    if (finished) {
+                        current = NULL;
+                    }
+                }
+            } else {
+                ctrl.vel.value = 0;
+                ctrl.rot.value = 0;
+                ctrl.vel.regulate = false
+                ctrl.rot.regulate = false
+            }
         } else {
-            pthread_mutex_unlock(&miss_data.lock);
-
-            struct data_rc rc_local;
+            struct data_rc rc;
             pthread_mutex_lock(&rc_data.lock);
-            rc_local = rc_data;
+            rc = rc_data;
             pthread_mutex_unlock(&rc_data.lock);
 
-            if (rc_local.val.vel != rc_prev.val.vel) {
-                bus_transmit_schedule(bus, &BCCS[BBC_VEL_VAL],
-                                      (void*)&rc_local.val.vel, NULL, NULL);
-            }
-            if (rc_local.val.rot != rc_prev.val.rot) {
-                bus_transmit_schedule(bus, &BCCS[BBC_ROT_VAL],
-                                      (void*)&rc_local.val.rot, NULL, NULL);
-            }
-            rc_prev = rc_local;
+            ctrl.vel.value = rc.vel;
+            ctrl.rot.value = rc.rot;
+            ctrl.vel.regulate = false;
+            ctrl.rot.regulate = false;
+        }
+
+        /* send new ctrl commands if regulating or values are changed */
+        if (ctrl.vel.regulate || ctrl.rot.regulate ||
+                memcmp(ctrl, ctrl_prev, sizeof(ctrl)) != 0) {
+            ctrl_prev = ctrl;
+            int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_ROT_VAL;
+            int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
+            bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)ctrl.vel.value,
+                                  NULL, NULL);
+            bus_transmit_schedule(bus, &BCCS[bcc_rot], (void*)ctrl.rot.value,
+                                  NULL, NULL);
         }
     }
 

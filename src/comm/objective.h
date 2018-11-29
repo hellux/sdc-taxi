@@ -7,12 +7,10 @@
 #include "ip/img_proc.h"
 
 struct obj_args {
-    struct ip_res *ip;
-    struct ctrl_pair *val;
-    bool override_vel;
-    bool override_rot;
-    bool on_road;
-    struct sens_values *sens; 
+    const struct car_state state;
+    struct data_ctrl *ctrl;
+
+    void *data;
 };
 
 struct obj {
