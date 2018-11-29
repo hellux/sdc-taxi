@@ -138,8 +138,8 @@ int main(void) {
                     continue;
 
                 float scaler = (value_new > 0) ? max : min;
-                float value = value_new*scaler;
-                float duty = DUTY_NEUTRAL + value*(DUTY_MAX-DUTY_NEUTRAL);
+                float duty_scaler = value_new*scaler;
+                float duty = DUTY_NEUTRAL + duty_scaler*(DUTY_MAX-DUTY_NEUTRAL);
 
                 if (command & BF_VEL_ROT) {
                     OCR_VEL = duty*PWM_TOP; 
