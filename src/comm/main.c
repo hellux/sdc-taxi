@@ -91,6 +91,7 @@ int main(int argc, char* args[]) {
 
         /* determine new ctrl values */
         if (mission) {
+            /*
             pthread_mutex_lock(&miss_data.lock);
             if (!obj_current) {
                 if (miss_data.queue) {
@@ -123,6 +124,12 @@ int main(int argc, char* args[]) {
                 ctrl.vel.regulate = false;
                 ctrl.rot.regulate = false;
             }
+            */
+            ip_process(ip, &ip_res);
+            ctrl.vel.value = 0;
+            ctrl.rot.value = ip_res.error;
+            ctrl.vel.regulate = false;
+            ctrl.rot.regulate = true;
         } else {
             struct data_rc rc;
             pthread_mutex_lock(&rc_data.lock);
@@ -139,7 +146,7 @@ int main(int argc, char* args[]) {
         if (ctrl.vel.regulate || ctrl.rot.regulate ||
                 memcmp(&ctrl, &ctrl_prev, sizeof(ctrl)) != 0) {
             ctrl_prev = ctrl;
-            int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_ROT_VAL;
+            int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_VEL_VAL;
             int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
             bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value,
                                   NULL, NULL);
