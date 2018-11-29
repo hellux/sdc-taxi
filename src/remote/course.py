@@ -82,16 +82,17 @@ def closest_path(course, src, dst):
     return path
 
 def create_mission(path):
-    node, rest = path[0], path[1:]
-    if node.type is NodeType.STOPLINE:
-        return ([Command.IGNORE] if rest else [Command.STOP]) + create_mission(rest)
-    elif node.type is NodeType.PARKING:
-        return ([Command.IGNORE] if rest else [Command.PARK]) + [Command.UN_PARK] + create_mission(rest)
-    else: # ROUNDABOUT
-        src, dst = 0, 0
-        exit_count = len(node.exits)
-        for i in range(exit_count):
-            if node.exits[i][0] == src: src = i
-            elif node.exits[i][0] == dst: dst = i
-        ignore_count = (dst-src) % exit_count - 1
-        return [Command.ENTER] + ignore_count*[Command.IGNORE] + [Command.EXIT] + create_mission(rest)
+    if path:
+        node, rest = path[0], path[1:]
+        if node.type is NodeType.STOPLINE:
+            return ([Command.IGNORE] if rest else [Command.STOP]) + create_mission(rest)
+        elif node.type is NodeType.PARKING:
+            return ([Command.IGNORE] if rest else [Command.PARK]) + create_mission(rest)
+        else: # ROUNDABOUT
+            ignore_count = 0
+            rest = rest[1:]
+            while(rest[0].type == NodeType.ROUNDABOUT):
+                rest = rest[1:]
+                ignore_count += 1
+            return [Command.ENTER] + ignore_count*[Command.IGNORE] + [Command.EXIT] + create_mission(rest)
+    return []
