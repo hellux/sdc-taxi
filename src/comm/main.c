@@ -72,9 +72,7 @@ int main(int argc, char* args[]) {
     state.ip = &ip_res;
 
     struct obj_item *obj_current = NULL;
-    struct obj_args obj_args;
-    obj_args.state = &state;
-    obj_args.ctrl = &ctrl;
+    void *obj_data = NULL;
 
     //char input[100];
     while (!quit) {
@@ -114,9 +112,9 @@ int main(int argc, char* args[]) {
                 ctrl.rot.regulate = true;
 
                 if (ip_res.stopline_found) {
-                    bool finished = obj_current->obj->func(&obj_args);
-                    if (finished) {
+                    if (obj_current->obj->func(&state, &ctrl, obj_data)) {
                         obj_current = NULL;
+                        obj_data = NULL;
                     }
                 }
             } else {
