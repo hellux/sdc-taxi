@@ -54,7 +54,7 @@ class Map():
                 return node
         return None
         
-    def get_edge(self, x, y):
+    def get_edge_pos(self, x, y):
         
         for edge in self.edges:
             if min(edge.start.pos_x, edge.end.pos_x)+2 < x < max(edge.end.pos_x, edge.start.pos_x)-2:
@@ -64,22 +64,29 @@ class Map():
                     if abs(y-(x*k + m)) < Map.NODE_SIZE:
                         return edge
         return None
-    
+        
+    def edge_exists(self, start, end):
+        if end not in [edge.end for edge in start.outgoing]: 
+            if start not in [edge.end for edge in end.outgoing]:
+                return False
+        return True         
         
     def select(self, event):
-        self.selected_edge = self.get_edge(event.x, event.y)
-
+        self.selected_edge = self.get_edge_pos(event.x, event.y)
+        current_node = self.get_node(event.x, event.y)
+        
         if self.select_mission and self.selected_node:
             self.select_mission = False
-            path = closest_path(self.nodes, self.selected_node, self.get_node(event.x, event.y))
+            path = closest_path(self.nodes, self.selected_node, current_node)
             create_mission(path)
             
-        elif self.selected_node and self.get_node(event.x, event.y):
-            if self.get_edge(event.x, event.y) not in self.edges:
-                self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
-            
+        elif self.selected_node and current_node:
+            if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
+                self.get_edge_cost(self.selected_node, current_node)
+                
         else:    
-            self.selected_node = self.get_node(event.x, event.y)
+            self.selected_node = current_node
+            
         self.draw()
     
     def delete(self):
@@ -87,6 +94,9 @@ class Map():
             self.nodes.remove(self.selected_node)
         if self.selected_edge in self.edges:
             self.edges.remove(self.selected_edge)
+        for edge in self.edges:
+                if edge.start not in self.nodes and edge.end not in self.nodes:
+                    self.edges.remove(edge)
             
         self.draw()
     
@@ -104,6 +114,8 @@ class Map():
         if(node_start and node_end):
             edge = GraphEdge(node_start, node_end, cost)
             self.edges.append(edge)
+            node_start.outgoing.append(edge)
+            node_end.outgoing.append(edge)
             self.selected_node = None
             self.draw()
         else:
@@ -170,14 +182,13 @@ class GUI():
 
         #self.window COMPONENTS
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
-        console = tk.Entry(self.window, highlightbackground="black")
+        self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
         #MAP
         self.map = Map(self.window, self.map_frame)
         
         #BUTTONS
-        sendCommandButton = tk.Button(self.window, text="Send command",
-            command=lambda:self.tasks.put(Task.SEND, console.get()))
+        sendCommandButton = tk.Button(self.window, text="Send command", command=self.send_command)
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
@@ -185,7 +196,8 @@ class GUI():
         self.info_list.pack(side=tk.LEFT, fill="both", expand=True, padx=10, pady=10)
         self.map_frame.pack(fill="both", expand=True, pady=10, padx=10)
         sendCommandButton.pack(side=tk.RIGHT, padx=10)
-        console.pack(side=tk.RIGHT, fill="both", expand=True, pady=10, padx=10)
+        self.console.pack(side=tk.RIGHT, fill="both", expand=True, pady=10, padx=10)
+        
         
         #MENU
         menuBar = tk.Menu(self.window)
@@ -222,6 +234,7 @@ class GUI():
         #KEYBOARD BINDINGS
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
         self.window.bind('<m>', self.drive_manual)
+        self.console.bind('<Return>', self.send_command)
         
     def main_loop(self):
         task_pair = self.tasks.get_completed(block=False)
@@ -234,6 +247,10 @@ class GUI():
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
         
 
+    def send_command(self, event):
+        self.console.delete(0, 'end')
+        self.tasks.put(Task.SEND, self.console.get())
+        
     def get_sensor_data(self):
         self.tasks.put(Task.GET_SENSOR)
         self.window.after(1, self.get_sensor_data)
@@ -323,9 +340,6 @@ class GUI():
         self.map.nodes, self.map.edges = pickle.load(self.file)
         self.map.draw()
         self.filename_frame.destroy()
-
-    def clear(self, console):
-        console.delete(0, tk.END)
 
     def connect(self):
         ip_popup = tk.Tk()
