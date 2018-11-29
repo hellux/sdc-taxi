@@ -55,12 +55,14 @@ class Map():
         return None
         
     def get_edge(self, x, y):
+        
         for edge in self.edges:
-            if(edge.end.pos_x-edge.start.pos_x != 0):
-                k = (edge.end.pos_y-edge.start.pos_y)/(edge.end.pos_x-edge.start.pos_x)
-                m = edge.start.pos_y-k*edge.start.pos_x
-                if abs(y-(x*k + m)) < Map.NODE_SIZE:
-                    return edge
+            if min(edge.start.pos_x, edge.end.pos_x)+2 < x < max(edge.end.pos_x, edge.start.pos_x)-2:
+                if(edge.end.pos_x-edge.start.pos_x != 0):
+                    k = (edge.end.pos_y-edge.start.pos_y)/(edge.end.pos_x-edge.start.pos_x)
+                    m = edge.start.pos_y-k*edge.start.pos_x
+                    if abs(y-(x*k + m)) < Map.NODE_SIZE:
+                        return edge
         return None
     
         
@@ -73,7 +75,8 @@ class Map():
             create_mission(path)
             
         elif self.selected_node and self.get_node(event.x, event.y):
-            self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
+            if self.get_edge(event.x, event.y) not in self.edges:
+                self.get_edge_cost(self.selected_node, self.get_node(event.x, event.y))
             
         else:    
             self.selected_node = self.get_node(event.x, event.y)
