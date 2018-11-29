@@ -12,12 +12,12 @@
 #define slow_vel 40
 #define full_vel 100
 
-bool obj_ignore(struct obj_args *args);
-bool obj_stop(struct obj_args *args);
-bool obj_park(struct obj_args *args);
-bool obj_unpark(struct obj_args *args);
-bool obj_enter(struct obj_args *args);
-bool obj_exit(struct obj_args *args);
+bool obj_ignore(struct car_state *state, struct data_ctrl *ctrl, void *data);
+bool obj_stop(struct car_state *state, struct data_ctrl *ctrl, void *data);
+bool obj_park(struct car_state *state, struct data_ctrl *ctrl, void *data);
+bool obj_unpark(struct car_state *state, struct data_ctrl *ctrl, void *data);
+bool obj_enter(struct car_state *state, struct data_ctrl *ctrl, void *data);
+bool obj_exit(struct car_state *state, struct data_ctrl *ctrl, void *data);
 
 const struct obj OBJS[] = {
     {"ignr", obj_ignore},
@@ -67,111 +67,78 @@ void objq_destroy(struct obj_item *queue) {
     }
 }
 
-struct obj_item *objq_execute(struct obj_item *queue, struct obj_args *args) {
-    bool finished = queue->obj->func(args);
-
-    if (finished) {
-        struct obj_item *next = queue->next;
-        queue = queue->next;
-        free(queue);
-    }
-
-    return queue;
-}
-
 ctrl_val_t wtd_speed(float distance, float current, float target) {
     //TODO Calculate smooth transition from current to desired speed
     float new_vel = 0;
     return new_vel;
 }
 
-void steer_dir(struct obj_args *args, int dir){
-    args->override_rot = true;
-    if (dir == LEFT) {
-        args->val->rot = -100;
-    } else if (dir == RIGHT) {
-        args->val->rot = 100;   
-    }
-}
-
-bool obj_ignore(struct obj_args *args) {
-    sens_dist_t stop_dist = args->ip->stopline_dist;
+bool obj_ignore(struct car_state *state, struct data_ctrl *ctrl, void *data) {
+    sens_dist_t stop_dist = state->ip->stopline_dist;
     if (stop_dist <= still_dist) {
         return true;
     }
     return false;
 }
 
-bool obj_stop(struct obj_args *args){
-    sens_dist_t stop_dist = args->ip->stopline_dist;
-    float cur_vel = args->sens->velocity;
+bool obj_stop(struct car_state *state, struct data_ctrl *ctrl, void *data) {
+    sens_dist_t stop_dist = state->ip->stopline_dist;
+    float cur_vel = state->sens->velocity;
     if (cur_vel == 0) {
         return true;
     } else if (stop_dist <= brake_dist) {
-        args->override_vel = true;
-        args->val->vel = wtd_speed(stop_dist, cur_vel, stop_vel);
+        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, stop_vel);
     }
     return false;
 }
 
-bool obj_park(struct obj_args *args){
-    sens_dist_t stop_dist = args->ip->stopline_dist; 
-    float cur_vel = args->sens->velocity;
+bool obj_park(struct car_state *state, struct data_ctrl *ctrl, void *data) {
+    sens_dist_t stop_dist = state->ip->stopline_dist; 
+    float cur_vel = state->sens->velocity;
     if (stop_dist <= still_dist) {
-        steer_dir(args, RIGHT);
+        ctrl->rot.value = 1;
         //Wait until car is 45 degrees somehow (time?)
-        steer_dir(args, LEFT);
         //Wait until straight
-        args->val->vel = wtd_speed(stop_dist, cur_vel, stop_vel);
-        args->on_road = false;
+        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, stop_vel);
         return true;
     } else if (stop_dist <= brake_dist) {
-        args->override_vel = true;
-        args->val->vel = wtd_speed(stop_dist, cur_vel, slow_vel);
+        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, slow_vel);
     }
     return false;
 }
 
-bool obj_unpark(struct obj_args *args){
-    sens_dist_t stop_dist = args->ip->stopline_dist; 
-    float cur_vel = args->sens->velocity;
-    if(!(args->on_road)){
-        steer_dir(args, LEFT);
-        //Wait until car is 45 degrees somehow (time?)
-        steer_dir(args, RIGHT);
-        //Wait until straight
-        args->override_vel = true;
-        args->val->vel = wtd_speed(stop_dist, cur_vel, full_vel);
-        args->on_road = true;
-        return false;
-    }
+bool obj_unpark(struct car_state *state, struct data_ctrl *ctrl, void *data) {
+    sens_dist_t stop_dist = state->ip->stopline_dist; 
+    float cur_vel = state->sens->velocity;
+    ctrl->rot.value = -1;
+    //Wait until car is 45 degrees somehow (time?)
+    //Wait until straight
+    ctrl->vel.value = wtd_speed(stop_dist, cur_vel, full_vel);
     return true;
 }
 
-bool obj_enter(struct obj_args *args) { 
-    sens_dist_t stop_dist = args->ip->stopline_dist; 
-    float cur_vel = args->sens->velocity;
+bool obj_enter(struct car_state *state, struct data_ctrl *ctrl, void *data) {
+    sens_dist_t stop_dist = state->ip->stopline_dist; 
+    float cur_vel = state->sens->velocity;
     if (stop_dist <= still_dist) {
-        steer_dir(args, RIGHT);
+        ctrl->rot.value = 1;
         //Wait for some time
         return true;
     } else if (stop_dist <= brake_dist) {
-        args->override_vel = true;
-        args->val->vel = wtd_speed(stop_dist, cur_vel, slow_vel);
+        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, slow_vel);
     }
     return false;
 }
 
-bool obj_exit(struct obj_args *args) {
-    sens_dist_t stop_dist = args->ip->stopline_dist;
-    float cur_vel = args->sens->velocity;
+bool obj_exit(struct car_state *state, struct data_ctrl *ctrl, void *data) {
+    sens_dist_t stop_dist = state->ip->stopline_dist;
+    float cur_vel = state->sens->velocity;
     if (stop_dist <= still_dist) {
-        steer_dir(args, RIGHT);
+        ctrl->rot.value = 1;
         //Wait for some time
         return true;
     } else if (stop_dist <= brake_dist) {
-        args->override_vel = true;
-        args->val->vel = wtd_speed(stop_dist, cur_vel, slow_vel);
+        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, slow_vel);
     }
     return false;
 }
