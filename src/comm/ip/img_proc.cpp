@@ -10,13 +10,11 @@
 #define WIDTH 352
 #define HEIGHT 240
 
-#define TRACK_MAX 255
-
 const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
                          cv::THRESH_TRUNC, cv::THRESH_TOZERO,
                          cv::THRESH_TOZERO_INV, cv::THRESH_MASK,
                          cv::THRESH_OTSU, cv::THRESH_TRIANGLE};
-
+#define TRACK_MAX 255
 #define TRACK_MAX_THRESH sizeof(THR_TYPES)/sizeof(*THR_TYPES)
 
 static int thresh_value = 20;
@@ -24,6 +22,10 @@ static int thresh_type = 6;
 static int hough_threshold = 75;
 static int line_min_length = 30;
 static int line_max_gap = 100;
+static int mask_width_top = 0.85*WIDTH;
+static int mask_width_bot = 1*WIDTH;
+static int mask_start_y = 0.9*HEIGHT;
+static int mask_end_y = 0.5*HEIGHT;
 
 extern "C" struct ip_data *ip_init();
 extern "C" void ip_destroy(struct ip_data *ip);
@@ -88,20 +90,15 @@ cv::Mat img_edge_detector(cv::Mat& image) {
 cv::Mat mask_image(cv::Mat& image) {
     cv::Mat masked_image;
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
-    
-    const float WIDTH_TOP = 0.85;
-    const float WIDTH_BOT = 1;
-    const float START_Y = 1;
-    const float END_Y = 0.5;
 
     /* Region Of Interest */
-    float top_y = image.rows*END_Y;
-    float top_rx = image.cols*(1+WIDTH_TOP)/2;
-    float top_lx = image.cols*(1-WIDTH_TOP)/2;
+    float top_y = mask_end_y;
+    float top_rx = (image.cols+mask_width_top)/2;
+    float top_lx = (image.cols-mask_width_top)/2;
 
-    float bot_y = image.rows*START_Y;
-    float bot_lx = image.cols*(1-WIDTH_BOT)/2;
-    float bot_rx = image.cols*(1+WIDTH_BOT)/2;
+    float bot_y = mask_start_y;
+    float bot_lx = (image.cols-mask_width_bot)/2;
+    float bot_rx = (image.cols+mask_width_bot)/2;
 
     std::cout << "y:" << bot_y << "\n";
     std::cout << "y:" << top_y << "\n";
@@ -110,12 +107,11 @@ cv::Mat mask_image(cv::Mat& image) {
     std::cout << "x3:" << top_lx << "\n";
     std::cout << "x4:" << bot_rx << "\n";
 
-    const int pts_amount = 4;
-    cv::Point p1(bot_lx, bot_y), p2(top_lx, top_y),
-              p3(top_rx, top_y), p4(bot_rx, bot_y);
-    cv::Point roi[4] = {p1, p2, p3, p4};
+    cv::Point p0(0, HEIGHT), p1(bot_lx, bot_y), p2(top_lx, top_y),
+              p3(top_rx, top_y), p4(bot_rx, bot_y), p5(WIDTH, HEIGHT);
+    cv::Point roi[] = {p0, p1, p2, p3, p4, p5};
     
-    cv::fillConvexPoly(mask, roi, pts_amount, cv::Scalar(255, 0, 0));
+    cv::fillConvexPoly(mask, roi, sizeof(roi)/sizeof(*roi), cv::Scalar(255, 0, 0));
     cv::bitwise_and(image, mask, masked_image);
 
     return masked_image;
@@ -353,6 +349,10 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     cv::createTrackbar("hougthres", "", &hough_threshold, TRACK_MAX, NULL);
     cv::createTrackbar("houghmin", "", &line_min_length, TRACK_MAX, NULL);
     cv::createTrackbar("houghgap", "", &line_max_gap, TRACK_MAX, NULL);
+    cv::createTrackbar("mask_start_y", "", &mask_start_y, HEIGHT, NULL);
+    cv::createTrackbar("mask_end", "", &mask_end_y, HEIGHT, NULL);
+    cv::createTrackbar("mask_width_top", "", &mask_width_top, WIDTH, NULL);
+    cv::createTrackbar("mask_width_bot", "", &mask_width_bot, WIDTH, NULL);
 
     cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
     for (auto l : hough_lines) {
@@ -361,10 +361,10 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
         cv::line(lines_img, start, end, cv::Scalar(255, 255, 255), 5, CV_AA);
     }
 
-    cv::imshow("lines", lines_img);
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
+    cv::imshow("lines", lines_img);
     cv::imshow("Lane", frame);
 
     int k = cv::waitKey(1);
