@@ -10,6 +10,14 @@
 #define WIDTH 352
 #define HEIGHT 240
 
+static int thresh_value = 20;
+static int thresh_type = 1;
+static int max_thresh_type = 5;
+static int max_value = 255;
+static int hough_threshold = 75;
+static int line_min_length = 30;
+static int line_max_gap = 100;
+
 extern "C" struct ip_data *ip_init();
 extern "C" void ip_destroy(struct ip_data *ip);
 extern "C" void ip_process(struct ip_data *ip, struct ip_res *res);
@@ -44,20 +52,27 @@ void ip_destroy(struct ip_data *ip) {
     cv::destroyAllWindows();
 }
 
+void Trackbar(int, void*) {
+    
+    thresh_value = thresh_value;
+    thresh_type = thresh_type;
+    hough_threshold = hough_threshold; 
+    line_min_length = line_min_length;
+    line_max_gap = line_max_gap;
+}
+
 cv::Mat threshold(cv::Mat& image) {
     cv::Mat edge_img;
-
+    
     //smoothing to reduce noise úsing Gaussian filter (most used but not fastest)
     cv::GaussianBlur(image, edge_img, cv::Size(3, 3), 0, 0);
     cv::cvtColor(edge_img, edge_img, cv::COLOR_RGB2GRAY);
     
-    int thresh_value = 20;
-    int max_binary_value =230;
-
     //Segmentation. "Assign a label to every pixel in an image such that pixels with the
     // same label share certain characteristics.
     //Threshold: simplest and not expensive
     // Otsu better than binary but maybe much more expensive
+    int max_binary_value = 255;
     cv::threshold(edge_img, edge_img, thresh_value, max_binary_value, cv::THRESH_OTSU);
 
     return edge_img;
@@ -111,9 +126,6 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
 
     double rho = 1;
     double theta = CV_PI / 180;
-    int threshold = 75; //20
-    double minLineLength = 30;//20
-    double maxLineGap = 100; //30
 
     cv::HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
 
@@ -335,6 +347,19 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     printf("\nFPS: %.1f\n", 1/period);
 
 #ifdef VISUAL
+
+    std::string threshold_type = "Type: \n 0: Binary \n 1: Binary Inverted \n 2: Truncate \n 3: To Zero \n 4: To Zero Inverted \n 5: Otsu";
+    std::string threshold_value = "Value";
+    cv::namedWindow(window_name, CV_WINDOW_AUTOSIZE);
+    cv::createTrackbar(threshold_type, window_name, &thresh_value, max_thresh_type, trackbar);
+    cv::createTrackbar(threshhold_value, window_name, &thresh_value, max_value, trackbar);
+    cv::createTrackbar(hough_tresh, window_name, &hough_threshold, max_value, trackbar);
+    cv::createTrackbar(hough_min_lenght, window_name, &line_min_lenght, max_value, trackbar);
+    cv::createTrackbar(hough_max_gap, window_name, &line_max_gap, max_value, trackbar);
+
+
+    trackbar(0, 0);
+    
     cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
     for (auto l : hough_lines) {
         cv::Point start(l[0], l[1]);
