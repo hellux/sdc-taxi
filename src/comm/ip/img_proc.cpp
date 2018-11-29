@@ -10,10 +10,17 @@
 #define WIDTH 352
 #define HEIGHT 240
 
+#define TRACK_MAX 255
+
+const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
+                         cv::THRESH_TRUNC, cv::THRESH_TOZERO,
+                         cv::THRESH_TOZERO_INV, cv::THRESH_MASK,
+                         cv::THRESH_OTSU, cv::THRESH_TRIANGLE};
+
+#define TRACK_MAX_THRESH sizeof(THR_TYPES)/sizeof(*THR_TYPES)
+
 static int thresh_value = 20;
-static int thresh_type = 1;
-static int max_thresh_type = 5;
-static int max_value = 255;
+static int thresh_type = 6;
 static int hough_threshold = 75;
 static int line_min_length = 30;
 static int line_max_gap = 100;
@@ -42,6 +49,7 @@ struct ip_data *ip_init() {
 
 #ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
+    cv::namedWindow("", CV_WINDOW_AUTOSIZE);
 #endif
 
     return ip;
@@ -50,15 +58,6 @@ struct ip_data *ip_init() {
 void ip_destroy(struct ip_data *ip) {
     delete ip->cap;
     cv::destroyAllWindows();
-}
-
-void Trackbar(int, void*) {
-    
-    thresh_value = thresh_value;
-    thresh_type = thresh_type;
-    hough_threshold = hough_threshold; 
-    line_min_length = line_min_length;
-    line_max_gap = line_max_gap;
 }
 
 cv::Mat threshold(cv::Mat& image) {
@@ -73,7 +72,8 @@ cv::Mat threshold(cv::Mat& image) {
     //Threshold: simplest and not expensive
     // Otsu better than binary but maybe much more expensive
     int max_binary_value = 255;
-    cv::threshold(edge_img, edge_img, thresh_value, max_binary_value, cv::THRESH_OTSU);
+    cv::threshold(edge_img, edge_img, thresh_value, max_binary_value,
+                  THR_TYPES[thresh_type]);
 
     return edge_img;
 }
@@ -127,7 +127,7 @@ std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
     double rho = 1;
     double theta = CV_PI / 180;
 
-    cv::HoughLinesP(image, lines, rho, theta, threshold, line_min_length, line_max_gap);
+    cv::HoughLinesP(image, lines, rho, theta, hough_threshold, line_min_length, line_max_gap);
 
     return lines;
 }
@@ -347,23 +347,13 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     printf("\nFPS: %.1f\n", 1/period);
 
 #ifdef VISUAL
+    cv::createTrackbar("b,bi,tr,z,zi,msk,otsu,tri", "", &thresh_type,
+                       TRACK_MAX_THRESH, NULL);
+    cv::createTrackbar("thresval", "", &thresh_value, TRACK_MAX, NULL);
+    cv::createTrackbar("hougthres", "", &hough_threshold, TRACK_MAX, NULL);
+    cv::createTrackbar("houghmin", "", &line_min_length, TRACK_MAX, NULL);
+    cv::createTrackbar("houghgap", "", &line_max_gap, TRACK_MAX, NULL);
 
-    std::string window_name = "TrackBar";
-    std::string threshold_type = "Type: \n 0: Binary \n 1: Binary Inverted \n 2: Truncate \n 3: To Zero \n 4: To Zero Inverted \n 5: Otsu";
-    std::string threshold_value = "Value";
-    cv::string hough_tresh = "HoughTreshold";
-    cv::string hough_min_lenght = "HoughMinLenght";
-    cv::string hough_max_gap = "HoughMaxGap";
-    cv::namedWindow(window_name, CV_WINDOW_AUTOSIZE);
-    cv::createTrackbar(threshold_type, window_name, &thresh_value, max_thresh_type, trackbar);
-    cv::createTrackbar(threshhold_value, window_name, &thresh_value, max_value, trackbar);
-    cv::createTrackbar(hough_tresh, window_name, &hough_threshold, max_value, trackbar);
-    cv::createTrackbar(hough_min_lenght, window_name, &line_min_lenght, max_value, trackbar);
-    cv::createTrackbar(hough_max_gap, window_name, &line_max_gap, max_value, trackbar);
-
-
-    trackbar(0, 0);
-    
     cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
     for (auto l : hough_lines) {
         cv::Point start(l[0], l[1]);
