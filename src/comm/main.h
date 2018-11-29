@@ -13,6 +13,8 @@
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
+#define NORMAL_SPEED 0.5
+
 struct sens_values {
     float dist_front;
     float dist_right;

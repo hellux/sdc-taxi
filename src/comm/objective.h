@@ -7,7 +7,7 @@
 #include "ip/img_proc.h"
 
 struct obj_args {
-    const struct car_state state;
+    const struct car_state *state;
     struct data_ctrl *ctrl;
 
     void *data;
@@ -15,7 +15,7 @@ struct obj_args {
 
 struct obj {
     char name[5];
-    bool (*func)(struct obj_args *args);
+    bool (*func)(struct car_state*, struct data_ctrl*, void *data);
 };
 
 struct obj_item {

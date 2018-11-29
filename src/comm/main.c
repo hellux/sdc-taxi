@@ -47,8 +47,8 @@ int main(int argc, char* args[]) {
     {"set_mission", 1, &miss_data,        NULL,            *sc_set_mission},
     {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
-    {"set_vel",     1, &rc_data.val.vel,  &rc_data.lock,   *sc_set_float},
-    {"set_rot",     1, &rc_data.val.rot,  &rc_data.lock,   *sc_set_float},
+    {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
+    {"set_rot",     1, &rc_data.rot,      &rc_data.lock,   *sc_set_float},
     {"set_vel_kp",  1, &BCCS[BBC_VEL_KP], bus,             *sc_bus_send_float},
     {"set_vel_kd",  1, &BCCS[BBC_VEL_KD], bus,             *sc_bus_send_float},
     {"set_rot_kp",  1, &BCCS[BBC_ROT_KP], bus,             *sc_bus_send_float},
@@ -62,19 +62,19 @@ int main(int argc, char* args[]) {
     ip_t *ip = ip_init();
 
     struct data_ctrl ctrl_prev = {0};
-    struct obj_item *current = NULL;
 
     struct sens_values sens;
     struct data_ctrl ctrl;
     struct ip_res ip_res;
 
     struct car_state state;
-    state->sens = sens;
-    state->ip = ip_res;
+    state.sens = &sens;
+    state.ip = &ip_res;
 
-    struct obj_args args;
-    args->state = &state;
-    args->ctrl = &ctrl;
+    struct obj_item *obj_current = NULL;
+    struct obj_args obj_args;
+    obj_args.state = &state;
+    obj_args.ctrl = &ctrl;
 
     //char input[100];
     while (!quit) {
@@ -94,13 +94,12 @@ int main(int argc, char* args[]) {
         /* determine new ctrl values */
         if (mission) {
             pthread_mutex_lock(&miss_data.lock);
-            if (miss_data.current) {
-            } else {
+            if (!obj_current) {
                 if (miss_data.queue) {
-                    miss_data.current = miss_data.queue;
-                    miss_data.queue = miss_data.queue->next;
+                    obj_current = miss_data.queue;
+                    miss_data.queue = obj_current->next;
                 } else {
-                    miss_data.state = false;
+                    miss_data.active = false;
                     mission = false;
                 }
             }
@@ -115,16 +114,16 @@ int main(int argc, char* args[]) {
                 ctrl.rot.regulate = true;
 
                 if (ip_res.stopline_found) {
-                    bool finished = current->obj->func(args);
+                    bool finished = obj_current->obj->func(&obj_args);
                     if (finished) {
-                        current = NULL;
+                        obj_current = NULL;
                     }
                 }
             } else {
                 ctrl.vel.value = 0;
                 ctrl.rot.value = 0;
-                ctrl.vel.regulate = false
-                ctrl.rot.regulate = false
+                ctrl.vel.regulate = false;
+                ctrl.rot.regulate = false;
             }
         } else {
             struct data_rc rc;
@@ -140,13 +139,13 @@ int main(int argc, char* args[]) {
 
         /* send new ctrl commands if regulating or values are changed */
         if (ctrl.vel.regulate || ctrl.rot.regulate ||
-                memcmp(ctrl, ctrl_prev, sizeof(ctrl)) != 0) {
+                memcmp(&ctrl, &ctrl_prev, sizeof(ctrl)) != 0) {
             ctrl_prev = ctrl;
             int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_ROT_VAL;
             int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
-            bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)ctrl.vel.value,
+            bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value,
                                   NULL, NULL);
-            bus_transmit_schedule(bus, &BCCS[bcc_rot], (void*)ctrl.rot.value,
+            bus_transmit_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value,
                                   NULL, NULL);
         }
     }
