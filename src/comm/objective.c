@@ -16,16 +16,32 @@
 #define slow_vel 40
 #define full_vel 100
 
-#define CRT CLOCK_REALTIME
-#define SEC 1000000000
+#define SEC 1000000
 
+struct state {
+    const struct sens_values *sens; 
 
-bool obj_ignore(struct car_state *state, struct data_ctrl *ctrl, void *data);
-bool obj_stop(struct car_state *state, struct data_ctrl *ctrl, void *data);
-bool obj_park(struct car_state *state, struct data_ctrl *ctrl, void *data);
-bool obj_unpark(struct car_state *state, struct data_ctrl *ctrl, void *data);
-bool obj_enter(struct car_state *state, struct data_ctrl *ctrl, void *data);
-bool obj_exit(struct car_state *state, struct data_ctrl *ctrl, void *data);
+    float lane_offset;
+    bool lane_found;
+
+    float stopline_dist;
+    long long unsigned stopline_since;
+    bool stopline_passed;
+
+    bool in_roundabout;
+};
+
+struct obj {
+    char name[5];
+    bool (*func)(struct state *s, struct data_ctrl *c);
+};
+
+bool obj_ignore(struct state *s, struct data_ctrl *c);
+bool obj_stop(struct state *s, struct data_ctrl *c);
+bool obj_park(struct state *s, struct data_ctrl *c);
+bool obj_unpark(struct state *s, struct data_ctrl *c);
+bool obj_enter(struct state *s, struct data_ctrl *c);
+bool obj_exit(struct state *s, struct data_ctrl *c);
 
 const struct obj OBJS[] = {
     {"ignr", obj_ignore},
@@ -36,8 +52,6 @@ const struct obj OBJS[] = {
     {"exit", obj_exit},
 };
 const int OBJC = sizeof(OBJS)/sizeof(*OBJS);
-
-struct timespec start, finish;
 
 struct obj_item *objq_create(int cmdc, char **cmds) {
     bool valid = true;
@@ -77,119 +91,100 @@ void objq_destroy(struct obj_item *queue) {
     }
 }
 
+
 ctrl_val_t wtd_speed(float distance, float current, float target) {
     //TODO update if there is no distance(no stopline)
     return (target-current)/distance;
 }
 
-bool obj_ignore(struct car_state *state, struct data_ctrl *ctrl, void *data) {
-    sens_dist_t stop_dist = state->ip->stopline_dist;
-    if (stop_dist <= still_dist) {
+bool obj_execute(struct obj *obj, struct sens_values *sens,
+                 float stopline_dist, float lane_offset, bool lane_found,
+                 struct data_ctrl *ctrl) {
+    struct state state;
+
+    /* TODO fill state */
+
+    return obj->func(&state, ctrl);
+}
+
+bool obj_ignore(struct state *s, struct data_ctrl *c) {
+    if (s->stopline_dist <= still_dist) {
         return true;
     }
     return false;
 }
 
-bool obj_stop(struct car_state *state, struct data_ctrl *ctrl, void *data) {
-    sens_dist_t stop_dist = state->ip->stopline_dist;
-    float cur_vel = state->sens->velocity;
+bool obj_stop(struct state *s, struct data_ctrl *c) {
+    float cur_vel = s->sens->velocity;
     if (cur_vel == 0) {
         return true;
-    } else if (stop_dist <= brake_dist) {
-        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, stop_vel);
+    } else if (s->stopline_dist <= brake_dist) {
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, stop_vel);
     }
     return false;
 }
 
-bool obj_park(struct car_state *state, struct data_ctrl *ctrl, void *data) {
-    sens_dist_t stop_dist = state->ip->stopline_dist; 
-    float cur_vel = state->sens->velocity;
-    if (stop_dist <= still_dist) {
-        if(data == NULL)
-            clock_gettime(CRT, &start); 
-        else
-            start.tv_nsec = (long int)data;
-        ctrl->rot.value = RIGHT;
-        clock_gettime(CRT, &finish);
+bool obj_park(struct state *s, struct data_ctrl *c) {
+    float cur_vel = s->sens->velocity;
+    if (s->stopline_dist <= still_dist) {
+        c->rot.value = RIGHT;
     
         if(cur_vel == 0)
             return true;
-        else if((finish.tv_nsec - start.tv_nsec) >= SEC){
-            ctrl->vel.value = wtd_speed(stop_dist, cur_vel, stop_vel);
-            ctrl->rot.value =STRAIGHT;
+        else if (s->stopline_since >= SEC){
+            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, stop_vel);
+            c->rot.value =STRAIGHT;
         }
-        else if((finish.tv_nsec - start.tv_nsec) >= SEC*0.5)
-            ctrl->rot.value = LEFT;
-        data = &start.tv_nsec;
-    } else if (stop_dist <= brake_dist) {
-        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, slow_vel);
+        else if(s->stopline_since >= SEC*0.5)
+            c->rot.value = LEFT;
+    } else if (s->stopline_dist <= brake_dist) {
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, slow_vel);
     }
     return false;
 }
 
-bool obj_unpark(struct car_state *state, struct data_ctrl *ctrl, void *data) {
-    sens_dist_t stop_dist = state->ip->stopline_dist; 
-    float cur_vel = state->sens->velocity; 
-    if(data == NULL)
-        clock_gettime(CRT, &start); 
-    else
-        start.tv_nsec = (long int)data;
-    ctrl->rot.value = LEFT;
-    ctrl->vel.value = wtd_speed(stop_dist, cur_vel, slow_vel);
-    clock_gettime(CRT, &finish);
+bool obj_unpark(struct state *s, struct data_ctrl *c) {
+    float cur_vel = s->sens->velocity; 
+    c->rot.value = LEFT;
+    c->vel.value = wtd_speed(s->stopline_dist, cur_vel, slow_vel);
     
-    if(cur_vel == full_vel)
+    if (cur_vel == full_vel)
         return true;
-    else if((finish.tv_nsec - start.tv_nsec) >= SEC){
-        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, full_vel);
-        ctrl->rot.value = STRAIGHT;
+    else if (s->stopline_since >= SEC){
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, full_vel);
+        c->rot.value = STRAIGHT;
     }
-    else if((finish.tv_nsec - start.tv_nsec) >= SEC*0.5)
-        ctrl->rot.value = RIGHT;
-    data = &start.tv_nsec;
+    else if (s->stopline_since >= SEC*0.5)
+        c->rot.value = RIGHT;
     return false;
 }
 
-bool obj_enter(struct car_state *state, struct data_ctrl *ctrl, void *data) {
-    sens_dist_t stop_dist = state->ip->stopline_dist; 
-    float cur_vel = state->sens->velocity;
-    if (stop_dist <= still_dist) {
-        if(data == NULL)
-            clock_gettime(CRT, &start); 
-        else
-            start.tv_nsec = (long int)data;
-        ctrl->rot.value = RIGHT;
-        clock_gettime(CRT, &finish);
+bool obj_enter(struct state *s, struct data_ctrl *c) {
+    float cur_vel = s->sens->velocity;
+    if (s->stopline_dist <= still_dist) {
+        c->rot.value = RIGHT;
     
-        if((finish.tv_nsec - start.tv_nsec) >= SEC*0.5){
-            ctrl->rot.value = STRAIGHT;
+        if (s->stopline_since >= SEC*0.5){
+            c->rot.value = STRAIGHT;
             return true;
         }
-        data = &start.tv_nsec;
-    } else if (stop_dist <= brake_dist) {
-        ctrl->vel.value = wtd_speed(stop_dist, cur_vel, slow_vel);
+    } else if (s->stopline_dist <= brake_dist) {
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, slow_vel);
     }
     return false;
 }
 
-bool obj_exit(struct car_state *state, struct data_ctrl *ctrl, void *data) {
-    sens_dist_t stop_dist = state->ip->stopline_dist;
-    float cur_vel = state->sens->velocity;
-    if (stop_dist <= still_dist) {
-        if(data == NULL)
-            clock_gettime(CRT, &start); 
-        else
-            start.tv_nsec = (long int)data;
-        ctrl->rot.value = RIGHT;
-        clock_gettime(CRT, &finish);
+bool obj_exit(struct state *s, struct data_ctrl *c) {
+    float cur_vel = s->sens->velocity;
+    if (s->stopline_dist <= still_dist) {
+        c->rot.value = RIGHT;
     
-        if(cur_vel == full_vel)
+        if (cur_vel == full_vel)
             return true;
-        else if((finish.tv_nsec - start.tv_nsec) >= SEC*0.5){
-            ctrl->vel.value = wtd_speed(stop_dist, cur_vel, full_vel);
-            ctrl->rot.value = STRAIGHT;
+        else if (s->stopline_since >= SEC*0.5){
+            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, full_vel);
+            c->rot.value = STRAIGHT;
         }
-        data = &start.tv_nsec;
     }     
     return false;
 }

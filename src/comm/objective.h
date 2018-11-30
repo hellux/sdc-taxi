@@ -3,27 +3,21 @@
 
 #include <stdbool.h>
 
+#include "main.h"
 #include "protocol.h"
 #include "ip/img_proc.h"
 
-struct obj_args {
-    const struct car_state *state;
-    struct data_ctrl *ctrl;
-
-    void *data;
-};
-
-struct obj {
-    char name[5];
-    bool (*func)(struct car_state*, struct data_ctrl*, void *data);
-};
+typedef struct obj obj_t;
 
 struct obj_item {
-    const struct obj *obj;
+    const obj_t *obj;
     struct obj_item *next;
 };
 
 struct obj_item *objq_create(int cmdc, char **cmds);
 void objq_destroy(struct obj_item *queue);
+bool obj_execute(obj_t *obj, struct sens_values *sens,
+                 float stopline_dist, float lane_offset, bool lane_found,
+                 struct data_ctrl *ctrl);
 
 #endif
