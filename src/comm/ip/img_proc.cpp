@@ -102,10 +102,7 @@ cv::Mat mask_image(cv::Mat& image) {
 
     std::cout << "y:" << bot_y << "\n";
     std::cout << "y:" << top_y << "\n";
-    std::cout << "x1:" << bot_lx << "\n";
-    std::cout << "x2:" << top_rx << "\n";
-    std::cout << "x3:" << top_lx << "\n";
-    std::cout << "x4:" << bot_rx << "\n";
+
 
     cv::Point p0(0, HEIGHT), p1(bot_lx, bot_y), p2(top_lx, top_y),
               p3(top_rx, top_y), p4(bot_rx, bot_y), p5(WIDTH, HEIGHT);
@@ -149,12 +146,10 @@ std::vector<std::vector<cv::Vec4i>> classify_lines(std::vector<cv::Vec4i>& lines
         end = cv::Point(lines[x][2], lines[x][3]);
         if (slopes[x] == 0 || (start.x < center_x && end.x > center_x)) {
             stop_lines.push_back(lines[x]);
-        } else if (slopes[x] > 0 && (end.x > center_x && start.x > center_x && end.y > (0.95 * image.rows))) {
+        } else if (slopes[x] > 1 && (end.x > center_x && start.x > center_x && end.y > (0.95 * image.rows))) {
             right_lines.push_back(lines[x]);
-        } else if (slopes[x] < 0 && (end.x < center_x && start.x < center_x && start.y > (0.95 * image.rows))) {
+        } else if (slopes[x] < -1 && (end.x < center_x && start.x < center_x && start.y > (0.95 * image.rows))) {
             left_lines.push_back(lines[x]);
-            std::cout<<"left_line found: "<< lines[x] << "\n" ;
-            std::cout<<"end x: "<< end.x << " start x: " << start.x << "\n";
         }
     }
 
@@ -329,9 +324,9 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
         lane = linear_regression(lines, frame, rline_found,
                                  lline_found, sline_found);
 
-        int left_top = lane[3].x;
-        int right_top = lane[1].x;
-        res->error = ((float)(left_top+right_top)/2 - WIDTH/2)/((float)WIDTH/2);
+        int left_bot = lane[4].x;
+        int right_bot = lane[2].x;
+        res->error = ((float)(left_bot+right_bot)/2 - WIDTH/2)/((float)WIDTH/2);
         printf("right_top.y: %d, lefty: %d, error: %f\n", lane[1].y, lane[3].y, res->error);
 
 #ifdef VISUAL
