@@ -154,6 +154,7 @@ std::vector<std::vector<cv::Vec4i>> classify_lines(std::vector<cv::Vec4i>& lines
         } else if (slopes[x] < 0 && (end.x < center_x && start.x < center_x && start.y > (0.95 * image.rows))) {
             left_lines.push_back(lines[x]);
             std::cout<<"left_line found: "<< lines[x] << "\n" ;
+            std::cout<<"end x: "<< end.x << " start x: " << start.x << "\n";
         }
     }
 
@@ -286,7 +287,6 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points,
 
     /*Test: Getting distance between a specified line point and the camera*/ 
     cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
-    std::cout << "stopLine center pt: " << stop_center_pt << "\n";
     cv::circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
 
     float stop_dist = std::sqrt(pow(stop_center_pt.x-WIDTH/2, 2) + pow(stop_center_pt.y - original_img.rows, 2));
