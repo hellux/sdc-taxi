@@ -7,7 +7,6 @@ import tkinter as tk
 
 from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
-from msilib.schema import ReserveCost
 
 
 class Map():
