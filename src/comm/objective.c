@@ -7,14 +7,14 @@
 
 #include "main.h"
 
-#define brake_dist 40 //distance from line when braking starts          (cm)
-#define still_dist 0  //distance from line when car should be still     (cm)
+#define BRAKE_DIST 40 //distance from line when braking starts          (cm)
+#define STILL_DIST 0  //distance from line when car should be still     (cm)
 #define STRAIGHT 0
 #define LEFT -1
 #define RIGHT 1
-#define stop_vel 0
-#define slow_vel 40
-#define full_vel 100
+#define STOP_VEL 0
+#define SLOW_VEL 40
+#define FULL_VEL 100
 
 #define SEC 1000000
 
@@ -108,7 +108,7 @@ bool obj_execute(struct obj *obj, struct sens_values *sens,
 }
 
 bool obj_ignore(struct state *s, struct data_ctrl *c) {
-    if (s->stopline_dist <= still_dist) {
+    if (s->stopline_passed) {
         return true;
     }
     return false;
@@ -116,29 +116,29 @@ bool obj_ignore(struct state *s, struct data_ctrl *c) {
 
 bool obj_stop(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity;
-    if (cur_vel == 0) {
+    if (cur_vel == 0)
         return true;
-    } else if (s->stopline_dist <= brake_dist) {
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, stop_vel);
+    else if (s->stopline_dist <= BRAKE_DIST) {
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, STOP_VEL);
     }
     return false;
 }
 
 bool obj_park(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity;
-    if (s->stopline_dist <= still_dist) {
+    if (s->stopline_passed) {
         c->rot.value = RIGHT;
-    
-        if(cur_vel == 0)
+
+        if (cur_vel == 0)
             return true;
         else if (s->stopline_since >= SEC){
-            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, stop_vel);
+            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, STOP_VEL);
             c->rot.value =STRAIGHT;
         }
-        else if(s->stopline_since >= SEC*0.5)
+        else if (s->stopline_since >= SEC*0.5)
             c->rot.value = LEFT;
-    } else if (s->stopline_dist <= brake_dist) {
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, slow_vel);
+    } else if (s->stopline_dist <= BRAKE_DIST) {
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, SLOW_VEL);
     }
     return false;
 }
@@ -146,12 +146,12 @@ bool obj_park(struct state *s, struct data_ctrl *c) {
 bool obj_unpark(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity; 
     c->rot.value = LEFT;
-    c->vel.value = wtd_speed(s->stopline_dist, cur_vel, slow_vel);
+    c->vel.value = wtd_speed(s->stopline_dist, cur_vel, SLOW_VEL);
     
-    if (cur_vel == full_vel)
+    if (cur_vel == FULL_VEL)
         return true;
     else if (s->stopline_since >= SEC){
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, full_vel);
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, FULL_VEL);
         c->rot.value = STRAIGHT;
     }
     else if (s->stopline_since >= SEC*0.5)
@@ -161,28 +161,31 @@ bool obj_unpark(struct state *s, struct data_ctrl *c) {
 
 bool obj_enter(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity;
-    if (s->stopline_dist <= still_dist) {
+    if (s->stopline_passed) {
         c->rot.value = RIGHT;
     
         if (s->stopline_since >= SEC*0.5){
             c->rot.value = STRAIGHT;
+            s->in_roundabout = true;
             return true;
         }
-    } else if (s->stopline_dist <= brake_dist) {
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, slow_vel);
+    } else if (s->stopline_dist <= BRAKE_DIST) {
+        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, SLOW_VEL);
     }
     return false;
 }
 
 bool obj_exit(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity;
-    if (s->stopline_dist <= still_dist) {
+    if (s->stopline_passed) {
         c->rot.value = RIGHT;
     
-        if (cur_vel == full_vel)
+        if (cur_vel == FULL_VEL){
+            s->in_roundabout = false;
             return true;
+        }
         else if (s->stopline_since >= SEC*0.5){
-            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, full_vel);
+            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, FULL_VEL);
             c->rot.value = STRAIGHT;
         }
     }     
