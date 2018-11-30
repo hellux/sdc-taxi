@@ -64,8 +64,9 @@ comm.ip: $(addprefix $(OBJDIR)/, dbg/ip.o comm/ip/img_proc.o)
 	$(CXXC) $? $(COMM_LFLAGS) $(CXXFLAGS) -o $(BINDIR)/comm_ip
 comm.remote.clean:
 	ssh $(PI_REMOTE) -t 'cd module; make clean'
-comm.remote:
+comm.push:
 	scp -rp comm spi Makefile $(PI_REMOTE):module
+comm.remote: comm.push
 	ssh -XY $(PI_REMOTE) -t 'cd module; make comm.pi'
 
 # avr modules

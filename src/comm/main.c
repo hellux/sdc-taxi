@@ -62,19 +62,13 @@ int main(int argc, char* args[]) {
     ip_t *ip = ip_init();
 
     struct data_ctrl ctrl_prev = {0};
-
-    struct sens_values sens;
-    struct data_ctrl ctrl;
-    struct ip_res ip_res;
-
-    struct obj *obj_current = NULL;
+    const obj_t *obj_current = NULL;
     void *obj_data = NULL;
 
-    //char input[100];
     while (!quit) {
-        ctrl = ctrl_prev;
+        struct data_ctrl ctrl = ctrl_prev;
         pthread_mutex_lock(&sens_data.lock);
-        sens = sens_data.val;
+        struct sens_values sens = sens_data.val;
         pthread_mutex_unlock(&sens_data.lock);
 
         /*
@@ -87,12 +81,14 @@ int main(int argc, char* args[]) {
 
         /* determine new ctrl values */
         if (mission) {
-            /*
+            bool new_objective = false;
+
             pthread_mutex_lock(&miss_data.lock);
             if (!obj_current) {
                 if (miss_data.queue) {
-                    obj_current = miss_data.queue;
-                    miss_data.queue = obj_current->next;
+                    new_objective = true;
+                    obj_current = miss_data.queue->obj;
+                    miss_data.queue = miss_data.queue->next;
                 } else {
                     miss_data.active = false;
                     mission = false;
@@ -101,7 +97,9 @@ int main(int argc, char* args[]) {
             pthread_mutex_unlock(&miss_data.lock);
 
             if (mission) {
+                struct ip_res ip_res;
                 ip_process(ip, &ip_res);
+                /* TODO process ip res, stabilize values */
 
                 ctrl.vel.value = NORMAL_SPEED;
                 ctrl.vel.regulate = false;
@@ -109,25 +107,33 @@ int main(int argc, char* args[]) {
                 ctrl.rot.regulate = true;
 
                 if (ip_res.stopline_found) {
-                    bool finished = obj_execute(obj_current, , &ctrl)
+                    bool finished = obj_execute(
+                        obj_current, &sens,
+                        ip_res.stopline_dist, ip_res.error, ip_res.error_valid,
+                        &ctrl, &obj_data
+                    );
                     if (finished) {
                         obj_current = NULL;
                         obj_data = NULL;
                     }
                 }
+
             } else {
                 ctrl.vel.value = 0;
                 ctrl.rot.value = 0;
                 ctrl.vel.regulate = false;
                 ctrl.rot.regulate = false;
             }
-            */
+            /*
             ip_process(ip, &ip_res);
             ctrl.vel.value = 0;
             ctrl.rot.value = ip_res.error;
             ctrl.vel.regulate = false;
             ctrl.rot.regulate = true;
+            */
         } else {
+            struct ip_res ip_res;
+            ip_process(ip, &ip_res);
             struct data_rc rc;
             pthread_mutex_lock(&rc_data.lock);
             rc = rc_data;
@@ -138,6 +144,8 @@ int main(int argc, char* args[]) {
             ctrl.vel.regulate = false;
             ctrl.rot.regulate = false;
         }
+
+        /* TODO check for obstacles and override ctrl */
 
         /* send new ctrl commands if regulating or values are changed */
         if (ctrl.vel.regulate || ctrl.rot.regulate ||

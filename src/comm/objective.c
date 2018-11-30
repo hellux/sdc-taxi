@@ -16,7 +16,7 @@
 #define SLOW_VEL 40
 #define FULL_VEL 100
 
-#define SEC 1000000
+#define SEC 1e3 /* milliseconds per second */
 
 struct state {
     const struct sens_values *sens; 
@@ -24,15 +24,13 @@ struct state {
     float lane_offset;
     bool lane_found;
 
-    float stopline_dist;
-    long long unsigned stopline_since;
+    float stopline_dist; /* meters */
+    unsigned stopline_since; /* milliseconds */
     bool stopline_passed;
-
-    bool in_roundabout;
 };
 
 struct obj {
-    char name[5];
+    const char name[5];
     bool (*func)(struct state *s, struct data_ctrl *c);
 };
 
@@ -43,13 +41,20 @@ bool obj_unpark(struct state *s, struct data_ctrl *c);
 bool obj_enter(struct state *s, struct data_ctrl *c);
 bool obj_exit(struct state *s, struct data_ctrl *c);
 
+#define OBJ_IGNORE "ignr"
+#define OBJ_STOP   "stop"
+#define OBJ_PARK   "park"
+#define OBJ_UNPARK "uprk"
+#define OBJ_ENTER  "entr"
+#define OBJ_EXIT   "exit"
+
 const struct obj OBJS[] = {
-    {"ignr", obj_ignore},
-    {"stop", obj_stop},
-    {"park", obj_park},
-    {"uprk", obj_unpark},
-    {"entr", obj_enter},
-    {"exit", obj_exit},
+    {OBJ_IGNORE, obj_ignore},
+    {OBJ_STOP,   obj_stop},
+    {OBJ_PARK,   obj_park},
+    {OBJ_UNPARK, obj_unpark},
+    {OBJ_ENTER,  obj_enter},
+    {OBJ_EXIT,   obj_exit},
 };
 const int OBJC = sizeof(OBJS)/sizeof(*OBJS);
 
@@ -91,20 +96,54 @@ void objq_destroy(struct obj_item *queue) {
     }
 }
 
-
 ctrl_val_t wtd_speed(float distance, float current, float target) {
     return (target-current)/distance;
 }
 
-bool obj_execute(struct obj *obj, struct sens_values *sens,
+struct obj_data {
+    struct timespec stopline_passtime;
+    bool stopline_passed;
+};
+
+/* execute objective function */
+bool obj_execute(const struct obj *obj, struct sens_values *sens,
                  float stopline_dist, float lane_offset, bool lane_found,
-                 struct data_ctrl *ctrl) {
+                 struct data_ctrl *ctrl, void **obj_data) {
+    if (!(*obj_data)) {
+        *obj_data = calloc(1, sizeof(struct obj_data));
+    }
+    struct obj_data *o = *obj_data;
+
     struct state state;
 
-    /* TODO fill state */
+    if (stopline_dist <= 0) {
+        clock_gettime(CLOCK_MONOTONIC, &o->stopline_passtime);
+        o->stopline_passed = true;
+    }
+
+    unsigned since = 0;
+    if (o->stopline_passed) {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        time_t ds = now.tv_sec - o->stopline_passtime.tv_sec;
+        long dns = now.tv_nsec - o->stopline_passtime.tv_nsec;
+
+        since = ds*1e3 + dns/1e6;
+    }
+
+    state.sens = sens;
+
+    state.lane_offset = lane_offset;
+    state.lane_found = lane_found;
+
+    state.stopline_dist = stopline_dist;
+    state.stopline_since = since;
+    state.stopline_passed = o->stopline_passed;
 
     return obj->func(&state, ctrl);
 }
+
+/* objective functions */
 
 bool obj_ignore(struct state *s, struct data_ctrl *c) {
     if (s->stopline_passed) {
@@ -165,7 +204,6 @@ bool obj_enter(struct state *s, struct data_ctrl *c) {
     
         if (s->stopline_since >= SEC*0.5){
             c->rot.value = STRAIGHT;
-            s->in_roundabout = true;
             return true;
         }
     } else if (s->stopline_dist <= BRAKE_DIST) {
@@ -180,7 +218,6 @@ bool obj_exit(struct state *s, struct data_ctrl *c) {
         c->rot.value = RIGHT;
     
         if (cur_vel == FULL_VEL){
-            s->in_roundabout = false;
             return true;
         }
         else if (s->stopline_since >= SEC*0.5){
