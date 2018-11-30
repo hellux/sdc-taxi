@@ -24,6 +24,8 @@ int main(void) {
     while (1) {
         uint8_t start = 0x9a;
         uint8_t cmd = tranceive(start);
+        if (cmd != 0x01)
+            continue;
         uint8_t data[2];
         data[0] = tranceive(cmd);
         data[1] = tranceive(data[0]);

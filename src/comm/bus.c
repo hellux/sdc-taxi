@@ -64,6 +64,13 @@ static void spi_tranceive(int fd, void *src, void *dst, int len) {
     ioctl(fd, SPI_IOC_MESSAGE(1), &transfer);
 }
 
+static void spi_sync(int fd) {
+    int cmd = BB_INVALID;
+    for (int i = 0; i < MAX_DATA_LENGTH+2; i++) {
+        spi_tranceive(fd, (void*)&cmd, NULL, 1);
+    }
+}
+
 /* physical bus functions (bus thread) */
 static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
     bool success = false;
@@ -93,19 +100,13 @@ static bool transmit(int fd, const struct bus_cmd *bc, void *msg) {
     if (bc->len > 0)
         spi_tranceive(fd, (void*)msg, NULL, bc->len);
 
-    uint8_t ack;
+    uint8_t ack = 0;
     spi_tranceive(fd, NULL, (void*)&ack, 1);
 
     success = (ack == ACKS[bc->slave]);
 #else
     success = true;
 #endif
-    /*
-    printf("received:\n");
-    for (int i = 0; i < bc->len; i++)
-        printf("%02x ", ((uint8_t*)msg)[i]);
-    printf("\n");
-    */
 
     return success;
 }
@@ -169,15 +170,10 @@ static void *bus_thread(void *b) {
                 success = receive(fd, order->bc, order->src_dst);
             }
 
-            if (!success)
-                packets_lost++;
             packets_sent++;
 
-            printf("cmd: %d\n", order->bc->cmd);
-            printf("packet loss: %.1f\n",
-               ((float)packets_lost/(float)packets_sent)*100);
-
             if (success) {
+                printf("success\n");
                 if (order->scheduled) {
                     struct order_scheduled *os = (struct order_scheduled*)order;
                     if (os->handler)
@@ -190,6 +186,10 @@ static void *bus_thread(void *b) {
                 }
             } else {
                 order_queue(bus, order, true);
+                packets_lost++;
+                printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
+                    ((float)packets_lost/(float)packets_sent)*100);
+                spi_sync(fd);
             }
         } else {
             pthread_mutex_lock(&bus->wake_up_mutex);

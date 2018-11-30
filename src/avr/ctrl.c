@@ -112,6 +112,10 @@ int main(void) {
     while (1) {
         ctrl_val_t value_retrieved;
         uint8_t command = spi_accept((uint8_t*)&value_retrieved);
+
+        if (command == BB_INVALID) {
+            continue; /* synchronize */
+        }
         
         volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
