@@ -59,7 +59,6 @@ path = closest_path(course, n2, n5)
 mission = create_mission(path)
 
 assert path == [n2, n5]
-print(mission)
 assert mission == [Command.UN_PARK, Command.STOP]
 
 path = [n4, r4, r1, n1]
