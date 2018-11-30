@@ -23,8 +23,8 @@ class Worker(threading.Thread):
         self.terminate = False
 
     def send(self, msg):
-        print("worker: sending cmd: ", msg)
-        return self.client.send_cmd_retry(msg)
+        print('worker: sending cmd: ', msg)
+        return self.client.send_cmd_retry(msg)[1]
 
     def send_fmt(self, cmd, *args):
         return self.send(Client.create_msg(cmd, *args))
@@ -34,7 +34,7 @@ class Worker(threading.Thread):
         return self.client.connect()
 
     def task_send(self, msg):
-        return self.send(msg)
+        return 'response: {}'.format(self.send(msg))
 
     def task_kill(self):
         self.terminate = True

@@ -10,11 +10,11 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     struct sens_values *sensors = (struct sens_values*)a->data1;
 
     /* read data */
-    sens_dist_t df, dr;
-    sens_odom_t dist;
+    float df, dr, vel, dist;
     pthread_mutex_lock(&lock);
     df = sensors->dist_front;
     dr = sensors->dist_right;
+    vel = sensors->velocity;
     dist = sensors->distance;
     pthread_mutex_unlock(&lock);
 
@@ -22,9 +22,10 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     int buf_size = 128;
     char *rsp = malloc(buf_size);
     rsp[0] = '\0';
-    rsp = str_append(rsp, &buf_size, "df=%d ", df);
-    rsp = str_append(rsp, &buf_size, "dr=%d ", dr);
-    rsp = str_append(rsp, &buf_size, "dist=%d", dist);
+    rsp = str_append(rsp, &buf_size, "%f ", df);
+    rsp = str_append(rsp, &buf_size, "%f ", dr);
+    rsp = str_append(rsp, &buf_size, "%f ", vel);
+    rsp = str_append(rsp, &buf_size, "%f", dist);
 
     a->resp = rsp;
     return true;

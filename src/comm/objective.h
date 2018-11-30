@@ -16,8 +16,8 @@ struct obj_item {
 
 struct obj_item *objq_create(int cmdc, char **cmds);
 void objq_destroy(struct obj_item *queue);
-bool obj_execute(obj_t *obj, struct sens_values *sens,
+bool obj_execute(const obj_t *obj, struct sens_values *sens,
                  float stopline_dist, float lane_offset, bool lane_found,
-                 struct data_ctrl *ctrl);
+                 struct data_ctrl *ctrl, void **obj_data);
 
 #endif

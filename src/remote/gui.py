@@ -153,6 +153,7 @@ class GraphEdge(Edge):
         
 class GUI():
     LOOP_DELAY = 50
+    SENSOR_DELAY = 500
     PREFIX_MODE = "Mode: "
 
     def __init__(self, tasks):
@@ -254,14 +255,13 @@ class GUI():
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
         
-
     def send_command(self, event):
         self.console.delete(0, 'end')
         self.tasks.put(Task.SEND, self.console.get())
         
     def get_sensor_data(self):
         self.tasks.put(Task.GET_SENSOR)
-        self.window.after(1, self.get_sensor_data)
+        self.window.after(GUI.SENSOR_DELAY, self.get_sensor_data)
         
     def set_mission(self):
         print("SELECT START AND DESTINATION")
