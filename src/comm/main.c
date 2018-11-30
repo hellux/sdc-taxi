@@ -132,6 +132,8 @@ int main(int argc, char* args[]) {
             ctrl.rot.regulate = true;
             */
         } else {
+            struct ip_res ip_res;
+            ip_process(ip, &ip_res);
             struct data_rc rc;
             pthread_mutex_lock(&rc_data.lock);
             rc = rc_data;
