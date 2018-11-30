@@ -109,11 +109,10 @@ struct obj_data {
 bool obj_execute(const struct obj *obj, struct sens_values *sens,
                  float stopline_dist, float lane_offset, bool lane_found,
                  struct data_ctrl *ctrl, void **obj_data) {
-    struct obj_data *o = NULL;
     if (!(*obj_data)) {
-        o = calloc(1, sizeof(*o));
-        *obj_data = o;
+        *obj_data = calloc(1, sizeof(struct obj_data));
     }
+    struct obj_data *o = *obj_data;
 
     struct state state;
 
