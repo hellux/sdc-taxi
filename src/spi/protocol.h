@@ -36,6 +36,7 @@ struct sens_data {
 };
 
 struct bus_cmd {
+    bool valid;
     uint8_t cmd;
     bool write;
     int slave;
@@ -63,23 +64,23 @@ struct bus_cmd {
 #define BBC_VEL_ERR (BF_WRITE|BF_VEL_ROT|BF_MOD_REG|BF_ERR_VAL)
 
 static struct bus_cmd BCCS[16] = {
-/*  cmd           write, slave id,   data length */
-    {BB_INVALID,  false, 0,          0},
-    {BBC_RST,     false, SLAVE_CTRL, 0},
-    {BBC_SYN,     false, SLAVE_CTRL, 0},
+/*   valid cmd           write, slave id,   data length */
+    {false, BB_INVALID,  false, 0,          0},
+    {true,  BBC_RST,     false, SLAVE_CTRL, 0},
+    {true,  BBC_SYN,     false, SLAVE_CTRL, 0},
     {0},
 
     {0}, {0}, {0}, {0},
 
-    {BBC_ROT_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-    {BBC_ROT_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-    {BBC_ROT_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-    {BBC_ROT_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_ROT_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_ROT_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_ROT_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_ROT_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
 
-    {BBC_VEL_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-    {BBC_VEL_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-    {BBC_VEL_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
-    {BBC_VEL_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_VEL_KD,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_VEL_KP,  true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_VEL_VAL, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
+    {true,  BBC_VEL_ERR, true,  SLAVE_CTRL, sizeof(ctrl_val_t)},
 };
 
 /* sens commands */
@@ -89,16 +90,18 @@ static struct bus_cmd BCCS[16] = {
 
 /* bus commands for sens */
 const static struct bus_cmd BCSS[16] = {
-/*  cmd          write, slave id,   data length */
-    {BB_INVALID, false, 0,          0},
-    {BBS_RST,    false, SLAVE_SENS, 0},
-    {BBS_SYN,    false, SLAVE_SENS, 0},
-    {BBS_GET,    false, SLAVE_SENS, sizeof(struct sens_data)},
+/*   valid  cmd          write, slave id,   data length */
+    {false, BB_INVALID, false, 0,          0},
+    {true,  BBS_RST,    false, SLAVE_SENS, 0},
+    {true,  BBS_SYN,    false, SLAVE_SENS, 0},
+    {true,  BBS_GET,    false, SLAVE_SENS, sizeof(struct sens_data)},
 
     {0}, {0}, {0}, {0},
     {0}, {0}, {0}, {0},
     {0}, {0}, {0}, {0},
 };
+
+#define MAX_DATA_LENGTH 4
 
 /* SYN/ACK magic values */
 #define CTRL_ACK 0xc7

@@ -33,22 +33,25 @@ uint8_t spi_accept(uint8_t *data) {
     cs_t cs;
     spi_tranceive((uint8_t*)&cs, 1);
     int cmd = cs_cmd(cs);
-    int len = BCMDS[SLAVE][cmd].len;
+    const struct bus_cmd *bc = &BCMDS[SLAVE][cmd];
 
-    /* retrieve data, if any */
-    if (BCCS[cmd].write) {
-        spi_tranceive(data, len);
+    /* synchronize if invalid cmd */
+    if (!bc->valid) {
+        return BB_INVALID;
     }
 
-    uint8_t ack = ACKS[SLAVE];
+    /* retrieve data, if any */
+    if (bc->write) {
+        spi_tranceive(data, bc->len);
+    }
 
-    /* if invalid checksum, invert ack and ignore cmd */
-    if (!cs_check(cs, data, len)) {
-        ack = ~ack;
-        cmd = BB_INVALID;
+    /* if invalid checksum, ignore to resync */
+    if (!cs_check(cs, data, bc->len)) {
+        return BB_INVALID;
     }
 
     /* acknowledge to master, return retrieved command */
+    uint8_t ack = ACKS[SLAVE];
     spi_tranceive(&ack, sizeof(ack));
     return cmd;
 }
