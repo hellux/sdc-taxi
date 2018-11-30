@@ -93,7 +93,6 @@ void objq_destroy(struct obj_item *queue) {
 
 
 ctrl_val_t wtd_speed(float distance, float current, float target) {
-    //TODO update if there is no distance(no stopline)
     return (target-current)/distance;
 }
 
@@ -116,7 +115,7 @@ bool obj_ignore(struct state *s, struct data_ctrl *c) {
 
 bool obj_stop(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity;
-    if (cur_vel == 0)
+    if (cur_vel == STOP_VEL)
         return true;
     else if (s->stopline_dist <= BRAKE_DIST) {
         c->vel.value = wtd_speed(s->stopline_dist, cur_vel, STOP_VEL);
@@ -129,12 +128,12 @@ bool obj_park(struct state *s, struct data_ctrl *c) {
     if (s->stopline_passed) {
         c->rot.value = RIGHT;
 
-        if (cur_vel == 0)
+        if (s->stopline_since >= SEC*1.5){
+            c->vel.value = STOP_VEL;
             return true;
-        else if (s->stopline_since >= SEC){
-            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, STOP_VEL);
-            c->rot.value =STRAIGHT;
         }
+        else if (s->stopline_since >= SEC)
+            c->rot.value =STRAIGHT;
         else if (s->stopline_since >= SEC*0.5)
             c->rot.value = LEFT;
     } else if (s->stopline_dist <= BRAKE_DIST) {
@@ -146,12 +145,12 @@ bool obj_park(struct state *s, struct data_ctrl *c) {
 bool obj_unpark(struct state *s, struct data_ctrl *c) {
     float cur_vel = s->sens->velocity; 
     c->rot.value = LEFT;
-    c->vel.value = wtd_speed(s->stopline_dist, cur_vel, SLOW_VEL);
+    c->vel.value = SLOW_VEL;
     
     if (cur_vel == FULL_VEL)
         return true;
     else if (s->stopline_since >= SEC){
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, FULL_VEL);
+        c->vel.value = FULL_VEL;
         c->rot.value = STRAIGHT;
     }
     else if (s->stopline_since >= SEC*0.5)
@@ -185,7 +184,7 @@ bool obj_exit(struct state *s, struct data_ctrl *c) {
             return true;
         }
         else if (s->stopline_since >= SEC*0.5){
-            c->vel.value = wtd_speed(s->stopline_dist, cur_vel, FULL_VEL);
+            c->vel.value = FULL_VEL;
             c->rot.value = STRAIGHT;
         }
     }     
