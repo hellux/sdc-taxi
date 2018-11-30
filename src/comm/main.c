@@ -81,13 +81,12 @@ int main(int argc, char* args[]) {
 
         /* determine new ctrl values */
         if (mission) {
-            bool new_objective = false;
-
             pthread_mutex_lock(&miss_data.lock);
             if (!obj_current) {
                 if (miss_data.queue) {
-                    new_objective = true;
                     obj_current = miss_data.queue->obj;
+                    obj_data = NULL;
+
                     miss_data.queue = miss_data.queue->next;
                 } else {
                     miss_data.active = false;
