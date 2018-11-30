@@ -205,7 +205,6 @@ bool obj_enter(struct state *s, struct data_ctrl *c) {
     
         if (s->stopline_since >= SEC*0.5){
             c->rot.value = STRAIGHT;
-            s->in_roundabout = true;
             return true;
         }
     } else if (s->stopline_dist <= BRAKE_DIST) {
@@ -220,7 +219,6 @@ bool obj_exit(struct state *s, struct data_ctrl *c) {
         c->rot.value = RIGHT;
     
         if (cur_vel == FULL_VEL){
-            s->in_roundabout = false;
             return true;
         }
         else if (s->stopline_since >= SEC*0.5){
