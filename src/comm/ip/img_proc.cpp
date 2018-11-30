@@ -102,10 +102,7 @@ cv::Mat mask_image(cv::Mat& image) {
 
     std::cout << "y:" << bot_y << "\n";
     std::cout << "y:" << top_y << "\n";
-    std::cout << "x1:" << bot_lx << "\n";
-    std::cout << "x2:" << top_rx << "\n";
-    std::cout << "x3:" << top_lx << "\n";
-    std::cout << "x4:" << bot_rx << "\n";
+
 
     cv::Point p0(0, HEIGHT), p1(bot_lx, bot_y), p2(top_lx, top_y),
               p3(top_rx, top_y), p4(bot_rx, bot_y), p5(WIDTH, HEIGHT);
