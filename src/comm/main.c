@@ -67,11 +67,7 @@ int main(int argc, char* args[]) {
     struct data_ctrl ctrl;
     struct ip_res ip_res;
 
-    struct car_state state;
-    state.sens = &sens;
-    state.ip = &ip_res;
-
-    struct obj_item *obj_current = NULL;
+    struct obj *obj_current = NULL;
     void *obj_data = NULL;
 
     //char input[100];
@@ -113,7 +109,8 @@ int main(int argc, char* args[]) {
                 ctrl.rot.regulate = true;
 
                 if (ip_res.stopline_found) {
-                    if (obj_current->obj->func(&state, &ctrl, obj_data)) {
+                    bool finished = obj_execute(obj_current, , &ctrl)
+                    if (finished) {
                         obj_current = NULL;
                         obj_data = NULL;
                     }

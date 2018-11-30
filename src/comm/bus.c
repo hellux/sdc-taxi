@@ -173,7 +173,6 @@ static void *bus_thread(void *b) {
             packets_sent++;
 
             if (success) {
-                printf("success\n");
                 if (order->scheduled) {
                     struct order_scheduled *os = (struct order_scheduled*)order;
                     if (os->handler)

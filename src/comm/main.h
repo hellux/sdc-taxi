@@ -55,11 +55,4 @@ struct data_ctrl {
     struct val rot;
 };
 
-struct car_state {
-    const struct sens_values *sens; 
-    const struct ip_res *ip;
-
-    bool in_roundabout;
-};
-
 #endif
