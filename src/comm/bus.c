@@ -93,8 +93,8 @@ static bool transmit(int fd, const struct bus_cmd *bc, void *msg) {
         printf("%02x ", ((uint8_t*)msg)[i]);
     printf("\n");
     */
-    cs_t cs = cs_create(bc->cmd, msg, bc->len);
 #ifdef PI
+    cs_t cs = cs_create(bc->cmd, msg, bc->len);
     spi_tranceive(fd, (void*)&cs, NULL, 1);
 
     if (bc->len > 0)

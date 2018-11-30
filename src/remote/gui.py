@@ -7,6 +7,7 @@ import tkinter as tk
 
 from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
+from msilib.schema import ReserveCost
 
 
 class Map():
@@ -38,9 +39,9 @@ class Map():
         
         for edge in self.edges:
             if(edge == self.selected_edge):
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=2)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=2, arrow=tk.LAST)
             else:
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2, arrow=tk.LAST)
         
         for node in self.nodes:
             if(node == self.selected_node):
@@ -103,23 +104,29 @@ class Map():
     def get_edge_cost(self, node_start, node_end):
         self.cost_popup = tk.Tk()
         cost_label = tk.Label(self.cost_popup, text="Enter cost: ")
-        cost_entry = tk.Entry(self.cost_popup)
-        self.cost_popup.bind("<Return>", lambda e:self.create_edge(node_start, node_end, cost_entry.get()))
+        self.cost_entry = tk.Entry(self.cost_popup)
+        self.cost_popup.bind("<Return>", lambda e:self.create_edge(node_start, node_end, int(self.cost_entry.get())))
         cost_label.pack()
-        cost_entry.pack()
+        self.cost_entry.pack()
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
-        cost_entry.focus_force()
+        self.cost_entry.focus_force()
 
     def create_edge(self, node_start, node_end, cost):
-        if(node_start and node_end):
+        if cost < 0:
+            print("INPUT POSITIVE COST")
+            self.cost_popup.destroy()
+            self.get_edge_cost(node_start, node_end)
+            
+        elif(node_start and node_end):
             edge = GraphEdge(node_start, node_end, cost)
             self.edges.append(edge)
-            node_start.outgoing.append(edge)
-            node_end.outgoing.append(edge)
+            node_start.addEdge(node_end, cost)
             self.selected_node = None
             self.draw()
+            
         else:
             self.selected_node = None
+            
         self.cost_popup.destroy()
             
     def create_node(self, nodetype, x, y, color):
@@ -173,6 +180,7 @@ class GUI():
         self.keys = {"LEFT":False, "RIGHT":False, "FORWARD":False, "REVERSE":False}
         self.file = None
         self.cost_is_showing = False
+        self.manual = True
         
         self.info_list = tk.Listbox(self.window, highlightbackground="black")
         
@@ -218,8 +226,7 @@ class GUI():
         system_menu.add_command(label="Quit", command=self.quit)
 
         driving_menu = tk.Menu(menuBar, tearoff=False)
-        driving_menu.add_command(label="Auto", command=self.drive_auto)
-        driving_menu.add_command(label="Manual", command=self.drive_manual)
+        driving_menu.add_command(label="Change mode", command=self.change_mode)
         
         mission_menu = tk.Menu(menuBar, tearoff=False)
         mission_menu.add_command(label="Set mission", command=self.set_mission)
@@ -235,7 +242,7 @@ class GUI():
         
         #KEYBOARD BINDINGS
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
-        self.window.bind('<m>', self.drive_manual)
+        self.window.bind('<m>', lambda e: self.change_mode())
         self.console.bind('<Return>', self.send_command)
         
     def main_loop(self):
@@ -284,21 +291,25 @@ class GUI():
         self.window.unbind("<Right>")
         self.window.unbind("<Up>")
         self.window.unbind("<Down>")
-        
-    def drive_auto(self):
-        self.unbind_keys()
-        self.tasks.put(Task.SET_AUTO, True)
-        self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
-        
-    def drive_manual(self):
-        self.tasks.put(Task.SET_AUTO, False)
-        self.bind_keys()
-        self.window.focus_set()
-        self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
     
+    
+    def change_mode(self):
+        self.manual = not self.manual
+        
+        if self.manual:
+            self.tasks.put(Task.SET_AUTO, False)
+            self.bind_keys()
+            self.window.focus_set()
+            self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
+            
+        elif not self.manual:
+            self.unbind_keys()
+            self.tasks.put(Task.SET_AUTO, True)
+            self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
+
     def display_info(self, sensor_data):
         info_labels = ["Front", "Rear", "Speed", "Distance"]
-        for x in range(0,3):
+        for x in range(0,4):
             self.info_list.insert(x, info_labels[x] + ": " + sensor_data[x])
         self.info_list.insert(4, "")
         

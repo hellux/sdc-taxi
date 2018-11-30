@@ -153,6 +153,8 @@ std::vector<std::vector<cv::Vec4i>> classify_lines(std::vector<cv::Vec4i>& lines
             right_lines.push_back(lines[x]);
         } else if (slopes[x] < 0 && (end.x < center_x && start.x < center_x && start.y > (0.95 * image.rows))) {
             left_lines.push_back(lines[x]);
+            std::cout<<"left_line found: "<< lines[x] << "\n" ;
+            std::cout<<"end x: "<< end.x << " start x: " << start.x << "\n";
         }
     }
 
@@ -285,7 +287,6 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points,
 
     /*Test: Getting distance between a specified line point and the camera*/ 
     cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
-    std::cout << "stopLine center pt: " << stop_center_pt << "\n";
     cv::circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
 
     float stop_dist = std::sqrt(pow(stop_center_pt.x-WIDTH/2, 2) + pow(stop_center_pt.y - original_img.rows, 2));
@@ -330,7 +331,7 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
 
         int left_top = lane[3].x;
         int right_top = lane[1].x;
-        res->error = ((float)(left_top+right_top)/2 - WIDTH/2)/((float)WIDTH/4);
+        res->error = ((float)(left_top+right_top)/2 - WIDTH/2)/((float)WIDTH/2);
         printf("right_top.y: %d, lefty: %d, error: %f\n", lane[1].y, lane[3].y, res->error);
 
 #ifdef VISUAL
