@@ -330,7 +330,7 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
 
         int left_top = lane[3].x;
         int right_top = lane[1].x;
-        res->error = ((float)(left_top+right_top)/2 - WIDTH/2)/((float)WIDTH/2);
+        res->error = ((float)(left_top+right_top)/2 - WIDTH/2)/((float)WIDTH/4);
         printf("right_top.y: %d, lefty: %d, error: %f\n", lane[1].y, lane[3].y, res->error);
 
 #ifdef VISUAL
