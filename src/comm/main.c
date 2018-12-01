@@ -1,13 +1,190 @@
-#include "main.h"
-
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
+#include <pthread.h>
+
+#include "types.h"
 #include "objective.h"
 #include "bus.h"
 #include "server.h"
-#include "server_cmds.h"
 #include "ip/img_proc.h"
 #include "protocol.h"
+
+#define SERVER_PORT_START 9000
+#define SERVER_PORT_END 9100
+
+struct data_sensors {
+    struct sens_val val;
+    
+    pthread_mutex_t lock;
+};
+
+struct data_rc {
+    float vel;
+    float rot;
+
+    pthread_mutex_t lock;
+};
+
+/* server commands */
+bool sc_get_sens(struct srv_cmd_args *a) {
+    pthread_mutex_t lock = ((struct data_sensors*)a->data1)->lock;
+    struct sens_val *sensors = (struct sens_val*)a->data1;
+
+    /* read data */
+    float df, dr, vel, dist;
+    pthread_mutex_lock(&lock);
+    df = sensors->dist_front;
+    dr = sensors->dist_right;
+    vel = sensors->velocity;
+    dist = sensors->distance;
+    pthread_mutex_unlock(&lock);
+
+    /* create string */
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+    rsp = str_append(rsp, &buf_size, "%f ", df);
+    rsp = str_append(rsp, &buf_size, "%f ", dr);
+    rsp = str_append(rsp, &buf_size, "%f ", vel);
+    rsp = str_append(rsp, &buf_size, "%f", dist);
+
+    a->resp = rsp;
+    return true;
+}
+
+bool sc_get_mission(struct srv_cmd_args *a) {
+    int rem = obj_remaining((obj_t*)a->data1);
+
+    /* create string */
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+    rsp = str_append(rsp, &buf_size, "%d", rem);
+
+    a->resp = rsp;
+    return true;
+}
+
+bool sc_set_mission(struct srv_cmd_args *a) {
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    bool success = obj_set_mission((obj_t*)a->data1, a->argc-1, a->args+1);
+
+    if (success) {
+        str_append(rsp, &buf_size, "mission set successfully.");
+    } else {
+        str_append(rsp, &buf_size, "arguments invalid.");
+    }
+
+    a->resp = rsp;
+    return success;
+}
+
+bool sc_set_state(struct srv_cmd_args *a) {
+    bool state = a->args[1][0] == 'T';
+    obj_set_state((obj_t*)a->data1, state);
+    return true;
+}
+
+bool sc_set_bool(struct srv_cmd_args *a) {
+    int success = true;
+
+    char* bool_str = a->args[1];
+    bool value;
+
+    switch (bool_str[0]) {
+        case '0':
+        case 'f':
+        case 'F':
+            value = false;
+            break;
+        case '1':
+        case 't':
+        case 'T':
+            value = true;
+            break;
+        default:
+            success = false;
+    }
+
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    if (success) {
+        bool *dst = (bool*)a->data1;
+        pthread_mutex_t *lock = (pthread_mutex_t*)a->data2;
+        pthread_mutex_lock(lock);
+        *dst = value;
+        pthread_mutex_unlock(lock);
+        success = true;
+        rsp = str_append(rsp, &buf_size, "setting value to %d", value);
+    } else {
+        rsp = str_append(rsp, &buf_size,
+                         "invalid argument -- \"%s\"", bool_str);
+    }
+
+    a->resp = rsp;
+    return success;
+}
+
+bool sc_set_float(struct srv_cmd_args *a) {
+    int success = false;
+
+    char* float_str = a->args[1];
+    char *endptr;
+    float value = strtof(float_str, &endptr);
+
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    if (endptr > float_str) {
+        float *dst = (float*)a->data1;
+        pthread_mutex_t *lock = (pthread_mutex_t*)a->data2;
+        pthread_mutex_lock(lock);
+        *dst = value;
+        pthread_mutex_unlock(lock);
+        success = true;
+        rsp = str_append(rsp, &buf_size, "setting value to %f", value);
+    } else {
+        rsp = str_append(rsp, &buf_size,
+                         "invalid argument -- \"%s\"", float_str);
+    }
+
+    a->resp = rsp;
+    return success;
+}
+
+bool sc_bus_send_float(struct srv_cmd_args *a) {
+    int success = false;
+    
+    float value;
+    char *float_str = a->args[1];
+    char *endptr;
+    value = strtof(float_str, &endptr);
+
+    int buf_size = 128;
+    char *rsp = malloc(buf_size);
+    rsp[0] = '\0';
+
+    if (endptr > float_str) {
+        success = true;
+        const struct bus_cmd *bc = (struct bus_cmd*)a->data1;
+        bus_t *bus = (bus_t*)a->data2;
+        bus_transmit_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
+        rsp = str_append(rsp, &buf_size, "sending value %f", value);
+    } else {
+        rsp = str_append(rsp, &buf_size, "invalid arg -- \"%s\"", float_str);
+    }
+
+    a->resp = rsp;
+    return success;
+}
 
 /* bus signal handler, called by bus thread when transmission finished */
 /* write received values to struct reachable from main thread */
@@ -32,20 +209,21 @@ int main(int argc, char* args[]) {
     }
 
     struct data_sensors sens_data = {0};
-    struct data_mission miss_data = {0};
     struct data_rc rc_data = {0};
     pthread_mutex_init(&sens_data.lock, 0);
-    pthread_mutex_init(&miss_data.lock, 0);
     pthread_mutex_init(&rc_data.lock, 0);
 
     bus_t *bus = bus_create(F_SPI);
     if (!bus) return EXIT_FAILURE;
 
+    obj_t *obj = obj_create();
+    if (!bus) return EXIT_FAILURE;
+
     struct srv_cmd cmds[] = {
     {"get_sensor",  0, &sens_data,        NULL,            *sc_get_sens},
-    {"get_mission", 0, &miss_data,        NULL,            *sc_get_mission},
-    {"set_mission", 1, &miss_data,        NULL,            *sc_set_mission},
-    {"set_state",   1, &miss_data.active, &miss_data.lock, *sc_set_bool},
+    {"get_mission", 0, obj,               NULL,            *sc_get_mission},
+    {"set_mission", 1, obj,               NULL,            *sc_set_mission},
+    {"set_state",   1, obj,               NULL,            *sc_set_state},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
     {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
     {"set_rot",     1, &rc_data.rot,      &rc_data.lock,   *sc_set_float},
@@ -59,80 +237,20 @@ int main(int argc, char* args[]) {
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
 
-    ip_t *ip = ip_init();
-
-    struct data_ctrl ctrl_prev = {0};
-    const obj_t *obj_current = NULL;
-    void *obj_data = NULL;
-
     while (!quit) {
-        struct data_ctrl ctrl = ctrl_prev;
+        struct ctrl_val ctrl = {0};
         pthread_mutex_lock(&sens_data.lock);
-        struct sens_values sens = sens_data.val;
+        struct sens_val sens = sens_data.val;
         pthread_mutex_unlock(&sens_data.lock);
 
         /*
         bus_receive_schedule(bus, &BCSS[BBS_GET], bsh_sens_recv, &sens_data);
         */
 
-        pthread_mutex_lock(&miss_data.lock);
-        bool mission = miss_data.active;
-        pthread_mutex_unlock(&miss_data.lock);
-
         /* determine new ctrl values */
-        if (mission) {
-            pthread_mutex_lock(&miss_data.lock);
-            if (!obj_current) {
-                if (miss_data.queue) {
-                    obj_current = miss_data.queue->obj;
-                    obj_data = NULL;
-
-                    miss_data.queue = miss_data.queue->next;
-                } else {
-                    miss_data.active = false;
-                    mission = false;
-                }
-            }
-            pthread_mutex_unlock(&miss_data.lock);
-
-            if (mission) {
-                struct ip_res ip_res;
-                ip_process(ip, &ip_res);
-                /* TODO process ip res, stabilize values */
-
-                ctrl.vel.value = NORMAL_SPEED;
-                ctrl.vel.regulate = false;
-                ctrl.rot.value = ip_res.error;
-                ctrl.rot.regulate = true;
-
-                if (ip_res.stopline_found) {
-                    bool finished = obj_execute(
-                        obj_current, &sens,
-                        ip_res.stopline_dist, ip_res.error, ip_res.error_valid,
-                        &ctrl, &obj_data
-                    );
-                    if (finished) {
-                        obj_current = NULL;
-                        obj_data = NULL;
-                    }
-                }
-
-            } else {
-                ctrl.vel.value = 0;
-                ctrl.rot.value = 0;
-                ctrl.vel.regulate = false;
-                ctrl.rot.regulate = false;
-            }
-            /*
-            ip_process(ip, &ip_res);
-            ctrl.vel.value = 0;
-            ctrl.rot.value = ip_res.error;
-            ctrl.vel.regulate = false;
-            ctrl.rot.regulate = true;
-            */
+        if (obj_active(obj)) {
+            obj_execute(obj, &sens, &ctrl);
         } else {
-            struct ip_res ip_res;
-            ip_process(ip, &ip_res);
             struct data_rc rc;
             pthread_mutex_lock(&rc_data.lock);
             rc = rc_data;
@@ -146,19 +264,16 @@ int main(int argc, char* args[]) {
 
         /* TODO check for obstacles and override ctrl */
 
-        /* send new ctrl commands if regulating or values are changed */
-        if (ctrl.vel.regulate || ctrl.rot.regulate ||
-                memcmp(&ctrl, &ctrl_prev, sizeof(ctrl)) != 0) {
-            ctrl_prev = ctrl;
-            int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_VEL_VAL;
-            int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
-            bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value,
-                                  NULL, NULL);
-            bus_transmit_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value,
-                                  NULL, NULL);
-        }
+        /* send new ctrl commands */
+        int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_VEL_VAL;
+        int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
+        bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value,
+                              NULL, NULL);
+        bus_transmit_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value,
+                              NULL, NULL);
     }
 
+    obj_destroy(obj);
     srv_destroy(srv);
     bus_destroy(bus);
 

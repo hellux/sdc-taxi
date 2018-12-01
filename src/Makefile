@@ -23,7 +23,7 @@ PROG_PNO = m1284p
 
 COMM_LFLAGS = -lpthread -lm `pkg-config --libs opencv`
 COMM_BIN = comm
-COMM_SRC_C_FILES = main.c server.c server_cmds.c bus.c protocol.c objective.c
+COMM_SRC_C_FILES = main.c server.c bus.c protocol.c objective.c
 COMM_SRC_C = $(addprefix comm/, $(COMM_SRC_C_FILES))
 COMM_SRC_CPP = $(shell find -name '*.cpp' | sed "s,\./,,")
 COMM_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(COMM_SRC_C)) \
