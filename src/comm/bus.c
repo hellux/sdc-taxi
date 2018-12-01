@@ -7,10 +7,7 @@
 
 #include <pthread.h>
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <linux/spi/spidev.h>
+#include "spi.h"
 
 #define SPI_DEVICE "/dev/spidev0."
 
@@ -42,23 +39,6 @@ struct order {
     struct order *next;
 };
 
-static void spi_tranceive(int fd, void *src, void *dst, int len) {
-    struct spi_ioc_transfer transfer = {0};
-    transfer.tx_buf = (intptr_t)src;
-    transfer.rx_buf = (intptr_t)dst;
-    transfer.len = (uint32_t)len;
-
-    ioctl(fd, SPI_IOC_MESSAGE(1), &transfer);
-}
-
-static void spi_sync(int fd) {
-    int cmd = BB_INVALID;
-    for (int i = 0; i < MAX_DATA_LENGTH+2; i++) {
-        spi_tranceive(fd, (void*)&cmd, NULL, 1);
-    }
-}
-
-/* physical bus functions (bus thread) */
 static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
     bool success = false;
 #ifdef PI
@@ -178,7 +158,7 @@ static void *bus_thread(void *b) {
                 packets_lost++;
                 printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
-                spi_sync(fd);
+                spi_sync(fd, MAX_DATA_LENGTH+2);
             }
         } else {
             pthread_mutex_lock(&bus->wake_up_mutex);
@@ -207,15 +187,8 @@ struct bus *bus_create(int freq) {
 
 #ifdef PI
     /* setup spi for each slave */
-    bus->fds[0] = open(SPI_DEVICE "0", O_RDWR);
-    bus->fds[1] = open(SPI_DEVICE "1", O_RDWR);
-    for (int i = 0; i < 2; i++) {
-        uint8_t mode = SPI_MODE_0;
-        uint8_t bpw = 8;
-        ioctl(bus->fds[i], SPI_IOC_WR_MODE, &mode);
-        ioctl(bus->fds[i], SPI_IOC_WR_BITS_PER_WORD, &bpw);
-        ioctl(bus->fds[i], SPI_IOC_WR_MAX_SPEED_HZ, &freq);
-    }
+    bus->fds[0] = spi_create(SPI_DEVICE "0", freq);
+    bus->fds[1] = spi_create(SPI_DEVICE "1", freq);
 #endif
 
     /* start bus thread */
@@ -237,9 +210,9 @@ void bus_destroy(struct bus *bus) {
     pthread_join(bus->thread, NULL);
 
     /* free resources */
-    if (bus->fds[0] >= 0) close(bus->fds[0]);
-    if (bus->fds[1] >= 0) close(bus->fds[1]);
     struct order *current = bus->queue;
+    spi_destroy(bus->fds[0]);
+    spi_destroy(bus->fds[1]);
     while (current) {
         struct order *prev = current;
         current = current->next;
