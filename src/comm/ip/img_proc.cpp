@@ -7,8 +7,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono>
 
-#define WIDTH 256
-#define HEIGHT 144
+typedef std::vector<cv::Vec4i> lines_t;
+
+#define FONT cv::FONT_HERSHEY_PLAIN
+
+static int WIDTH = 256;
+static int HEIGHT = 144;
 
 const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
                          cv::THRESH_TRUNC, cv::THRESH_TOZERO,
@@ -27,16 +31,16 @@ static int mask_width_bot = 1*WIDTH;
 static int mask_start_y = 0.9*HEIGHT;
 static int mask_end_y = 0.6*HEIGHT;
 
-extern "C" struct ip_data *ip_init();
-extern "C" void ip_destroy(struct ip_data *ip);
-extern "C" void ip_process(struct ip_data *ip, struct ip_res *res);
+extern "C" struct ip *ip_init();
+extern "C" void ip_destroy(struct ip *ip);
+extern "C" void ip_process(struct ip *ip, struct ip_res *res);
 
-struct ip_data {
+struct ip {
     cv::VideoCapture *cap;
 };
 
-struct ip_data *ip_init() {
-    struct ip_data *ip = (struct ip_data*)malloc(sizeof(*ip));
+struct ip *ip_init() {
+    struct ip *ip = (struct ip*)malloc(sizeof(*ip));
 
     ip->cap = new cv::VideoCapture(-1);
 
@@ -48,6 +52,8 @@ struct ip_data *ip_init() {
   
     ip->cap->set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
     ip->cap->set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+    WIDTH = ip->cap->get(CV_CAP_PROP_FRAME_WIDTH);
+    HEIGHT = ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT);
 
 #ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
@@ -57,7 +63,7 @@ struct ip_data *ip_init() {
     return ip;
 }
 
-void ip_destroy(struct ip_data *ip) {
+void ip_destroy(struct ip *ip) {
 #ifdef VISUAL
     cv::destroyAllWindows();
 #endif
@@ -68,17 +74,9 @@ void ip_destroy(struct ip_data *ip) {
 
 cv::Mat threshold(cv::Mat& image) {
     cv::Mat edge_img;
-    
-    //smoothing to reduce noise úsing Gaussian filter (most used but not fastest)
     cv::GaussianBlur(image, edge_img, cv::Size(3, 3), 0, 0);
     cv::cvtColor(edge_img, edge_img, cv::COLOR_RGB2GRAY);
-    
-    //Segmentation. "Assign a label to every pixel in an image such that pixels with the
-    // same label share certain characteristics.
-    //Threshold: simplest and not expensive
-    // Otsu better than binary but maybe much more expensive
-    int max_binary_value = 255;
-    cv::threshold(edge_img, edge_img, thresh_value, max_binary_value,
+    cv::threshold(edge_img, edge_img, thresh_value, 255,
                   THR_TYPES[thresh_type]);
 
     return edge_img;
@@ -95,7 +93,7 @@ cv::Mat mask_image(cv::Mat& image) {
     cv::Mat masked_image;
     cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
 
-    /* Region Of Interest */
+    /* region of interest */
     float top_y = mask_end_y;
     float top_rx = (image.cols+mask_width_top)/2;
     float top_lx = (image.cols-mask_width_top)/2;
@@ -103,10 +101,6 @@ cv::Mat mask_image(cv::Mat& image) {
     float bot_y = mask_start_y;
     float bot_lx = (image.cols-mask_width_bot)/2;
     float bot_rx = (image.cols+mask_width_bot)/2;
-
-    std::cout << "y:" << bot_y << "\n";
-    std::cout << "y:" << top_y << "\n";
-
 
     cv::Point p0(0, HEIGHT), p1(bot_lx, bot_y), p2(top_lx, top_y),
               p3(top_rx, top_y), p4(bot_rx, bot_y), p5(WIDTH, HEIGHT);
@@ -118,55 +112,38 @@ cv::Mat mask_image(cv::Mat& image) {
     return masked_image;
 }
 
-std::vector<cv::Vec4i> find_lines(cv::Mat& image) {
-    std::vector<cv::Vec4i> lines; //Vec<int,4>
-
+lines_t find_lines(cv::Mat& image) {
     double rho = 1;
     double theta = CV_PI / 180;
-
-    cv::HoughLinesP(image, lines, rho, theta, hough_threshold, line_min_length, line_max_gap);
-
+    lines_t lines;
+    cv::HoughLinesP(image, lines, rho, theta, hough_threshold,
+                    line_min_length, line_max_gap);
     return lines;
 }
 
-std::vector<std::vector<cv::Vec4i>> classify_lines(std::vector<cv::Vec4i>& lines,
-                                                   cv::Mat& image) {
-    std::vector<std::vector<cv::Vec4i> > classified_lines(3); //3 when stop
-    cv::Point start;
-    cv::Point end;
-    std::vector<float> slopes;
-    std::vector<cv::Vec4i> right_lines, left_lines, stop_lines;
-
-    for (auto point : lines) {
-        start = cv::Point(point[0], point[1]);
-        end = cv::Point(point[2], point[3]);
-        double slope = (static_cast<double>(end.y) - static_cast<double>(start.y)) / (static_cast<double>(end.x) - static_cast<double>(start.x));
-        slopes.push_back(slope);
-    }
-
-    double center_x = static_cast<double>((image.cols / 2));
-    for (size_t x = 0; x < lines.size(); x++) {
-        start = cv::Point(lines[x][0], lines[x][1]);
-        end = cv::Point(lines[x][2], lines[x][3]);
-        if (slopes[x] == 0 || (start.x < center_x && end.x > center_x)) {
-            stop_lines.push_back(lines[x]);
-        } else if (slopes[x] > 1 && (end.x > center_x && start.x > center_x && end.y > (0.95 * image.rows))) {
-            right_lines.push_back(lines[x]);
-        } else if (slopes[x] < -1 && (end.x < center_x && start.x < center_x && start.y > (0.95 * image.rows))) {
-            left_lines.push_back(lines[x]);
+void classify_lines(lines_t& lines, cv::Mat& image,
+                    lines_t& right_lines, lines_t& left_lines,
+                    lines_t& stop_lines, lines_t& rem_lines) {
+    int cx = WIDTH/2;
+    for (auto line : lines) {
+        cv::Point s(line[0], line[1]);
+        cv::Point e(line[2], line[3]);
+        double slope = (double)(e.y-s.y) / (e.x-s.x);
+        if (slope == 0 || (s.x < cx && e.x > cx)) {
+            stop_lines.push_back(line);
+        } else if (slope > 1 && (e.x > cx && s.x > cx && e.y > .95*HEIGHT)) {
+            right_lines.push_back(line);
+        } else if (slope < -1 && (e.x < cx && s.x < cx && s.y > .95*HEIGHT)) {
+            left_lines.push_back(line);
+        } else {
+            rem_lines.push_back(line);
         }
     }
-
-    classified_lines[0] = right_lines;
-    classified_lines[1] = left_lines;
-    classified_lines[2] = stop_lines;
-
-    return classified_lines;
 }
 
-std::vector<cv::Point>
-linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
-                  bool rline_found, bool lline_found, bool sline_found) {
+std::vector<cv::Point> linear_regression(lines_t& lines_right,
+                                         lines_t& lines_left,
+                                         lines_t& lines_stop) {
     std::vector<cv::Point> points(6); //6 when stop
     cv::Point start;
     cv::Point end;
@@ -184,8 +161,8 @@ linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
     cv::Point lline_intercept = {0};
     cv::Point sline_intercept = {0};
 
-    if (rline_found) {
-        for (auto points : lines[0]) {
+    if (!lines_right.empty()) {
+        for (auto points : lines_right) {
             start = cv::Point(points[0], points[1]);
             end = cv::Point(points[2], points[3]);
 
@@ -198,8 +175,8 @@ linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
             rline_intercept = cv::Point(right_line[2], right_line[3]);
         }
     }
-    if (lline_found) {
-        for (auto point : lines[1]) {
+    if (!lines_left.empty()) {
+        for (auto point : lines_left) {
             start = cv::Point(point[0], point[1]);
             end = cv::Point(point[2], point[3]);
 
@@ -212,8 +189,8 @@ linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
             lline_intercept = cv::Point(left_line[2], left_line[3]);
         }
     }
-    if (sline_found) {
-        for (auto point : lines[2]) {
+    if (!lines_stop.empty()) {
+        for (auto point : lines_stop) {
             start = cv::Point(point[0], point[1]);
             end = cv::Point(point[2], point[3]);
 
@@ -227,10 +204,10 @@ linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
         }
     }
 
-    int lines_start_y = image.rows;
-    int lines_end_y = 0.60 * image.rows;
-    int sline_start_x = 0.20*image.cols;
-    int sline_end_x = 0.80*image.cols;
+    int lines_start_y = HEIGHT;
+    int lines_end_y = 0.60*HEIGHT;
+    int sline_start_x = 0.20*WIDTH;
+    int sline_end_x = 0.80*WIDTH;
 
     double rline_start_x = ((lines_start_y - rline_intercept.y) / rline_slope) + rline_intercept.x;
     double rline_end_x = ((lines_end_y - rline_intercept.y) / rline_slope) + rline_intercept.x;
@@ -251,8 +228,33 @@ linear_regression(std::vector<std::vector<cv::Vec4i>>& lines, cv::Mat& image,
     return points;
 }
 
-void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points,
-              bool rline_found, bool lline_found, bool sline_found) {
+#ifdef VISUAL
+
+void plot_lines(cv::Mat& img, lines_t right, lines_t left,
+                              lines_t stop, lines_t rem) {
+    for (auto l : rem) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(img, start, end, cv::Scalar(100, 100, 100), 5, CV_AA);
+    }
+    for (auto l : right) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(img, start, end, cv::Scalar(255, 0, 0), 5, CV_AA);
+    }
+    for (auto l : left) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(img, start, end, cv::Scalar(0, 255, 0), 5, CV_AA);
+    }
+    for (auto l : stop) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(img, start, end, cv::Scalar(0, 0, 255), 5, CV_AA);
+    }
+}
+
+void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
     std::vector<cv::Point> polygon_pts;
     cv::Mat lane;
 
@@ -265,41 +267,68 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points,
     cv::fillConvexPoly(lane, polygon_pts, cv::Scalar(0, 0, 255), CV_AA, 0);
     cv::addWeighted(lane, 0.3, original_img, 1.0 - 0.3, 0, original_img);
 
-    if (rline_found) {
-        cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
-        cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-        cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    }
-    if (lline_found) {
-	    cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
-        cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-        cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    }
-    if (sline_found) {
-	    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
-        cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-        cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-    }
-    
-    std::string message = "De baxar dina byxor!!!";
-    cv::putText(original_img, message, cv::Point(0.1*original_img.cols, 0.2*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 2, cvScalar(0, 0, 0), 5, CV_FILLED);
+    cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
+    cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+    cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
 
+    cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
+    cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+    cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
+
+    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
+    cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
+    cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
+    
     /*Test: Getting distance between a specified line point and the camera*/ 
     cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
     cv::circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
 
     float stop_dist = std::sqrt(pow(stop_center_pt.x-WIDTH/2, 2) + pow(stop_center_pt.y - original_img.rows, 2));
 	std::string distance = std::to_string(stop_dist);
-
-    cv::putText(original_img, distance, cv::Point(0.1*original_img.cols, 0.3*original_img.rows), cv::FONT_HERSHEY_TRIPLEX, 1, cvScalar(255, 0, 0), 5);
+    cv::putText(original_img, distance, cv::Point(0, 45), FONT, 1,
+                cvScalar(255, 0, 0), 2);
 }
 
-void ip_process(struct ip_data *ip, struct ip_res *res) {
+#endif
+
+#define MEAS_HEIGHT 0.8
+
+double ip_lane_pos(struct ip *ip, lines_t right, lines_t left) {
+    double sum_right = 0;
+    double sum_left = 0;
+
+    for (auto l : right) {
+        cv::Point s(l[0], l[1]);
+        cv::Point e(l[2], l[3]);
+        double k = (double)(e.y-s.y) / (e.x-s.x);
+        double m = s.y-k*s.x;
+
+        sum_right += (MEAS_HEIGHT-m)/k;
+    }
+
+    for (auto l : left) {
+        cv::Point s(l[0], l[1]);
+        cv::Point e(l[2], l[3]);
+        double k = (double)(e.y-s.y) / (e.x-s.x);
+        double m = s.y-k*s.x;
+
+        sum_left += (MEAS_HEIGHT-m)/k;
+    }
+
+    int pos_right = (int)(sum_right/right.size());
+    int pos_left = (int)(sum_left/left.size());
+
+    return pos_right - pos_left;
+}
+
+void ip_process(struct ip *ip, struct ip_res *res) {
     res->error_valid = false;
     res->stopline_found = false;
 
+#ifdef VISUAL
     typedef std::chrono::high_resolution_clock Clock;
 	auto start = Clock::now();
+#endif
 
     cv::Mat frame;
 	ip->cap->read(frame);
@@ -313,36 +342,27 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     cv::Mat edges_image = img_edge_detector(thres_img);
     cv::Mat masked_image = mask_image(edges_image);
 
-    std::vector<cv::Vec4i> hough_lines = find_lines(masked_image);
+    lines_t hough_lines = find_lines(masked_image);
+
+    lines_t right, left, stop, rem;
+    classify_lines(hough_lines, edges_image,
+                   right, left, stop, rem);
+    res->error = ip_lane_pos(ip, left, right);
     
-    if (!hough_lines.empty()) {
-        std::vector<std::vector<cv::Vec4i>> lines;
-        lines = classify_lines(hough_lines, edges_image);
-
-        bool rline_found = !lines[0].empty();
-        bool lline_found = !lines[1].empty();
-        bool sline_found = !lines[2].empty();
-        res->error_valid = lline_found && rline_found;
-
-        std::vector<cv::Point> lane;
-        lane = linear_regression(lines, frame, rline_found,
-                                 lline_found, sline_found);
-
-        int left_bot = lane[4].x;
-        int right_bot = lane[2].x;
-        res->error = ((float)(left_bot+right_bot)/2 - WIDTH/2)/((float)WIDTH/2);
-        printf("right_top.y: %d, lefty: %d, error: %f\n", lane[1].y, lane[3].y, res->error);
-
 #ifdef VISUAL
-        plotLane(frame, lane, rline_found, lline_found, sline_found);
-#endif
+    if (!hough_lines.empty()) {
+        std::vector<cv::Point> lane;
+        lane = linear_regression(right, left, stop);
+        plotLane(frame, lane);
     }
 
-    auto stop = Clock::now();
-    double period = (double)(stop-start).count()/(1000000000);
-    printf("\nFPS: %.1f\n", 1/period);
+    auto stop_time = Clock::now();
+    double period = (double)(stop_time-start).count()/(1e9);
+	std::string fps = std::to_string((int)(1/period));
+    std::string err = std::to_string(res->error);
+    cv::putText(frame, fps, cv::Point(0,15), FONT, 1, cvScalar(0,0,0), 2);
+    cv::putText(frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
 
-#ifdef VISUAL
     cv::createTrackbar("b,bi,tr,z,zi,msk,otsu,tri", "", &thresh_type,
                        TRACK_MAX_THRESH, NULL);
     cv::createTrackbar("thresval", "", &thresh_value, TRACK_MAX, NULL);
@@ -355,11 +375,7 @@ void ip_process(struct ip_data *ip, struct ip_res *res) {
     cv::createTrackbar("mask_width_bot", "", &mask_width_bot, WIDTH, NULL);
 
     cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
-    for (auto l : hough_lines) {
-        cv::Point start(l[0], l[1]);
-        cv::Point end(l[2], l[3]);
-        cv::line(lines_img, start, end, cv::Scalar(255, 255, 255), 5, CV_AA);
-    }
+    plot_lines(lines_img, right, left, stop, rem);
 
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
