@@ -33,26 +33,13 @@ struct bus {
 };
 
 struct order {
-    bool scheduled;
-
     const struct bus_cmd *bc;
     void *src_dst;
 
-    struct order *next;
-};
-
-struct order_scheduled {
-    struct order common;
-
     void (*handler)(void *src_dst, void *data);
     void *handler_data;
-};
 
-struct order_blocked {
-    struct order common;
-
-    pthread_cond_t done; /* will be signaled when finished */
-    pthread_mutex_t done_mutex;
+    struct order *next;
 };
 
 static void spi_tranceive(int fd, void *src, void *dst, int len) {
@@ -113,6 +100,11 @@ static bool transmit(int fd, const struct bus_cmd *bc, void *msg) {
 
 /* order functions */
 
+static void order_destroy(struct order *o) {
+    free(o->src_dst);
+    free(o);
+}
+
 /* -if not a requeue, the order will replace the previous order with the same
  *  type of command */
 static void order_queue(struct bus *bus, struct order *o, bool requeue) {
@@ -127,9 +119,7 @@ static void order_queue(struct bus *bus, struct order *o, bool requeue) {
             if (o->bc == curr->bc) {
                 if (requeue) {
                     insert = false;
-                    if (curr && curr->scheduled) {
-                        free(o);
-                    }
+                    order_destroy(o);
                 }
                 break;
             } else {
@@ -141,9 +131,8 @@ static void order_queue(struct bus *bus, struct order *o, bool requeue) {
     if (insert) {
         o->next = (curr) ? curr->next : NULL;
         *prev_ptr = o;
-        if (curr && curr->scheduled) {
-            free(curr->src_dst);
-            free(curr);
+        if (curr) {
+            order_destroy(curr);
         }
     }
     pthread_mutex_unlock(&bus->lock);
@@ -181,16 +170,9 @@ static void *bus_thread(void *b) {
             packets_sent++;
 
             if (success) {
-                if (order->scheduled) {
-                    struct order_scheduled *os = (struct order_scheduled*)order;
-                    if (os->handler)
-                        os->handler(order->src_dst, os->handler_data);
-                    free(order->src_dst);
-                    free(order);
-                } else {
-                    struct order_blocked *ob = (struct order_blocked*)order;
-                    pthread_cond_signal(&ob->done);
-                }
+                if (order->handler)
+                    order->handler(order->src_dst, order->handler_data);
+                order_destroy(order);
             } else {
                 order_queue(bus, order, true);
                 packets_lost++;
@@ -223,8 +205,8 @@ struct bus *bus_create(int freq) {
     pthread_cond_init(&bus->wake_up, NULL);
     pthread_mutex_init(&bus->wake_up_mutex, NULL);
 
-    /* setup spi for each slave */
 #ifdef PI
+    /* setup spi for each slave */
     bus->fds[0] = open(SPI_DEVICE "0", O_RDWR);
     bus->fds[1] = open(SPI_DEVICE "1", O_RDWR);
     for (int i = 0; i < 2; i++) {
@@ -261,7 +243,7 @@ void bus_destroy(struct bus *bus) {
     while (current) {
         struct order *prev = current;
         current = current->next;
-        free(prev);
+        order_destroy(prev);
     }
     pthread_mutex_destroy(&bus->lock);
     pthread_cond_destroy(&bus->wake_up);
@@ -269,51 +251,16 @@ void bus_destroy(struct bus *bus) {
     free(bus);
 }
 
-void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg) {
-    struct order_blocked *order = malloc(sizeof(struct order_blocked));
-    order->common.scheduled = false;
-    order->common.bc = bc;
-    order->common.src_dst = msg;
-    pthread_cond_init(&order->done, NULL);
-    pthread_mutex_init(&order->done_mutex, NULL);
+void bus_schedule(struct bus *bus, const struct bus_cmd *bc, void *msg,
+                  void (*handler)(void *src, void *data),
+                  void *handler_data) {
+    struct order *order = malloc(sizeof(*order));
+    order->bc = bc;
 
-    order_queue(bus, (struct order*)order, false);
-
-    pthread_mutex_lock(&order->done_mutex);
-    pthread_cond_wait(&order->done, &order->done_mutex);
-    pthread_mutex_unlock(&order->done_mutex);
-
-    free(order);
-}
-
-void bus_transmit_schedule(struct bus *bus, const struct bus_cmd *bc, void *msg,
-                           void (*handler)(void *src, void *data),
-                           void *handler_data) {
-    struct order_scheduled *order = malloc(sizeof(struct order_blocked));
-    order->common.scheduled = true;
-    order->common.bc = bc;
-
-    /* copy input data */
-    order->common.src_dst = malloc(bc->len);
-    memcpy(order->common.src_dst, msg, bc->len);
-
-    order->handler = handler;
-    order->handler_data = handler_data;
-
-    order_queue(bus, (struct order*)order, false);
-    
-    pthread_cond_signal(&bus->wake_up);
-}
-
-void bus_receive_schedule(struct bus *bus, const struct bus_cmd *bc,
-                          void (*handler)(void *dst, void *data),
-                          void *handler_data) {
-    struct order_scheduled *order = malloc(sizeof(struct order_scheduled));
-    order->common.scheduled = true;
-    order->common.bc = bc;
-
-    /* create storage for receive */
-    order->common.src_dst = malloc(bc->len);
+    order->src_dst = malloc(bc->len);
+    if (bc->write) {
+        memcpy(order->src_dst, msg, bc->len);
+    }
 
     order->handler = handler;
     order->handler_data = handler_data;

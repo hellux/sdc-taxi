@@ -108,7 +108,7 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
         success = true;
         const struct bus_cmd *bc = (struct bus_cmd*)a->data1;
         bus_t *bus = (bus_t*)a->data2;
-        bus_transmit_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
+        bus_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
         a->resp = str_create("sending value %f", value);
     } else {
         a->resp = str_create("invalid arg -- \"%s\"", float_str);
@@ -198,10 +198,8 @@ int main(int argc, char* args[]) {
         /* send new ctrl commands */
         int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_VEL_VAL;
         int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
-        bus_transmit_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value,
-                              NULL, NULL);
-        bus_transmit_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value,
-                              NULL, NULL);
+        bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL);
+        bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL);
     }
 
     obj_destroy(obj);
