@@ -14,8 +14,8 @@ struct srv_cmd_args {
 };
 
 /* helper for creating responses */
-/* str must be valid string with *buf_size bytes allocated */
-char *str_append(char *str, int *buf_size, const char *fmt, ...);
+char *str_create(const char *fmt, ...);
+char *str_append(char *str, const char *fmt, ...);
 
 /*
  * data1/data2:

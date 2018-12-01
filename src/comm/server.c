@@ -38,23 +38,23 @@ struct server {
     pthread_mutex_t lock;
 };
 
-char *str_append(char *str, int *buf_size, const char *fmt, ...) {
+char *str_append_var(char *str, const char *fmt, va_list ap) {
+    int buf_size = 64 + 2*strlen(str);
+    str = realloc(str, buf_size);
+
     bool written = false;
     while (!written) {
         int len = strlen(str);
-        int max_app = *buf_size-len;
+        int max_app = buf_size-len;
         if (max_app > 0) {
-            va_list ap;
-            va_start(ap, fmt);
             int len_written = vsnprintf(str+len, max_app, fmt, ap);
-            va_end(ap);
 
             if (len_written < max_app) {
                 written = true;
             } else {
                 str[len] = '\0'; /* rm added string */
-                *buf_size *= 2;
-                str = realloc(str, *buf_size);
+                buf_size *= 2;
+                str = realloc(str, buf_size);
             }
         }
     }
@@ -62,18 +62,36 @@ char *str_append(char *str, int *buf_size, const char *fmt, ...) {
     return str;
 }
 
+char* str_create(const char *fmt, ...) {
+    char *str = malloc(sizeof(char));
+    str[0] = '\0';
+
+    va_list ap;
+    va_start(ap, fmt);
+    str = str_append_var(str, fmt, ap);
+    va_end(ap);
+
+    return str;
+}
+
+char *str_append(char *str, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    str = str_append_var(str, fmt, ap);
+    va_end(ap);
+
+    return str;
+}
+
 /* built in server commands */
 
 bool sc_check(struct srv_cmd_args *a) {
-    int buf_size = 128;
-    char *rsp = malloc(buf_size);
-    rsp[0] = '\0';
-    rsp = str_append(rsp, &buf_size, "argc: %d,", a->argc);
+    char *rsp = str_create("argc: %d,", a->argc);
 
     if (a->argc > 0) {
-        rsp = str_append(rsp, &buf_size, " args: ");
+        rsp = str_append(rsp, " args: ");
         for (int i = 0; i < a->argc; i++) {
-            rsp = str_append(rsp, &buf_size, "\"%s\" ", a->args[i]);
+            rsp = str_append(rsp, "\"%s\" ", a->args[i]);
         }
     }
 
@@ -84,15 +102,12 @@ bool sc_check(struct srv_cmd_args *a) {
 }
 
 bool sc_help(struct srv_cmd_args *a) {
-    int buf_size = 128;
-    char *rsp = malloc(buf_size);
-
     struct srv_cmd *cmds = *(struct srv_cmd**)a->data1;
     int cmdc = *(int*)a->data2;
 
-    rsp = str_append(rsp, &buf_size, "available commands: ");
+    char *rsp = str_create("available commands: ");
     for (int i = 0; i < cmdc; i++) {
-        rsp = str_append(rsp, &buf_size, "%s ", cmds[i].name);
+        rsp = str_append(rsp, "%s ", cmds[i].name);
     }
 
     rsp[strlen(rsp)-1] = '.';
