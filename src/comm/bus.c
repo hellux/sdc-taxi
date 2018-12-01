@@ -125,8 +125,12 @@ static void order_queue(struct bus *bus, struct order *o, bool requeue) {
     if (curr) {
         while (curr) {
             if (o->bc == curr->bc) {
-                if (requeue)
+                if (requeue) {
                     insert = false;
+                    if (curr && curr->scheduled) {
+                        free(o);
+                    }
+                }
                 break;
             } else {
                 prev_ptr = &curr->next;
@@ -137,6 +141,10 @@ static void order_queue(struct bus *bus, struct order *o, bool requeue) {
     if (insert) {
         o->next = (curr) ? curr->next : NULL;
         *prev_ptr = o;
+        if (curr && curr->scheduled) {
+            free(curr->src_dst);
+            free(curr);
+        }
     }
     pthread_mutex_unlock(&bus->lock);
 }
