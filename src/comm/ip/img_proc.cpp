@@ -13,7 +13,7 @@
 const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
                          cv::THRESH_TRUNC, cv::THRESH_TOZERO,
                          cv::THRESH_TOZERO_INV, cv::THRESH_MASK,
-                         cv::THRESH_OTSU, cv::THRESH_TRIANGLE};
+                         cv::THRESH_OTSU};
 #define TRACK_MAX 255
 #define TRACK_MAX_THRESH sizeof(THR_TYPES)/sizeof(*THR_TYPES)
 
@@ -58,8 +58,12 @@ struct ip_data *ip_init() {
 }
 
 void ip_destroy(struct ip_data *ip) {
-    delete ip->cap;
+#ifdef VISUAL
     cv::destroyAllWindows();
+#endif
+    if (ip) {
+        delete ip->cap;
+    }
 }
 
 cv::Mat threshold(cv::Mat& image) {
