@@ -11,6 +11,7 @@
 #include "ip/img_proc.h"
 #include "protocol.h"
 
+#define F_SPI 1000000
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
