@@ -11,8 +11,8 @@ typedef std::vector<cv::Vec4i> lines_t;
 
 #define FONT cv::FONT_HERSHEY_PLAIN
 
-static int WIDTH = 256;
-static int HEIGHT = 144;
+static int WIDTH = 160;
+static int HEIGHT = 120;
 
 const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
                          cv::THRESH_TRUNC, cv::THRESH_TOZERO,
@@ -32,9 +32,12 @@ static int mask_start_y = 0.9*HEIGHT;
 static int mask_end_y = 0.6*HEIGHT;
 
 static int measure_height = 0.8*HEIGHT;
-static int weight_lw = 1;
-static int weight_lp_double = 0.5;
-static int weight_lp_single = 0.3;
+static double weight_lw = 0.08;
+static double weight_lp_double = 0.5;
+static double weight_lp_single = 0.3;
+static double weight_sd = 0.6;
+static int thresh_lane_vis = 5;
+static int thresh_stop_vis = 5;
 
 extern "C" struct ip *ip_init();
 extern "C" void ip_destroy(struct ip *ip);
@@ -43,16 +46,19 @@ extern "C" void ip_process(struct ip *ip, struct ip_res *res);
 struct ip {
     cv::VideoCapture *cap;
 
-    int lane_width;
     int lane_pos;
+    int lane_width;
+    int lane_vis;
+
+    int stop_pos;
+    int stop_diff;
+    int stop_vis;
 };
 
 struct ip *ip_init() {
     struct ip *ip = (struct ip*)malloc(sizeof(*ip));
 
     ip->cap = new cv::VideoCapture(-1);
-    ip->lane_width = 0;
-    ip->lane_pos = 0;
 
     if (!ip->cap->isOpened()) {
         std::cout << "Error: Camera not found\n";
@@ -64,6 +70,15 @@ struct ip *ip_init() {
     ip->cap->set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
     WIDTH = ip->cap->get(CV_CAP_PROP_FRAME_WIDTH);
     HEIGHT = ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT);
+
+    ip->lane_width = 0;
+    ip->lane_pos = WIDTH/2;
+    ip->lane_vis = 0;
+    ip->stop_pos = HEIGHT;
+    ip->stop_diff = 0;
+    ip->stop_vis = 0;
+
+    printf("ip camera at %dx%d\n", WIDTH, HEIGHT);
 
 #ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
@@ -245,22 +260,22 @@ void plot_lines(cv::Mat& img, lines_t right, lines_t left,
     for (auto l : rem) {
         cv::Point start(l[0], l[1]);
         cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(100, 100, 100), 2, CV_AA);
+        cv::line(img, start, end, cv::Scalar(100, 100, 100), 1, CV_AA);
     }
     for (auto l : right) {
         cv::Point start(l[0], l[1]);
         cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(255, 0, 0), 2, CV_AA);
+        cv::line(img, start, end, cv::Scalar(255, 0, 0), 1, CV_AA);
     }
     for (auto l : left) {
         cv::Point start(l[0], l[1]);
         cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(0, 255, 0), 2, CV_AA);
+        cv::line(img, start, end, cv::Scalar(0, 255, 0), 1, CV_AA);
     }
     for (auto l : stop) {
         cv::Point start(l[0], l[1]);
         cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(0, 0, 255), 2, CV_AA);
+        cv::line(img, start, end, cv::Scalar(0, 0, 255), 1, CV_AA);
     }
 }
 
@@ -301,19 +316,56 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
 
 #endif
 
-/* average x position of lines at y=height */
-int line_pos(struct ip *ip, lines_t lines, int height) {
-    if (lines.empty()) {
-        return 0;
+int median(std::vector<int> v) {
+    int middle = v.size()/2;
+    std::nth_element(v.begin(), v.begin()+middle, v.end());
+    int median;
+    if (v.size() % 2 == 0) {
+        std::nth_element(v.begin(), v.begin()+middle+1, v.end());
+        median = (v[middle-1]+v[middle])/2 + 0.5;
     } else {
-        double sum = 0;
+        median = v[middle];
+    }
+    return median;
+}
+
+/* median x position of lines at y=height */
+int line_pos_x(lines_t lines, int height) {
+    if (lines.empty()) {
+        return -1;
+    } else {
+        std::vector<int> pos;
         for (auto l : lines) {
             cv::Point s(l[0], l[1]), e(l[2], l[3]);
-            double k = (double)(e.y-s.y) / (e.x-s.x);
-            double m = s.y-k*s.x;
-            sum += (height-m)/k;
+            if (s.x == e.x) {
+                pos.push_back(s.x);
+            } else if (s.y != e.y) {
+                double k = (double)(e.y-s.y) / (e.x-s.x);
+                double m = s.y-k*s.x;
+                pos.push_back((int)((height-m)/k));
+            }
         }
-        return (int)(sum/lines.size());
+        return pos.empty() ? -1 : median(pos);
+    }
+}
+
+/* median y position of lines at x=width */
+int line_pos_y(lines_t lines, int width) {
+    if (lines.empty()) {
+        return -1;
+    } else {
+        std::vector<int> pos;
+        for (auto l : lines) {
+            cv::Point s(l[0], l[1]), e(l[2], l[3]);
+            if (s.y == e.y) {
+                pos.push_back(s.y);
+            } else if (s.x != e.x) {
+                double k = (double)(e.x-s.x) / (e.y-s.y);
+                double m = s.x-k*s.y;
+                pos.push_back((int)((width-m)/k));
+            }
+        }
+        return pos.empty() ? -1 : median(pos);
     }
 }
 
@@ -345,32 +397,62 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     classify_lines(hough_lines, edges_image,
                    right, left, stop, rem);
 
-    /* calculate error */
-    int right_pos = line_pos(ip, right, measure_height);
-    int left_pos = line_pos(ip, left, measure_height);
+    /* calculate lane position */
+    int right_pos = line_pos_x(right, measure_height);
+    int left_pos = line_pos_x(left, measure_height);
 
-    if (!right.empty() && !left.empty()) {
+    if (right_pos != -1 && left_pos != -1) {
         int lw = right_pos - left_pos;
-        ip->lane_width = (ip->lane_width + lw*weight_lw)/(1+weight_lw);
+        ip->lane_width = (ip->lane_width + (double)lw*weight_lw)/(1.0+weight_lw);
+
+        ip->lane_vis++;
+    } else {
+        ip->lane_vis--;
     }
+
+    ip->lane_vis = std::min(std::max(ip->lane_vis, 0), thresh_lane_vis*2);
     
     double weight_lp = 0;
     int lp = 0;
 
-    if (!right.empty() && !left.empty()) {
+    if (right_pos != -1 && left_pos != -1) {
         lp = (right_pos + left_pos)/2;
         weight_lp = weight_lp_double;
-    } else if (!right.empty()) {
+    } else if (right_pos != -1) {
         lp = right_pos - ip->lane_width/2;
         weight_lp = weight_lp_single;
-    } else if (!left.empty()) {
+    } else if (left_pos != -1) {
         lp = left_pos + ip->lane_width/2;
         weight_lp = weight_lp_single;
     }
 
-    ip->lane_pos = (ip->lane_pos + lp*weight_lp)/(1+weight_lp);
+    ip->lane_pos = (ip->lane_pos + (double)lp*weight_lp)/(1.0+weight_lp);
 
-    res->error = (float)ip->lane_pos/WIDTH;
+    /* calc stopline position */
+    int stop_pos = line_pos_y(stop, WIDTH/2);
+    if (stop_pos != -1) {
+        ip->stop_vis++;
+        int diff = std::max(ip->stop_pos-stop_pos, 0);
+        ip->stop_diff = (ip->stop_diff+diff*weight_sd)/(1+weight_sd);
+        ip->stop_pos = stop_pos;
+    } else {
+        ip->stop_vis--;
+        ip->stop_pos = ip->stop_pos + ip->stop_diff;
+    }
+
+    if (ip->stop_pos >= HEIGHT) {
+        ip->stop_pos = HEIGHT;
+        ip->stop_diff = 0;
+        ip->stop_vis = 0;
+    }
+
+    ip->stop_vis = std::min(std::max(ip->stop_vis, 0), thresh_stop_vis*2);
+
+    /* write to result struct */
+    res->error = (float)ip->lane_pos/(WIDTH/2) - 1;
+    res->error_valid = ip->lane_vis >= thresh_lane_vis;
+    res->stopline_dist = 1-(float)ip->stop_pos/HEIGHT; /* TODO calc in meters */
+    res->stopline_found = ip->stop_vis >= thresh_stop_vis;
 
 #ifdef VISUAL
     if (!hough_lines.empty()) {
@@ -399,6 +481,26 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 
     cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
     plot_lines(lines_img, right, left, stop, rem);
+    cv::line(lines_img,
+             cv::Point(ip->lane_pos - ip->lane_width/2, measure_height),
+             cv::Point(ip->lane_pos + ip->lane_width/2, measure_height),
+             cv::Scalar(255,255,0), 1, CV_AA);
+    int lane_thick = res->error_valid ? 3 : 1;
+    cv::line(lines_img,
+             cv::Point(ip->lane_pos, 0),
+             cv::Point(ip->lane_pos, HEIGHT),
+             cv::Scalar(0,255,255), lane_thick, CV_AA);
+    int stop_thick = res->stopline_found ? 3 : 1;
+    cv::line(lines_img,
+             cv::Point(0, ip->stop_pos),
+             cv::Point(WIDTH, ip->stop_pos),
+             cv::Scalar(255,0,255), stop_thick, CV_AA);
+    cv::circle(lines_img,
+             cv::Point(left_pos, measure_height), 3,
+             cv::Scalar(0,255,0), CV_FILLED);
+    cv::circle(lines_img,
+             cv::Point(right_pos, measure_height), 3,
+             cv::Scalar(255,0,0), CV_FILLED);
 
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
