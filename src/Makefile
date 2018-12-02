@@ -3,19 +3,19 @@ BINDIR = $(OBJDIR)/bin
 
 CC = gcc
 CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
-CFLAGS.debug = -Wall -Werror -Wno-unused -Og -ggdb -Og
+CFLAGS.debug = -Wall -Og -ggdb -Og
 CFLAGS.release = -O3
 
 PI_REMOTE = pi@172.20.10.4
 
 CXXC = g++
 CXXFLAGS = -DCPP `pkg-config --cflags opencv`
-CXXFLAGS.debug = -Wall -Werror -ggdb -Og
+CXXFLAGS.debug = -Wall -ggdb -Og
 CXXFLAGS.release = -O3
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
-AVRCFLAGS = -static -DF_CPU=16000000 -Wall -Werror -Wno-unused -Og
+AVRCFLAGS = -static -DF_CPU=16000000 -Wall -Og
 
 PROG_CONF = prog.conf
 PROG_DBG = atmelice
