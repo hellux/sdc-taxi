@@ -283,7 +283,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
 
         ctrl->vel.value = FULL_VEL;
         ctrl->vel.regulate = false;
-        ctrl->rot.value = ip_res.error;
+        ctrl->rot.value = ip_res.lane_offset;
         ctrl->rot.regulate = true;
 
         if (o->stopline_found) {
@@ -294,8 +294,8 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
 
             struct state state;
             state.sens = sens;
-            state.lane_offset = ip_res.error;
-            state.lane_found = ip_res.error_valid;
+            state.lane_offset = ip_res.lane_offset;
+            state.lane_found = ip_res.lane_found;
             state.stopline_dist = ip_res.stopline_dist;
             state.stopline_since = sens->time - o->stopline_passtime;
             state.stopline_passed = o->stopline_passed;

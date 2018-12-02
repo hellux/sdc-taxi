@@ -6,8 +6,8 @@
 struct ip_res {
     float stopline_dist;
     bool stopline_found;
-    float error;
-    bool error_valid;
+    float lane_offset;
+    bool lane_found;
 };
 
 typedef struct ip_data ip_t;

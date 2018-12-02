@@ -370,9 +370,6 @@ int line_pos_y(lines_t lines, int width) {
 }
 
 void ip_process(struct ip *ip, struct ip_res *res) {
-    res->error_valid = false;
-    res->stopline_found = false;
-
 #ifdef VISUAL
     typedef std::chrono::high_resolution_clock Clock;
 	auto start = Clock::now();
@@ -449,8 +446,8 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     ip->stop_vis = std::min(std::max(ip->stop_vis, 0), thresh_stop_vis*2);
 
     /* write to result struct */
-    res->error = (float)ip->lane_pos/(WIDTH/2) - 1;
-    res->error_valid = ip->lane_vis >= thresh_lane_vis;
+    res->lane_offset = (float)ip->lane_pos/(WIDTH/2) - 1;
+    res->lane_found = ip->lane_vis >= thresh_lane_vis;
     res->stopline_dist = 1-(float)ip->stop_pos/HEIGHT; /* TODO calc in meters */
     res->stopline_found = ip->stop_vis >= thresh_stop_vis;
 
@@ -464,7 +461,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     auto stop_time = Clock::now();
     double period = (double)(stop_time-start).count()/(1e9);
 	std::string fps = std::to_string((int)(1/period));
-    std::string err = std::to_string(res->error);
+    std::string err = std::to_string(res->lane_offset);
     cv::putText(frame, fps, cv::Point(0,15), FONT, 1, cvScalar(0,0,0), 2);
     cv::putText(frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
 
@@ -485,7 +482,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
              cv::Point(ip->lane_pos - ip->lane_width/2, measure_height),
              cv::Point(ip->lane_pos + ip->lane_width/2, measure_height),
              cv::Scalar(255,255,0), 1, CV_AA);
-    int lane_thick = res->error_valid ? 3 : 1;
+    int lane_thick = res->lane_found ? 3 : 1;
     cv::line(lines_img,
              cv::Point(ip->lane_pos, 0),
              cv::Point(ip->lane_pos, HEIGHT),
