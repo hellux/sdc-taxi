@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <pthread.h>
 
@@ -19,7 +20,7 @@
 #define SEC 1e3 /* milliseconds per second */
 
 float wtd_speed(float distance, float current, float target) {
-    return (target-current)/distance;
+    return current+(target-current)/distance;
 }
 
 struct state {
@@ -36,7 +37,8 @@ struct state {
 /* objective commands */
 
 bool cmd_ignore(const struct state *s, struct ctrl_val *c) {
-    if (s->stopline_passed) {
+    printf("ignr %d\n", s->stopline_since);
+    if (s->stopline_since > 500) {
         return true;
     }
     return false;
@@ -44,12 +46,13 @@ bool cmd_ignore(const struct state *s, struct ctrl_val *c) {
 
 bool cmd_stop(const struct state *s, struct ctrl_val *c) {
     float cur_vel = s->sens->velocity;
-    if (cur_vel == STOP_VEL)
+    printf("stopline: %f, c->vel: %f\n", s->stopline_dist, c->vel.value);
+    if (c->vel.value < 0.05) {
         return true;
-    else if (s->stopline_dist <= BRAKE_DIST) {
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, STOP_VEL);
+    } else {
+        c->vel.value = wtd_speed(s->stopline_dist, c->vel.value, -1);
+        return false;
     }
-    return false;
 }
 
 bool cmd_park(const struct state *s, struct ctrl_val *c) {
@@ -205,6 +208,7 @@ struct obj_item *queue_create(int cmdc, char **cmds) {
 struct obj *obj_create(void) {
     struct obj *obj = calloc(1, sizeof(*obj));
     pthread_mutex_init(&obj->lock, 0);
+    obj_set_mission(obj, 0, NULL);
     obj->ip = ip_init();
 
     return obj;
@@ -255,6 +259,9 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
         pthread_mutex_lock(&obj->lock);
         queue_destroy(obj->queue);
         obj->queue = queue;
+        obj->stopline_passtime = 0;
+        obj->stopline_found = false;
+        obj->stopline_passed = false;
         pthread_mutex_unlock(&obj->lock);
         return true;
     } else {
@@ -275,17 +282,16 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         o->stopline_passed = false;
     }
 
+    struct ip_res ip_res;
+    ip_process(o->ip, &ip_res);
+    if (ip_res.stopline_found)
+        o->stopline_found = true;
+
+    ctrl->vel.regulate = false;
+    ctrl->rot.value = ip_res.lane_offset;
+    ctrl->rot.regulate = true;
+
     if (o->current) {
-        struct ip_res ip_res;
-        ip_process(o->ip, &ip_res);
-        if (ip_res.stopline_found)
-            o->stopline_found = true;
-
-        ctrl->vel.value = FULL_VEL;
-        ctrl->vel.regulate = false;
-        ctrl->rot.value = ip_res.lane_offset;
-        ctrl->rot.regulate = true;
-
         if (o->stopline_found) {
             if (!o->stopline_passed && ip_res.stopline_dist <= 0) {
                 o->stopline_passed = true;
@@ -307,14 +313,17 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
                 o->current = NULL;
             }
             finished = cmd_finished && !o->queue;
+        } else {
+            ctrl->vel.value = FULL_VEL;
         }
     } else {
         finished = true;
+        ctrl->vel.value = 0;
     }
 
     if (finished) {
         pthread_mutex_lock(&o->lock);
-        o->active = false;
+        /* o->active = false; */
         pthread_mutex_unlock(&o->lock);
     }
 }
