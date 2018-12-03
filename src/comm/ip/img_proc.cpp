@@ -27,11 +27,10 @@ static int hough_threshold;
 static int line_min_length;
 static int line_max_gap;
 static int mask_width_top;
-static int mask_width_bot;
 static int mask_start_y;
 static int mask_end_y;
-static float thresh_line;
-static float thresh_stop;
+static float thresh_slope_line;
+static float thresh_slope_stop;
 
 static int measure_height;
 static double weight_lw;
@@ -40,6 +39,7 @@ static double weight_lp_single;
 static double weight_sd;
 static int thresh_lane_vis;
 static int thresh_stop_vis;
+static int stop_dmax;
 
 extern "C" struct ip *ip_init();
 extern "C" void ip_destroy(struct ip *ip);
@@ -48,11 +48,14 @@ extern "C" void ip_process(struct ip *ip, struct ip_res *res);
 struct ip {
     cv::VideoCapture *cap;
 
-    int lane_pos;
+    int lane_x;
+    double lane_slope;
     int lane_width;
     int lane_vis;
 
-    int stop_pos;
+    int stop_x;
+    int stop_y;
+    double stop_slope;
     int stop_diff;
     int stop_vis;
 };
@@ -74,9 +77,9 @@ struct ip *ip_init() {
     HEIGHT = ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT);
 
     ip->lane_width = 0;
-    ip->lane_pos = WIDTH/2;
+    ip->lane_x = WIDTH/2;
     ip->lane_vis = 0;
-    ip->stop_pos = HEIGHT;
+    ip->stop_y = HEIGHT;
     ip->stop_diff = 0;
     ip->stop_vis = 0;
 
@@ -88,11 +91,11 @@ struct ip *ip_init() {
     line_min_length = 0;
     line_max_gap = 40;
     mask_width_top = 0.3*WIDTH;
-    mask_width_bot = 1*WIDTH;
     mask_start_y = 0.9*HEIGHT;
     mask_end_y = 0.4*HEIGHT;
-    thresh_line = 0.4;
-    thresh_stop = 0.9;
+    thresh_slope_line = 0.4;
+    thresh_slope_stop = 0.9;
+    stop_dmax = 0.2*HEIGHT;
 
     measure_height = 0.8*HEIGHT;
     weight_lw = 0.06;
@@ -146,8 +149,8 @@ cv::Mat mask_image(cv::Mat& image) {
     float top_lx = (image.cols-mask_width_top)/2;
 
     float bot_y = mask_start_y;
-    float bot_lx = (image.cols-mask_width_bot)/2;
-    float bot_rx = (image.cols+mask_width_bot)/2;
+    float bot_lx = 0;
+    float bot_rx = image.rows;
 
     cv::Point p0(0, HEIGHT), p1(bot_lx, bot_y), p2(top_lx, top_y),
               p3(top_rx, top_y), p4(bot_rx, bot_y), p5(WIDTH, HEIGHT);
@@ -170,18 +173,25 @@ lines_t find_lines(cv::Mat& image) {
 
 void classify_lines(lines_t& lines, cv::Mat& image,
                     lines_t& right_lines, lines_t& left_lines,
-                    lines_t& stop_lines, lines_t& rem_lines) {
-    int cx = WIDTH/2;
+                    lines_t& stop_lines, lines_t& rem_lines,
+                    int lane_x, double lane_slope,
+                    int stop_x, int stop_y) {
+    double stop_slope = 1/lane_slope;
+    double stop_m = stop_y - stop_x*stop_slope;
     for (auto line : lines) {
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
         double slope = (double)(e.y-s.y) / (e.x-s.x);
-        if (std::abs(slope) < thresh_stop && ((s.x < cx && e.x > cx) ||
-                                              (e.x < cx && s.x > cx))) {
-            stop_lines.push_back(line);
-        } else if (std::abs(slope) > thresh_line && e.x > cx && s.x > cx) {
+        if (std::abs(slope-stop_slope) < thresh_slope_stop) {
+            if (std::abs(s.y-(stop_slope*s.x+stop_m))
+             && std::abs(e.y-(stop_slope*e.x+stop_m))) {
+                stop_lines.push_back(line);
+            }
+        } else if (std::abs(slope-lane_slope) > thresh_slope_line &&
+                   e.x > lane_x && s.x > lane_x) {
             right_lines.push_back(line);
-        } else if (std::abs(slope) > thresh_line && e.x < cx && s.x < cx) {
+        } else if (std::abs(slope-lane_slope) > thresh_slope_line &&
+                   e.x < lane_x && s.x < lane_x) {
             left_lines.push_back(line);
         } else {
             rem_lines.push_back(line);
@@ -339,57 +349,60 @@ void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
 
 #endif
 
-int median(std::vector<int> v) {
+template<class T>
+T median(std::vector<T> v) {
     int middle = v.size()/2;
     std::nth_element(v.begin(), v.begin()+middle, v.end());
-    int median;
+    T median;
     if (v.size() % 2 == 0) {
         std::nth_element(v.begin(), v.begin()+middle+1, v.end());
-        median = (v[middle-1]+v[middle])/2 + 0.5;
+        median = (v[middle-1]+v[middle])/2;
     } else {
         median = v[middle];
     }
     return median;
 }
 
-/* median x position of lines at y=height */
-int line_pos_x(lines_t lines, int height) {
+/* median x position of lines at y=height,
+ * median y position of lines at x=width,
+ * median slope of lines */
+void line_pos_slope(lines_t lines, int width, int height,
+                   int *x, int *y, double *slope) {
+    int x_ret, y_ret, slope_ret;
+
     if (lines.empty()) {
-        return -1;
+        x_ret = -1;
+        y_ret = -1;
+        slope_ret = 0;
     } else {
-        std::vector<int> pos;
+        std::vector<int> pos_x, pos_y;
+        std::vector<double> slopes;
+
         for (auto l : lines) {
             cv::Point s(l[0], l[1]), e(l[2], l[3]);
             if (s.x == e.x) {
-                pos.push_back(s.x);
-            } else if (s.y != e.y) {
+                pos_x.push_back(s.x);
+                slopes.push_back(10);
+            } else if (s.y == e.y) {
+                pos_y.push_back(s.y);
+                slopes.push_back(0);
+            } else {
                 double k = (double)(e.y-s.y) / (e.x-s.x);
                 double m = s.y-k*s.x;
-                pos.push_back((int)((height-m)/k));
-            }
-        }
-        return pos.empty() ? -1 : median(pos);
-    }
-}
+                slopes.push_back(k);
 
-/* median y position of lines at x=width */
-int line_pos_y(lines_t lines, int width) {
-    if (lines.empty()) {
-        return -1;
-    } else {
-        std::vector<int> pos;
-        for (auto l : lines) {
-            cv::Point s(l[0], l[1]), e(l[2], l[3]);
-            if (s.y == e.y) {
-                pos.push_back(s.y);
-            } else if (s.x != e.x) {
-                double k = (double)(e.x-s.x) / (e.y-s.y);
-                double m = s.x-k*s.y;
-                pos.push_back((int)((width-m)/k));
+                pos_x.push_back((int)((height-m)/k));
+                pos_y.push_back((int)(k*width+m));
             }
         }
-        return pos.empty() ? -1 : median(pos);
+        if (x) x_ret = pos_x.empty() ? -1 : median(pos_x);
+        if (y) y_ret = pos_y.empty() ? -1 : median(pos_y);
+        if (slope) slope_ret = slopes.empty() ? 0 : median(slopes);
     }
+
+    if (x) *x = x_ret;
+    if (y) *y = y_ret;
+    if (slope) *slope = slope_ret;
 }
 
 void ip_process(struct ip *ip, struct ip_res *res) {
@@ -415,15 +428,20 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     lines_t hough_lines = find_lines(masked_image);
     lines_t right, left, stop, rem;
     classify_lines(hough_lines, edges_image,
-                   right, left, stop, rem);
+                   right, left, stop, rem,
+                   ip->lane_x, 1/ip->lane_slope,
+                   ip->stop_x, ip->stop_y);
 
     /* calculate lane position */
-    int right_pos = line_pos_x(right, measure_height);
-    int left_pos = line_pos_x(left, measure_height);
+    int right_pos = -1, left_pos = -1;
+    double right_slope = 0, left_slope = 0;
+    line_pos_slope(right, 0, measure_height, &right_pos, NULL, &right_slope);
+    line_pos_slope(left, 0, measure_height, &left_pos, NULL, &left_slope);
+    double lane_slope = (right_slope + left_slope)/2;
 
     if (right_pos != -1 && left_pos != -1) {
         int lw = right_pos - left_pos;
-        ip->lane_width = (ip->lane_width + (double)lw*weight_lw)/(1.0+weight_lw);
+        ip->lane_width = (ip->lane_width +lw*weight_lw)/(1.0+weight_lw);
 
         ip->lane_vis++;
     } else {
@@ -446,22 +464,32 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         weight_lp = weight_lp_single;
     }
 
-    ip->lane_pos = (ip->lane_pos + (double)lp*weight_lp)/(1.0+weight_lp);
+    ip->lane_x = (ip->lane_x+lp*weight_lp)/(1.0+weight_lp);
+    ip->lane_slope = (ip->lane_slope+lane_slope*weight_lp)/(1.0+weight_lp);
 
     /* calc stopline position */
-    int stop_pos = line_pos_y(stop, ip->lane_pos);
-    if (stop_pos != -1) {
+
+    /* y = measure_height = lane_x*lane_slope + lane_m */
+    double lane_m = measure_height - ip->lane_slope*ip->lane_x;
+    /* y = stop_y = stop_x*lane_slope + lane_m */
+    ip->stop_x = (int)((ip->stop_y-lane_m)/ip->lane_slope);
+
+    int stop_y;
+    line_pos_slope(stop, ip->stop_x, 0,
+                   NULL, &stop_y, NULL);
+
+    if (stop_y != -1) {
         ip->stop_vis++;
-        int diff = std::max(ip->stop_pos-stop_pos, 0);
+        int diff = std::max(ip->stop_y-stop_y, 0);
         ip->stop_diff = (ip->stop_diff+diff*weight_sd)/(1+weight_sd);
-        ip->stop_pos = stop_pos;
+        ip->stop_y = stop_y;
     } else {
         ip->stop_vis--;
-        ip->stop_pos = ip->stop_pos + ip->stop_diff;
+        ip->stop_y = ip->stop_y + ip->stop_diff;
     }
 
-    if (ip->stop_pos >= HEIGHT) {
-        ip->stop_pos = HEIGHT;
+    if (ip->stop_y >= HEIGHT) {
+        ip->stop_y = HEIGHT;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
     }
@@ -469,9 +497,9 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     ip->stop_vis = std::min(std::max(ip->stop_vis, 0), thresh_stop_vis*2);
 
     /* write to result struct */
-    res->lane_offset = (float)ip->lane_pos/(WIDTH/2) - 1;
+    res->lane_offset = (float)ip->lane_x/(WIDTH/2) - 1;
     res->lane_found = ip->lane_vis >= thresh_lane_vis;
-    res->stopline_dist = 1-(float)ip->stop_pos/HEIGHT; /* TODO calc in meters */
+    res->stopline_dist = 1-(float)ip->stop_y/HEIGHT; /* TODO calc in meters */
     res->stopline_found = ip->stop_vis >= thresh_stop_vis;
 
 #ifdef VISUAL
@@ -494,26 +522,25 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::createTrackbar("hougthres", "", &hough_threshold, TRACK_MAX, NULL);
     cv::createTrackbar("houghmin", "", &line_min_length, TRACK_MAX, NULL);
     cv::createTrackbar("houghgap", "", &line_max_gap, TRACK_MAX, NULL);
-    cv::createTrackbar("mask_start_y", "", &mask_start_y, HEIGHT, NULL);
-    cv::createTrackbar("mask_end", "", &mask_end_y, HEIGHT, NULL);
     cv::createTrackbar("mask_width_top", "", &mask_width_top, WIDTH, NULL);
-    cv::createTrackbar("mask_width_bot", "", &mask_width_bot, WIDTH, NULL);
+    cv::createTrackbar("mask_start_y", "", &mask_start_y, HEIGHT, NULL);
+    cv::createTrackbar("mask_end_y", "", &mask_end_y, HEIGHT, NULL);
 
     cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
     plot_lines(lines_img, right, left, stop, rem);
     cv::line(lines_img,
-             cv::Point(ip->lane_pos - ip->lane_width/2, measure_height),
-             cv::Point(ip->lane_pos + ip->lane_width/2, measure_height),
+             cv::Point(ip->lane_x - ip->lane_width/2, measure_height),
+             cv::Point(ip->lane_x + ip->lane_width/2, measure_height),
              cv::Scalar(255,255,0), 1, CV_AA);
     int lane_thick = res->lane_found ? 3 : 1;
     cv::line(lines_img,
-             cv::Point(ip->lane_pos, 0),
-             cv::Point(ip->lane_pos, HEIGHT),
+             cv::Point(ip->lane_x, measure_height),
+             cv::Point(ip->stop_x, ip->stop_y),
              cv::Scalar(0,255,255), lane_thick, CV_AA);
     int stop_thick = res->stopline_found ? 3 : 1;
     cv::line(lines_img,
-             cv::Point(0, ip->stop_pos),
-             cv::Point(WIDTH, ip->stop_pos),
+             cv::Point(0, ip->stop_y),
+             cv::Point(WIDTH, ip->stop_y),
              cv::Scalar(255,0,255), stop_thick, CV_AA);
     cv::circle(lines_img,
              cv::Point(left_pos, measure_height), 3,
