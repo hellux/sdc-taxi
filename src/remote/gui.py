@@ -4,15 +4,11 @@ import os
 import pickle
 import time
 import tkinter as tk
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 
 from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from msilib.schema import ReserveCost
 
-matplotlib.use('TkAgg')
 
 class Map():
     NODE_SIZE = 5
@@ -197,16 +193,6 @@ class GUI():
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
         self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
-        #GRAPH
-        fig = plt.figure(1)
-        plt.ion()
-        t = np.arange(0.0,3.0,0.01)
-        s = np.sin(np.pi*t)
-        plt.plot(t,s)
-        
-        canvas = FigureCanvasTkAgg(fig, master=self.window)
-        plot_widget = canvas.get_tk_widget()
-        
         #MAP
         self.map = Map(self.window, self.map_frame)
         
@@ -216,13 +202,12 @@ class GUI():
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
-        #LAYOUT
         self.mode_label.pack(side=tk.TOP)
         self.info_list.pack(side=tk.LEFT, fill="both", expand=True, padx=10, pady=10)
-        self.map_frame.pack(fill="both", expand=True, pady=10, padx=10, side=tk.TOP)
-        plot_widget.pack(fill="both", expand=True, side=tk.RIGHT)
-        sendCommandButton.pack(side=tk.BOTTOM, padx=10)
-        self.console.pack(side=tk.BOTTOM, fill="both", expand=True, pady=10, padx=10)
+        self.map_frame.pack(fill="both", expand=True, pady=10, padx=10)
+        sendCommandButton.pack(side=tk.RIGHT, padx=10)
+        self.console.pack(side=tk.RIGHT, fill="both", expand=True, pady=10, padx=10)
+        
         
         #MENU
         menuBar = tk.Menu(self.window)
@@ -270,6 +255,7 @@ class GUI():
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
         
+
     def send_command(self, event):
         self.console.delete(0, 'end')
         self.tasks.put(Task.SEND, self.console.get())
@@ -323,14 +309,10 @@ class GUI():
             self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
 
     def display_info(self, sensor_data):
-        info_labels = ["Front", "Right", "Speed", "Distance"]
+        info_labels = ["Front", "Rear", "Speed", "Distance"]
         for x in range(0,4):
             self.info_list.insert(x, info_labels[x] + ": " + sensor_data[x])
         self.info_list.insert(4, "")
-        
-        #plt.plot(sensor_data[3])
-        #plt.ylabel("Speed")
-        #plt.show()
         
     def quit(self):
         self.tasks.put(Task.KILL)
