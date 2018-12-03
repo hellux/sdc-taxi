@@ -14,7 +14,7 @@
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
 #define VEL_MIN 0.06
-#define VEL_MAX 0.1
+#define VEL_MAX 0.11
 #define VEL_MIN_NEG 0.06
 #define VEL_MAX_NEG 0.13
 #define ROT_MIN 0
@@ -30,8 +30,8 @@
 #define VEL_KP_DEF 1
 #define VEL_KD_DEF 0.0
 
-#define ROT_KP_DEF 3
-#define ROT_KD_DEF 0.0
+#define ROT_KP_DEF 2.3
+#define ROT_KD_DEF 20
 
 /* killswitch */
 #define KS_OCR OCR3A
