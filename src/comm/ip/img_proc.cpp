@@ -11,8 +11,8 @@ typedef std::vector<cv::Vec4i> lines_t;
 
 #define FONT cv::FONT_HERSHEY_PLAIN
 
-static int WIDTH = 160;
-static int HEIGHT = 120;
+static int WIDTH = 256;
+static int HEIGHT = 144;
 
 const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
                          cv::THRESH_TRUNC, cv::THRESH_TOZERO,
@@ -32,7 +32,7 @@ static int mask_start_y = 0.9*HEIGHT;
 static int mask_end_y = 0.6*HEIGHT;
 
 static int measure_height = 0.8*HEIGHT;
-static double weight_lw = 0.08;
+static double weight_lw = 0.06;
 static double weight_lp_double = 0.5;
 static double weight_lp_single = 0.3;
 static double weight_sd = 0.6;
@@ -156,9 +156,9 @@ void classify_lines(lines_t& lines, cv::Mat& image,
         double slope = (double)(e.y-s.y) / (e.x-s.x);
         if (slope == 0 || (s.x < cx && e.x > cx)) {
             stop_lines.push_back(line);
-        } else if (slope > 1 && (e.x > cx && s.x > cx && e.y > .95*HEIGHT)) {
+        } else if (std::abs(slope) > 1 && e.x > cx && s.x > cx) {
             right_lines.push_back(line);
-        } else if (slope < -1 && (e.x < cx && s.x < cx && s.y > .95*HEIGHT)) {
+        } else if (std::abs(slope) > 1 && e.x < cx && s.x < cx) {
             left_lines.push_back(line);
         } else {
             rem_lines.push_back(line);
@@ -426,7 +426,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     ip->lane_pos = (ip->lane_pos + (double)lp*weight_lp)/(1.0+weight_lp);
 
     /* calc stopline position */
-    int stop_pos = line_pos_y(stop, WIDTH/2);
+    int stop_pos = line_pos_y(stop, ip->lane_pos);
     if (stop_pos != -1) {
         ip->stop_vis++;
         int diff = std::max(ip->stop_pos-stop_pos, 0);
