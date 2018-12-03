@@ -21,23 +21,25 @@ const int THR_TYPES[] = {cv::THRESH_BINARY, cv::THRESH_BINARY_INV,
 #define TRACK_MAX 255
 #define TRACK_MAX_THRESH sizeof(THR_TYPES)/sizeof(*THR_TYPES)
 
-static int thresh_value = 20;
-static int thresh_type = 6;
-static int hough_threshold = 7;
-static int line_min_length = 0;
-static int line_max_gap = 40;
-static int mask_width_top = 0.85*WIDTH;
-static int mask_width_bot = 1*WIDTH;
-static int mask_start_y = 0.9*HEIGHT;
-static int mask_end_y = 0.6*HEIGHT;
+static int thresh_value;
+static int thresh_type;
+static int hough_threshold;
+static int line_min_length;
+static int line_max_gap;
+static int mask_width_top;
+static int mask_width_bot;
+static int mask_start_y;
+static int mask_end_y;
+static float thresh_line;
+static float thresh_stop;
 
-static int measure_height = 0.8*HEIGHT;
-static double weight_lw = 0.06;
-static double weight_lp_double = 0.5;
-static double weight_lp_single = 0.3;
-static double weight_sd = 0.6;
-static int thresh_lane_vis = 5;
-static int thresh_stop_vis = 5;
+static int measure_height;
+static double weight_lw;
+static double weight_lp_double;
+static double weight_lp_single;
+static double weight_sd;
+static int thresh_lane_vis;
+static int thresh_stop_vis;
 
 extern "C" struct ip *ip_init();
 extern "C" void ip_destroy(struct ip *ip);
@@ -79,6 +81,26 @@ struct ip *ip_init() {
     ip->stop_vis = 0;
 
     printf("ip camera at %dx%d\n", WIDTH, HEIGHT);
+
+    thresh_value = 20;
+    thresh_type = 6;
+    hough_threshold = 7;
+    line_min_length = 0;
+    line_max_gap = 40;
+    mask_width_top = 0.3*WIDTH;
+    mask_width_bot = 1*WIDTH;
+    mask_start_y = 0.9*HEIGHT;
+    mask_end_y = 0.4*HEIGHT;
+    thresh_line = 0.4;
+    thresh_stop = 0.9;
+
+    measure_height = 0.8*HEIGHT;
+    weight_lw = 0.06;
+    weight_lp_double = 0.5;
+    weight_lp_single = 0.3;
+    weight_sd = 0.6;
+    thresh_lane_vis = 5;
+    thresh_stop_vis = 3;
 
 #ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
@@ -154,11 +176,12 @@ void classify_lines(lines_t& lines, cv::Mat& image,
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
         double slope = (double)(e.y-s.y) / (e.x-s.x);
-        if (slope == 0 || (s.x < cx && e.x > cx)) {
+        if (std::abs(slope) < thresh_stop && ((s.x < cx && e.x > cx) ||
+                                              (e.x < cx && s.x > cx))) {
             stop_lines.push_back(line);
-        } else if (std::abs(slope) > 1 && e.x > cx && s.x > cx) {
+        } else if (std::abs(slope) > thresh_line && e.x > cx && s.x > cx) {
             right_lines.push_back(line);
-        } else if (std::abs(slope) > 1 && e.x < cx && s.x < cx) {
+        } else if (std::abs(slope) > thresh_line && e.x < cx && s.x < cx) {
             left_lines.push_back(line);
         } else {
             rem_lines.push_back(line);
