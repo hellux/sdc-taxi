@@ -4,11 +4,15 @@ import os
 import pickle
 import time
 import tkinter as tk
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 
 from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
-from msilib.schema import ReserveCost
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+matplotlib.use('TkAgg')
 
 class Map():
     NODE_SIZE = 5
@@ -105,7 +109,7 @@ class Map():
         self.cost_popup = tk.Tk()
         cost_label = tk.Label(self.cost_popup, text="Enter cost: ")
         self.cost_entry = tk.Entry(self.cost_popup)
-        self.cost_popup.bind("<Return>", lambda e:self.create_edge(node_start, node_end, int(self.cost_entry.get())))
+        self.cost_popup.bind("<Return>", lambda e:self.create_edge(node_start, node_end, float(self.cost_entry.get())))
         cost_label.pack()
         self.cost_entry.pack()
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
@@ -193,6 +197,16 @@ class GUI():
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
         self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
+        #GRAPH
+        fig = plt.figure(1)
+        plt.ion()
+        t = np.arange(0.0,3.0,0.01)
+        s = np.sin(np.pi*t)
+        plt.plot(t,s)
+        
+        canvas = FigureCanvasTkAgg(fig, master=self.window)
+        plot_widget = canvas.get_tk_widget()
+        
         #MAP
         self.map = Map(self.window, self.map_frame)
         
@@ -202,12 +216,13 @@ class GUI():
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
+        #LAYOUT
         self.mode_label.pack(side=tk.TOP)
         self.info_list.pack(side=tk.LEFT, fill="both", expand=True, padx=10, pady=10)
-        self.map_frame.pack(fill="both", expand=True, pady=10, padx=10)
-        sendCommandButton.pack(side=tk.RIGHT, padx=10)
-        self.console.pack(side=tk.RIGHT, fill="both", expand=True, pady=10, padx=10)
-        
+        self.map_frame.pack(fill="both", expand=True, pady=10, padx=10, side=tk.TOP)
+        plot_widget.pack(fill="both", expand=True, side=tk.RIGHT)
+        sendCommandButton.pack(side=tk.BOTTOM, padx=10)
+        self.console.pack(side=tk.BOTTOM, fill="both", expand=True, pady=10, padx=10)
         
         #MENU
         menuBar = tk.Menu(self.window)
@@ -226,7 +241,9 @@ class GUI():
         system_menu.add_command(label="Quit", command=self.quit)
 
         driving_menu = tk.Menu(menuBar, tearoff=False)
-        driving_menu.add_command(label="Change mode", command=self.change_mode)
+        driving_menu.add_command(label="Auto", command=self.drive_auto)
+        driving_menu.add_command(label="Manual", command=self.drive_manual)
+        driving_menu.add_command(label="Set KP/KD", command=self.set_kd_kp)
         
         mission_menu = tk.Menu(menuBar, tearoff=False)
         mission_menu.add_command(label="Set mission", command=self.set_mission)
@@ -242,7 +259,6 @@ class GUI():
         
         #KEYBOARD BINDINGS
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
-        self.window.bind('<m>', lambda e: self.change_mode())
         self.console.bind('<Return>', self.send_command)
         
     def main_loop(self):
@@ -254,7 +270,47 @@ class GUI():
                 action(*result)
 
         self.window.after(GUI.LOOP_DELAY, self.main_loop)
+    
+    def set_kd_kp(self):
+        self.kp_kd_frame = tk.Tk()
         
+        kp_vel_label = tk.Label(self.kp_kd_frame, text="KP VEL")
+        kd_vel_label = tk.Label(self.kp_kd_frame, text="KD VEL")
+        kd_rot_label = tk.Label(self.kp_kd_frame, text="KD ROT")
+        kp_rot_label = tk.Label(self.kp_kd_frame, text="KP ROT")
+        
+        kp_vel_entry = tk.Entry(self.kp_kd_frame)
+        kd_vel_entry = tk.Entry(self.kp_kd_frame)
+        kp_rot_entry = tk.Entry(self.kp_kd_frame)
+        kd_rot_entry = tk.Entry(self.kp_kd_frame)
+        
+        kp_vel_label.pack()
+        kp_vel_entry.pack()
+        kd_vel_label.pack()
+        kd_vel_entry.pack()
+        kp_rot_label.pack()
+        kp_rot_entry.pack()
+        kd_rot_label.pack()
+        kd_rot_entry.pack()
+        self.kp_kd_frame.geometry("+%d+%d" % ((int(self.kp_kd_frame.winfo_pointerx()), int((self.kp_kd_frame.winfo_pointery())))))
+        self.kp_kd_frame.bind("<Return>", lambda e:self.send_kd_kp(kp_vel_entry.get(), kd_vel_entry.get(), kd_rot_entry.get(), kp_rot_entry.get()))
+        kp_vel_entry.focus_force()
+      
+    def send_kd_kp(self, kp_vel, kd_vel, kd_rot, kp_rot):
+        self.tasks.put(Task.SET_VEL, kp_vel, kd_vel)
+        self.tasks.put(Task.SET_ROT, kp_rot, kd_rot)
+        self.kp_kd_frame.destroy()
+        
+    def drive_auto(self):
+        self.unbind_keys()
+        self.tasks.put(Task.SET_AUTO, True)
+        self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
+        
+    def drive_manual(self):
+        self.tasks.put(Task.SET_AUTO, False)
+        self.bind_keys()
+        self.window.focus_set()
+        self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
 
     def send_command(self, event):
         self.console.delete(0, 'end')
@@ -292,27 +348,16 @@ class GUI():
         self.window.unbind("<Right>")
         self.window.unbind("<Up>")
         self.window.unbind("<Down>")
-    
-    
-    def change_mode(self):
-        self.manual = not self.manual
-        
-        if self.manual:
-            self.tasks.put(Task.SET_AUTO, False)
-            self.bind_keys()
-            self.window.focus_set()
-            self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
-            
-        elif not self.manual:
-            self.unbind_keys()
-            self.tasks.put(Task.SET_AUTO, True)
-            self.driving_mode.set(GUI.PREFIX_MODE + "Auto")
 
     def display_info(self, sensor_data):
-        info_labels = ["Front", "Rear", "Speed", "Distance"]
+        info_labels = ["Front", "Right", "Speed", "Distance"]
         for x in range(0,4):
             self.info_list.insert(x, info_labels[x] + ": " + sensor_data[x])
         self.info_list.insert(4, "")
+        
+        #plt.plot(sensor_data[3])
+        #plt.ylabel("Speed")
+        #plt.show()
         
     def quit(self):
         self.tasks.put(Task.KILL)
@@ -321,7 +366,7 @@ class GUI():
     def show_edge_cost(self, event):
         if not self.cost_is_showing:
             for edge in self.map.edges:
-                self.map_frame.create_text((edge.start.pos_x+edge.end.pos_x)/2, (edge.start.pos_y+edge.end.pos_y)/2, text=edge.cost)
+                self.map_frame.lift(self.map_frame.create_text((edge.start.pos_x+edge.end.pos_x)/2, (edge.start.pos_y+edge.end.pos_y)/2+10, text=edge.cost))
             self.cost_is_showing = True
         elif self.cost_is_showing:
             self.cost_is_showing = False

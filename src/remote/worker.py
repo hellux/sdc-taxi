@@ -15,7 +15,9 @@ class Worker(threading.Thread):
             Task.KILL       : self.task_kill,
             Task.MOVE       : self.task_move,
             Task.SET_AUTO   : self.set_auto,
-            Task.GET_SENSOR : self.get_sensor
+            Task.GET_SENSOR : self.get_sensor,
+            Task.SET_VEL    : self.set_vel,
+            Task.SET_ROT    : self.set_rot
         }
 
         self.move_time = 0
@@ -41,8 +43,8 @@ class Worker(threading.Thread):
         return None
         
     def get_sensor(self):
-        return ("3, 9, 2, 30").split(',')
-        #return self.send_fmt(Command.GET_SENSOR).split(',')
+        #return ("3, 9, 2, 30").split(',')
+        return self.send_fmt(Command.GET_DATA).split(',')
 
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
@@ -57,7 +59,17 @@ class Worker(threading.Thread):
     def set_auto(self, auto):
         self.send_fmt(Command.SET_STATE, auto)
         return None
-        
+    
+    def set_vel(self, kd=0, kp=0):
+        self.send_fmt(Command.SET_VEL, kd)
+        self.send_fmt(Command.SET_REG_VEL, kp)   
+        return None
+    
+    def set_rot(self, kd=0, kp=0):
+        self.send_fmt(Command.SET_ROT, kd)
+        self.send_fmt(Command.SET_REG_ROT, kp)
+        return None
+    
     def run(self):
         while not self.terminate:
             task, args = self.tasks.get(block=True)
