@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <pthread.h>
+#include <time.h>
 
 #include "types.h"
 #include "objective.h"
@@ -121,11 +122,31 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* bus signal handler, called by bus thread when transmission finished */
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
-    struct sens_data *frame = (struct sens_data*)received;
+    struct sens_data *sd = (struct sens_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
+    struct timespec ts;
     pthread_mutex_lock(&sens_data->lock);
-    /*sens_data->f = *frame;*/
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long unsigned time = ts.tv_sec*1e3 + ts.tv_nsec*1e-6;
+
+    pthread_mutex_lock(&sens_data->lock);
+    float distance_prev = sens_data->val.distance;
+    float time_prev = sens_data->val.time;
+    pthread_mutex_unlock(&sens_data->lock);
+
+    float velocity = (sd->distance-distance_prev)/(time-time_prev);
+
+    struct sens_val sens_new = {
+        .dist_front = sd->dist_front,
+        .dist_right = sd->dist_right,
+        .distance = sd->distance,
+        .velocity = velocity,
+        .time = time,
+    };
+
+    pthread_mutex_lock(&sens_data->lock);
+    sens_data->val = sens_new;
     pthread_mutex_unlock(&sens_data->lock);
 }
 
@@ -133,6 +154,9 @@ int main(int argc, char* args[]) {
     bool quit = false;
     pthread_mutex_t quit_lock;
     pthread_mutex_init(&quit_lock, 0);
+
+    struct timespec ts;
+    printf("%lu sec\n", ts.tv_sec);
 
     const char *inet_addr = args[1];
     if (!inet_addr) {
