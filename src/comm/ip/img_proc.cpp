@@ -90,9 +90,9 @@ struct ip *ip_init() {
     hough_threshold = 7;
     line_min_length = 0;
     line_max_gap = 40;
-    mask_width_top = 0.3*WIDTH;
+    mask_width_top = 0.23*WIDTH;
     mask_start_y = 0.9*HEIGHT;
-    mask_end_y = 0.4*HEIGHT;
+    mask_end_y = 0.52*HEIGHT;
     thresh_slope_line = 0.4;
     thresh_slope_stop = 0.9;
     stop_dmax = 0.2*HEIGHT;
