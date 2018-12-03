@@ -8,6 +8,8 @@ class Task(Enum):
     MOVE = auto()
     SET_AUTO = auto()
     GET_SENSOR = auto()
+    SET_VEL = auto()
+    SET_ROT = auto()
 
 class TaskQueue():
     def __init__(self):
