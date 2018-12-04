@@ -142,9 +142,8 @@ int main(void) {
                 float min_neg = (command & BF_VEL_ROT) ? VEL_MIN_NEG : ROT_MIN;
                 float max_neg = (command & BF_VEL_ROT) ? VEL_MAX_NEG : ROT_MAX;
 
-                /* ignore invalid values */
-                if (value_new < -1 || value_new > 1)
-                    continue;
+                /* limit value to valid interval */
+                value_new = MIN(MAX(-1, value_new), 1);
 
                 float duty_scaler;
                 if (value_new == 0) {
