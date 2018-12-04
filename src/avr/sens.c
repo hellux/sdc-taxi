@@ -39,7 +39,7 @@ void wheel_init(){
     /* enable interrupts? */
     EIMSK = (1<<INT0)|(1<<INT1);
     /* Trigger on rising edge */
-    EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
+    EICRA = (1<<ISC01)|(1<<ISC11);
 }
 
 void adc_init(void) {   
@@ -128,7 +128,10 @@ int main(void) {
         unsigned wheel_cntr = wheel_sensor_cntr;
         sei();
 
-        sens_local.distance = PI*WHEEL_DIAM/WHEEL_SENS_FREQ*wheel_cntr;
+        sens_local.distance = PI*WHEEL_DIAM/WHEEL_SENS_FREQ*wheel_cntr;        
+        lcd_send_string("  D: ");
+        itoa((int)sens_local.distance, buf, 10);
+        lcd_send_string(buf);
 
         cli();
         sensors = sens_local;
