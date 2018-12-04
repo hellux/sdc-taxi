@@ -185,8 +185,7 @@ class GUI():
         self.file = None
         self.cost_is_showing = False
         self.manual = True
-        self.prev_cmd = [10]
-        #["" for i in range(10)]
+        self.prev_cmd = [""]*10
         self.cmd_index = 0
         
         self.info_list = tk.Listbox(self.window, highlightbackground="black")
@@ -320,19 +319,24 @@ class GUI():
 
     def send_command(self, event):
         self.tasks.put(Task.SEND, self.console.get())
+        print(self.cmd_index)
         self.prev_cmd[self.cmd_index] = self.console.get()
         print(self.prev_cmd)
         self.console.delete(0, 'end')
-     
-    def send_prev_cmd(self, event):
-        if self.cmd_index > 10:
-            #self.prev_cmd.clear()
-            self.cmd_index = 0
+        print(self.prev_cmd)
         
+        self.cmd_index += 1
+        if self.cmd_index >= len(self.prev_cmd):
+            self.cmd_index = 0
+            
+    def send_prev_cmd(self, event):
+        self.cmd_index += 1
+        if self.cmd_index >= len(self.prev_cmd):
+            self.cmd_index = 0
+                    
         print(self.cmd_index)
         self.console.delete(0, 'end')
         self.console.insert(0, self.prev_cmd[self.cmd_index])
-        self.cmd_index += 1
             
     def get_sensor_data(self):
         self.tasks.put(Task.GET_SENSOR)
