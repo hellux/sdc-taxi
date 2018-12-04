@@ -33,6 +33,7 @@ static int mask_start_y;
 static int mask_end_y;
 static float thresh_angle_lane;
 static float thresh_angle_stop;
+static int max_lane_error;
 
 static double weight_lw;
 static double weight_sd;
@@ -91,9 +92,11 @@ struct ip *ip_init() {
     weight_sd = 0.6;
     thresh_lane_vis = 5;
     thresh_stop_vis = 3;
+    max_lane_error = 0.35*WIDTH;
 
-    ip->lane_width = 0.8*WIDTH;
     ip->lane = cv::Point(WIDTH/2, 0.8*HEIGHT);
+    ip->lane_dir = cv::Point(0, 1);
+    ip->lane_width = 0.8*WIDTH;
     ip->lane_vis = 0;
 
     ip->stop = cv::Point(WIDTH/2, mask_width_top);
@@ -455,7 +458,8 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         lane_x = ip->lane.x;
     }
 
-    lane_x = std::min(std::max(0.2*WIDTH, (double)lane_x), 0.8*WIDTH);
+    lane_x = std::min(std::max(WIDTH/2-max_lane_error, lane_x),
+                      WIDTH/2+max_lane_error);
     ip->lane = cv::Point(lane_x, ip->lane.y);
 
     /* calc stopline position */
@@ -486,7 +490,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     ip->stop_vis = std::min(std::max(ip->stop_vis, 0), thresh_stop_vis*2);
 
     /* write to result struct */
-    res->lane_offset = (float)ip->lane.x/(WIDTH/2) - 1;
+    res->lane_offset = (float)(ip->lane.x-WIDTH/2)/(max_lane_error);
     res->lane_found = ip->lane_vis >= thresh_lane_vis;
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
     res->stopline_found = ip->stop_vis >= thresh_stop_vis;
