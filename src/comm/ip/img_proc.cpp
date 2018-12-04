@@ -7,8 +7,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono>
 
-#define PI 3.14159
-
 typedef std::vector<cv::Vec4i> lines_t;
 
 #define FONT cv::FONT_HERSHEY_PLAIN
@@ -88,8 +86,8 @@ struct ip *ip_init() {
     mask_width_top = 0.23*WIDTH;
     mask_start_y = 0.9*HEIGHT;
     mask_end_y = 0.52*HEIGHT;
-    thresh_angle_lane = 0.3*PI;
-    thresh_angle_stop = 0.35*PI;
+    thresh_angle_lane = 0.3*CV_PI;
+    thresh_angle_stop = 0.35*CV_PI;
     stop_dmax = 0.2*HEIGHT;
 
     weight_lw = 0.06;
@@ -187,20 +185,16 @@ cv::Mat mask_image(cv::Mat& image, std::vector<cv::Point> mask_poly) {
     return masked_image;
 }
 
-lines_t find_lines(cv::Mat& image) {
-    double rho = 1;
-    double theta = CV_PI / 180;
-    lines_t lines;
-    cv::HoughLinesP(image, lines, rho, theta, hough_threshold,
-                    line_min_length, line_max_gap);
-    return lines;
-}
-
-double angle(int x1, int y1, int x2, int y2) {
-    return std::min(
-        std::acos((x1*x2+y1*y2)/std::sqrt(x1*x1+y1*y1)/std::sqrt(x2*x2+y2*y2)),
-        std::acos((-x1*x2+-y1*y2)/std::sqrt(x1*x1+y1*y1)/std::sqrt(x2*x2+y2*y2))
-    );
+/* a*b = |a||b|cos v
+ *           a*b
+ * => v =  -------
+ *          |a||b|
+ */
+double angle(int ax, int ay, int bx, int by) {
+    double len_a = std::sqrt(ax*ax+ay*ay);
+    double len_b = std::sqrt(bx*bx+by*by);
+    double angle = acos((ax*bx+ay*by)/len_a/len_b);
+    return std::min(angle, CV_PI-angle);
 }
 
 void classify_lines(lines_t& lines, cv::Mat& image,
@@ -208,19 +202,16 @@ void classify_lines(lines_t& lines, cv::Mat& image,
                     lines_t& stop_lines, lines_t& rem_lines,
                     cv::Point lane, cv::Point lane_dir,
                     cv::Point stop) {
-    int cx = WIDTH/2;
+    int c = WIDTH/2;
     for (auto line : lines) {
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
         double angle_to_lane = angle(e.x-s.x, e.y-s.y, lane_dir.x, lane_dir.y);
-        if (angle_to_lane > thresh_angle_stop) { //&&
-            //((s.x < stop.x && e.x > stop.x) || (e.x < stop.x && s.x > stop.x))) {
+        if (angle_to_lane > thresh_angle_stop) {
             stop_lines.push_back(line);
-        } else if (angle_to_lane < thresh_angle_lane &&
-                   e.x > cx && s.x > cx) {
+        } else if (angle_to_lane < thresh_angle_lane && e.x > c && s.x > c) {
             right_lines.push_back(line);
-        } else if (angle_to_lane < thresh_angle_lane &&
-                   e.x < cx && s.x < cx) {
+        } else if (angle_to_lane < thresh_angle_lane && e.x < c && s.x < c) {
             left_lines.push_back(line);
         } else {
             rem_lines.push_back(line);
@@ -456,7 +447,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::Mat masked_image = mask_image(edges_image, roi);
 
     /* find and classify lines */
-    lines_t hough_lines = find_lines(masked_image);
+    lines_t hough_lines;
+    cv::HoughLinesP(masked_image, hough_lines, 1, CV_PI/180,
+                    hough_threshold, line_min_length, line_max_gap);
+
     lines_t right, left, stop, rem;
     classify_lines(hough_lines, edges_image,
                    right, left, stop, rem,
