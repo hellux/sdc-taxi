@@ -36,6 +36,7 @@ static float thresh_angle_stop;
 static int max_lane_error;
 
 static double weight_lw;
+static double weight_lx;
 static double weight_sd;
 static int thresh_lane_vis;
 static int thresh_stop_vis;
@@ -89,6 +90,7 @@ struct ip *ip_init() {
     stop_dmax = 0.2*HEIGHT;
 
     weight_lw = 0.06;
+    weight_lx = 0.8;
     weight_sd = 0.6;
     thresh_lane_vis = 5;
     thresh_stop_vis = 3;
@@ -460,7 +462,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 
     lane_x = std::min(std::max(WIDTH/2-max_lane_error, lane_x),
                       WIDTH/2+max_lane_error);
-    ip->lane = cv::Point(lane_x, ip->lane.y);
+    ip->lane.x = (ip->lane.x+lane_x*weight_lx)/(1.0+weight_lx);
 
     /* calc stopline position */
 
