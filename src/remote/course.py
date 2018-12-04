@@ -88,8 +88,6 @@ def create_mission(path):
     mission = []
     if path[0].type is NodeType.PARKING:
         mission.append(Command.UN_PARK)
-    else:
-        mission.append(Command.IGNORE)
     rest = path[1:]
 
     while(rest):

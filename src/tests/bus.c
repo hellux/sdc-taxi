@@ -15,8 +15,7 @@ int main(void) {
         .slave = 0,
         .len = sizeof(msg1),
     };
-    bus_tranceive(bus, &bc1, msg1);
-
+    
     bus_destroy(bus);
 
     return 0;
