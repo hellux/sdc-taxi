@@ -1,6 +1,6 @@
 BINDIR = bin
 
-PI_REMOTE = pi@172.20.10.4
+PI_REMOTE = $(shell sh ../../ip.sh)
 
 CFLAGS=-std=c99 -Wall 
 AVRCFLAGS = -mmcu=atmega1284p -static -DF_CPU=16000000 -Wall -Og
