@@ -51,9 +51,6 @@ void adc_init(void) {
 
     /* F_ADC = F_CPU/prescaler */
     ADCSRA |= ADC_PRESCALER_128;
-
-    //ADC interrupt enabled
-    //ADCSRA |= (1 << ADIE);
 }
 
 uint16_t adc_read(uint8_t channel) {
