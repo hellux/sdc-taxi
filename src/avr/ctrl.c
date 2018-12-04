@@ -103,7 +103,7 @@ void pwm_init(void) {
 }
 
 int main(void) {
-    /* ks_init(); */
+    ks_init();
     pwm_init();
     spi_init();
 
@@ -117,12 +117,13 @@ int main(void) {
 
         if (command == BB_INVALID) {
             continue; /* synchronize */
+        } else {
+            KS_TCNT = 0; /* reset killswitch */
         }
         
         volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
         if (command & BF_WRITE) {
-            KS_TCNT = 0;
             if (command & BF_MOD_REG) {
                 ctrl_val_t value_new;
 
