@@ -115,10 +115,11 @@ struct ip *ip_init() {
 
 #ifdef RECORD
     ip->writer = new cv::VideoWriter(
-        "opencv.mp4",
-        cap.get(CV_CAP_PROP_FOURCC), cap.get(CV_CAP_PROP_FPS),
-        cv::Size(cap.get(CV_CAP_PROG_FRAME_WIDTH),
-                 cap.get(CV_CAP_PROP_FRAME_HEIGHT)));
+        "opencv.avi",
+        CV_FOURCC('M', 'J', 'P', 'G'),
+        ip->cap->get(CV_CAP_PROP_FPS),
+        cv::Size(ip->cap->get(CV_CAP_PROP_FRAME_WIDTH),
+                 ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT)));
 #endif
 
     return ip;
@@ -131,8 +132,10 @@ void ip_destroy(struct ip *ip) {
 
     if (ip) {
 #ifdef RECORD
+        ip->writer->release();
         delete ip->writer;
 #endif
+        ip->cap->release();
         delete ip->cap;
     }
 
@@ -156,24 +159,29 @@ cv::Mat img_edge_detector(cv::Mat& image) {
     return edge_img;
 }
 
-cv::Mat mask_image(cv::Mat& image) {
-    cv::Mat masked_image;
-    cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
-
+std::vector<cv::Point> create_mask() {
     /* region of interest */
     float top_y = mask_end_y;
-    float top_rx = (image.cols+mask_width_top)/2;
-    float top_lx = (image.cols-mask_width_top)/2;
+    float top_rx = (WIDTH+mask_width_top)/2;
+    float top_lx = (WIDTH-mask_width_top)/2;
 
     float bot_y = mask_start_y;
     float bot_lx = 0;
-    float bot_rx = image.cols;
+    float bot_rx = WIDTH;
 
     cv::Point p0(0, HEIGHT), p1(bot_lx, bot_y), p2(top_lx, top_y),
               p3(top_rx, top_y), p4(bot_rx, bot_y), p5(WIDTH, HEIGHT);
-    cv::Point roi[] = {p0, p1, p2, p3, p4, p5};
+    std::vector<cv::Point> roi = {p0, p1, p2, p3, p4, p5};
     
-    cv::fillConvexPoly(mask, roi, sizeof(roi)/sizeof(*roi), cv::Scalar(255, 0, 0));
+    return roi;
+}
+
+cv::Mat mask_image(cv::Mat& image, std::vector<cv::Point> mask_poly) {
+    cv::Mat masked_image;
+    cv::Mat mask(cv::Mat::zeros(image.size(), image.type()));
+
+    cv::fillConvexPoly(mask, mask_poly.data(), mask_poly.size(),
+                       cv::Scalar(255, 0, 0));
     cv::bitwise_and(image, mask, masked_image);
 
     return masked_image;
@@ -442,7 +450,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     /* process image */
     cv::Mat thres_img = threshold(frame);
     cv::Mat edges_image = img_edge_detector(thres_img);
-    cv::Mat masked_image = mask_image(edges_image);
+
+    /* mask proccessed image */
+    std::vector<cv::Point> roi = create_mask();
+    cv::Mat masked_image = mask_image(edges_image, roi);
 
     /* find and classify lines */
     lines_t hough_lines = find_lines(masked_image);
@@ -455,6 +466,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     int lane_right_x = line_pos_x(right, ip->lane.y);
     int lane_left_x = line_pos_x(left, ip->lane.y);
 
+    /* determine lane width, if lane visible */
     if (lane_right_x != -1 && lane_left_x != -1) {
         int lw = lane_right_x - lane_left_x;
         ip->lane_width = (ip->lane_width +lw*weight_lw)/(1.0+weight_lw);
@@ -462,11 +474,11 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     } else {
         ip->lane_vis--;
     }
-
+    /* limit visibility certainty */
     ip->lane_vis = std::min(std::max(ip->lane_vis, 0), thresh_lane_vis*2);
     
+    /* determine x position of lane */
     int lane_x = 0;
-
     if (lane_right_x != -1 && lane_left_x != -1) {
         lane_x = (lane_right_x + lane_left_x)/2;
     } else if (lane_right_x != -1) {
@@ -476,17 +488,16 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     } else {
         lane_x = ip->lane.x;
     }
-
     lane_x = std::min(std::max(WIDTH/2-max_lane_error, lane_x),
                       WIDTH/2+max_lane_error);
     ip->lane.x = (ip->lane.x+lane_x*weight_lx)/(1.0+weight_lx);
 
-    /* calc stopline position */
-
+    /* determine lane direction */
     int lane_top_x = (line_pos_x(right, 0)+line_pos_x(left, 0))/2;
     lane_top_x = std::min(std::max(0, lane_top_x), WIDTH);
     ip->lane_dir = cv::Point(lane_top_x-ip->lane.x, -ip->lane.y);
 
+    /* calc stopline position */
     int stop_x = ip->lane.x + (ip->stop.y-ip->lane.y)/ip->lane_dir.y*ip->lane_dir.x;
     int stop_y = line_pos_y(stop, stop_x);
 
@@ -506,6 +517,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     }
     ip->stop = cv::Point(stop_x, stop_y);
 
+    /* limit stopline visibility certainty */
     ip->stop_vis = std::min(std::max(ip->stop_vis, 0), thresh_stop_vis*2);
 
     /* write to result struct */
@@ -515,11 +527,13 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     res->stopline_found = ip->stop_vis >= thresh_stop_vis;
 
 #ifdef VISUAL
+    /*
     if (!hough_lines.empty()) {
         std::vector<cv::Point> lane;
         lane = linear_regression(right, left, stop);
         plotLane(frame, lane);
     }
+    */
 
     auto stop_time = Clock::now();
     double period = (double)(stop_time-start).count()/(1e9);
@@ -538,14 +552,15 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::createTrackbar("mask_start_y", "", &mask_start_y, HEIGHT, NULL);
     cv::createTrackbar("mask_end_y", "", &mask_end_y, HEIGHT, NULL);
 
-    cv::Mat lines_img(cv::Mat::zeros(frame.size(), frame.type()));
-    plot_lines(lines_img, right, left, stop, rem);
-    cv::line(lines_img,
+    plot_lines(frame, right, left, stop, rem);
+    cv::polylines(frame, roi, true,
+                  cv::Scalar(50, 50, 50));
+    cv::line(frame,
              cv::Point(ip->lane.x - ip->lane_width/2, ip->lane.y),
              cv::Point(ip->lane.x + ip->lane_width/2, ip->lane.y),
              cv::Scalar(255,255,0), 1, CV_AA);
     int lane_thick = res->lane_found ? 3 : 1;
-    cv::line(lines_img,
+    cv::line(frame,
              cv::Point(ip->lane.x, ip->lane.y),
              cv::Point(ip->lane.x+ip->lane_dir.x, ip->lane.y+ip->lane_dir.y),
              cv::Scalar(0,255,255), lane_thick, CV_AA);
@@ -557,30 +572,31 @@ void ip_process(struct ip *ip, struct ip_res *res) {
              cv::Scalar(255,0,255), stop_thick, CV_AA);
              */
     if (res->stopline_found) {
-        cv::circle(lines_img,
+        cv::circle(frame,
                 cv::Point(ip->stop.x, ip->stop.y), 3,
                 cv::Scalar(255, 0, 255), CV_FILLED);
     }
-    cv::circle(lines_img,
+    cv::circle(frame,
              cv::Point(lane_left_x, ip->lane.y), 3,
              cv::Scalar(0,255,0), CV_FILLED);
-    cv::circle(lines_img,
+    cv::circle(frame,
              cv::Point(lane_right_x, ip->lane.y), 3,
              cv::Scalar(255,0,0), CV_FILLED);
 
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
-    cv::imshow("lines", lines_img);
     cv::imshow("Lane", frame);
 
     int k = cv::waitKey(1);
-    if (k == 27)
+    if (k == 27) {
+        ip_destroy(ip);
         exit(0);
+    }
 #endif
 
 #ifdef RECORD
-    ip->writer.write(lines_img);
+    ip->writer->write(frame);
 #endif
 
 }
