@@ -4,6 +4,9 @@
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <util/delay.h>
+
+#include "lcd.h"
 
 #include "bus.h"
 #include "../spi/protocol.h"
@@ -32,7 +35,14 @@ void reset(void) {
     sensors = SENS_EMPTY;
 }
 
-void adc_init(void) {
+void wheel_init(){
+    /* enable interrupts? */
+    EIMSK = (1<<INT0)|(1<<INT1);
+    /* Trigger on rising edge */
+    EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
+}
+
+void adc_init(void) {   
     //mux init
     ADMUX = (1 << REFS0);
 
@@ -43,7 +53,7 @@ void adc_init(void) {
     ADCSRA |= ADC_PRESCALER_128;
 
     //ADC interrupt enabled
-    ADCSRA |= (1 << ADIE);
+    //ADCSRA |= (1 << ADIE);
 }
 
 uint16_t adc_read(uint8_t channel) {
@@ -84,47 +94,49 @@ ISR(SPI_STC_vect) {
     sei();
 }
 
-/*
-    other conversion formula:
-    d = (1/a) / (ADC + B) - k, where
-    d - dist in cm,
-    k - corrective constant,
-    ADC - digitalized value of voltage,
-    a - linear member (value determined by the trend line equation),
-    b - free memebr (value determined by the trend line equation)
-*/
-
 int main(void) {
-    /* enable interrupts? */
-    EIMSK = (1<<INT0)|(1<<INT1);
-    /* Trigger on rising edge */
-    EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
 
+    DDRA = 0xFC;
     spi_init();
-    adc_init();
+    wheel_init();
     reset();
+
+    lcd_init();
+
+    adc_init();
+    char buf[16];
 
     sei();
 
     struct sens_data sens_local;
     while (1) {
+        _delay_ms(1000);
+        lcd_clear();
+
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
-        sens_local.dist_front = CNV_FRONT_EXP*pow(adc_front, -CNV_FRONT_EXP);
+        sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
+        dtostrf(sens_local.dist_front, 5, 2, buf);
+        lcd_send_string("F: ");
+        lcd_send_string(buf);
+        
+        lcd_set_ddram(ROW2ADR);
 
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
-        sens_local.dist_right = CNV_RIGHT_EXP*pow(adc_right, -CNV_RIGHT_EXP);
+        sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
+        dtostrf(sens_local.dist_right, 5, 2, buf);
+        lcd_send_string("R: ");
+        lcd_send_string(buf);
 
-        /* sample wheel counter */
         cli();
         unsigned wheel_cntr = wheel_sensor_cntr;
         sei();
 
         sens_local.distance = PI*WHEEL_DIAM/WHEEL_SENS_FREQ*wheel_cntr;
 
-        /* update shared struct */
         cli();
         sensors = sens_local;
         sei();
+        
     }
     return 0;
 }
