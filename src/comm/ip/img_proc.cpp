@@ -48,6 +48,9 @@ extern "C" void ip_process(struct ip *ip, struct ip_res *res);
 
 struct ip {
     cv::VideoCapture *cap;
+#ifdef RECORD
+    cv::VideoWriter *writer;
+#endif
 
     cv::Point lane;
     cv::Point lane_dir;
@@ -110,6 +113,14 @@ struct ip *ip_init() {
     cv::namedWindow("", CV_WINDOW_AUTOSIZE);
 #endif
 
+#ifdef RECORD
+    ip->writer = new cv::VideoWriter(
+        "opencv.mp4",
+        cap.get(CV_CAP_PROP_FOURCC), cap.get(CV_CAP_PROP_FPS),
+        cv::Size(cap.get(CV_CAP_PROG_FRAME_WIDTH),
+                 cap.get(CV_CAP_PROP_FRAME_HEIGHT)));
+#endif
+
     return ip;
 }
 
@@ -117,9 +128,15 @@ void ip_destroy(struct ip *ip) {
 #ifdef VISUAL
     cv::destroyAllWindows();
 #endif
+
     if (ip) {
+#ifdef RECORD
+        delete ip->writer;
+#endif
         delete ip->cap;
     }
+
+    free(ip);
 }
 
 cv::Mat threshold(cv::Mat& image) {
@@ -562,5 +579,8 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         exit(0);
 #endif
 
-    frame.release();
+#ifdef RECORD
+    ip->writer.write(lines_img);
+#endif
+
 }
