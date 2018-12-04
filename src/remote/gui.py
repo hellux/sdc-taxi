@@ -215,8 +215,7 @@ class GUI():
         
         #BUTTONS
         #TODO Bind button to send_command
-        sendCommandButton = tk.Button(self.window, text="Send command", \
-                command=self.send_command)
+        sendCommandButton = tk.Button(self.window, text="Send command", command=self.apply_ip)
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
