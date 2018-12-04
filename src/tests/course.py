@@ -64,13 +64,13 @@ assert mission == [Command.UN_PARK, Command.STOP]
 path = [n4, r4, r1, n1]
 mission = create_mission(path)
 
-assert mission == [Command.IGNORE, Command.ENTER, Command.EXIT, Command.STOP]
+assert mission == [Command.ENTER, Command.EXIT, Command.STOP]
 
 path = closest_path(course, n1, n5)
 mission = create_mission(path)
 
 assert path == [n1, n4, r4, r1, r2, r3, n5]
-assert mission == [Command.IGNORE, Command.IGNORE, Command.ENTER, Command.IGNORE, Command.IGNORE, Command.EXIT, Command.STOP]
+assert mission == [Command.IGNORE, Command.ENTER, Command.IGNORE, Command.IGNORE, Command.EXIT, Command.STOP]
 
 r2.addEdge(n2, 1) # THE EDGE FROM BEFORE
 
@@ -78,7 +78,7 @@ path = closest_path(course, n1, n5)
 mission = create_mission(path)
 
 assert path == [n1, n4, r4, r1, r2, n2, n5]
-assert mission == [Command.IGNORE, Command.IGNORE, Command.ENTER, Command.IGNORE, Command.EXIT, Command.IGNORE, Command.STOP]
+assert mission == [Command.IGNORE, Command.ENTER, Command.IGNORE, Command.EXIT, Command.IGNORE, Command.STOP]
 
 r11 = Node(NodeType.ROUNDABOUT)
 r21 = Node(NodeType.ROUNDABOUT)
@@ -112,4 +112,4 @@ assert path == [n4, r11, r2, r21, r3, r31, r4, r41, r1, n42]
 
 mission = create_mission(path)
 
-assert mission == [Command.IGNORE, Command.ENTER, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.EXIT, Command.STOP]
+assert mission == [Command.ENTER, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.IGNORE, Command.EXIT, Command.STOP]

@@ -8,7 +8,7 @@ LFLAGS = -lpthread
 SRC.proto = spi/protocol.c proto.c 
 $(BINDIR)/proto: $(patsubst %.c, $(OBJDIR)/%.o, $(SRC.proto))
 
-SRC.bus = comm/bus.c bus.c
+SRC.bus = comm/bus.c bus.c comm/spi.c
 $(BINDIR)/bus: $(patsubst %.c, $(OBJDIR)/%.o, $(SRC.bus))
 
 .SILENT:
