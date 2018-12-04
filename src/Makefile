@@ -59,7 +59,7 @@ comm.pi: CFLAGS += -DPI
 comm.pi: $(BINDIR)/comm
 	$(BINDIR)/comm $(shell ip -br addr show dev wlan0 | \
 		tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
-comm.ip: CXXFLAGS += $(CXXFLAGS.debug) -DVISUAL
+comm.ip: CXXFLAGS += $(CXXFLAGS.debug) -DVISUAL -DRECORD
 comm.ip: $(addprefix $(OBJDIR)/, dbg/ip.o comm/ip/img_proc.o)
 	$(CXXC) $? $(COMM_LFLAGS) $(CXXFLAGS) -o $(BINDIR)/comm_ip
 comm.remote.clean:

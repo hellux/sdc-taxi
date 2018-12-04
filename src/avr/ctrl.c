@@ -103,7 +103,7 @@ void pwm_init(void) {
 }
 
 int main(void) {
-    /* ks_init(); */
+    ks_init();
     pwm_init();
     spi_init();
 
@@ -117,12 +117,13 @@ int main(void) {
 
         if (command == BB_INVALID) {
             continue; /* synchronize */
+        } else {
+            KS_TCNT = 0; /* reset killswitch */
         }
         
         volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
 
         if (command & BF_WRITE) {
-            KS_TCNT = 0;
             if (command & BF_MOD_REG) {
                 ctrl_val_t value_new;
 
@@ -141,9 +142,8 @@ int main(void) {
                 float min_neg = (command & BF_VEL_ROT) ? VEL_MIN_NEG : ROT_MIN;
                 float max_neg = (command & BF_VEL_ROT) ? VEL_MAX_NEG : ROT_MAX;
 
-                /* ignore invalid values */
-                if (value_new < -1 || value_new > 1)
-                    continue;
+                /* limit value to valid interval */
+                value_new = MIN(MAX(-1, value_new), 1);
 
                 float duty_scaler;
                 if (value_new == 0) {
