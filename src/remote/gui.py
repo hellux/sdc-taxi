@@ -185,6 +185,8 @@ class GUI():
         self.file = None
         self.cost_is_showing = False
         self.manual = True
+        self.prev_cmd = []
+        self.cmd_index = 0
         
         self.info_list = tk.Listbox(self.window, highlightbackground="black")
         
@@ -197,6 +199,7 @@ class GUI():
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
         self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
+        """
         #GRAPH
         fig = plt.figure(1)
         plt.ion()
@@ -206,13 +209,14 @@ class GUI():
         
         canvas = FigureCanvasTkAgg(fig, master=self.window)
         plot_widget = canvas.get_tk_widget()
-        
+        """
         #MAP
         self.map = Map(self.window, self.map_frame)
         
         #BUTTONS
+        #TODO Bind button to send_command
         sendCommandButton = tk.Button(self.window, text="Send command", \
-                command=lambda:self.tasks.put(Task.SEND, self.console.get()))
+                command=self.send_command)
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
@@ -220,7 +224,7 @@ class GUI():
         self.mode_label.pack(side=tk.TOP)
         self.info_list.pack(side=tk.LEFT, fill="both", expand=True, padx=10, pady=10)
         self.map_frame.pack(fill="both", expand=True, pady=10, padx=10, side=tk.TOP)
-        plot_widget.pack(fill="both", expand=True, side=tk.RIGHT)
+        #plot_widget.pack(fill="both", expand=True, side=tk.RIGHT)
         sendCommandButton.pack(side=tk.BOTTOM, padx=10)
         self.console.pack(side=tk.BOTTOM, fill="both", expand=True, pady=10, padx=10)
         
@@ -260,6 +264,7 @@ class GUI():
         #KEYBOARD BINDINGS
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
         self.console.bind('<Return>', self.send_command)
+        self.console.bind('<Up>', self.send_prev_cmd)
         
     def main_loop(self):
         task_pair = self.tasks.get_completed(block=False)
@@ -313,9 +318,21 @@ class GUI():
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
 
     def send_command(self, event):
-        self.console.delete(0, 'end')
         self.tasks.put(Task.SEND, self.console.get())
-        
+        self.prev_cmd.insert(self.cmd_index, self.console.get())
+        print(self.prev_cmd)
+        self.console.delete(0, 'end')
+     
+    def send_prev_cmd(self, event):
+        if self.cmd_index > 10:
+            #self.prev_cmd.clear()
+            self.cmd_index = 0
+        else:
+            print(self.cmd_index)
+            self.console.delete(0, 'end')
+            self.console.insert(0, self.prev_cmd[self.cmd_index])
+            self.cmd_index += 1
+            
     def get_sensor_data(self):
         self.tasks.put(Task.GET_SENSOR)
         self.window.after(GUI.SENSOR_DELAY, self.get_sensor_data)
