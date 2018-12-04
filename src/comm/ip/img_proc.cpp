@@ -383,26 +383,32 @@ T median(std::vector<T> v) {
     return median;
 }
 
-/* median x position of lines at y=height */
+/* weighted average x position of lines at y=height
+ * weighted by length of line */
 int line_pos_x(lines_t lines, int height) {
     if (lines.empty()) {
         return -1;
     } else {
-        std::vector<int> pos;
+        double total_pos = 0;
+        double total_weight = 0;
         for (auto l : lines) {
             cv::Point s(l[0], l[1]), e(l[2], l[3]);
+            double x = 0;
+            double weight = (s.x-e.x)*(s.x-e.x)+(s.y-e.y)*(s.y-e.y);
             if (s.x == e.x) {
-                pos.push_back(s.x);
-            } else if (s.y != e.y) {
+                x = s.x;
+            } else if (s.y == e.y) {
+                weight = 0;
+            } else {
                 double k = (double)(e.y-s.y) / (e.x-s.x);
                 double m = s.y-k*s.x;
-                pos.push_back((int)((height-m)/k));
+                x = (height-m)/k;
             }
+            total_pos += weight*x;
         }
-        return pos.empty() ? -1 : median(pos);
+        return total_pos == 0 ? -1 : (int)(total_pos/total_weight);
     }
 }
-
 
 /* median y position of lines at x=width */
 int line_pos_y(lines_t lines, int width) {
