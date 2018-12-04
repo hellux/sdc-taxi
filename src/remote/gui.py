@@ -185,7 +185,8 @@ class GUI():
         self.file = None
         self.cost_is_showing = False
         self.manual = True
-        self.prev_cmd = []
+        self.prev_cmd = [10]
+        #["" for i in range(10)]
         self.cmd_index = 0
         
         self.info_list = tk.Listbox(self.window, highlightbackground="black")
@@ -222,7 +223,7 @@ class GUI():
   
         #LAYOUT
         self.mode_label.pack(side=tk.TOP)
-        self.info_list.pack(side=tk.LEFT, fill="both", expand=True, padx=10, pady=10)
+        self.info_list.pack(side=tk.LEFT, fill="both", padx=10, pady=10)
         self.map_frame.pack(fill="both", expand=True, pady=10, padx=10, side=tk.TOP)
         #plot_widget.pack(fill="both", expand=True, side=tk.RIGHT)
         sendCommandButton.pack(side=tk.BOTTOM, padx=10)
@@ -319,7 +320,7 @@ class GUI():
 
     def send_command(self, event):
         self.tasks.put(Task.SEND, self.console.get())
-        self.prev_cmd.insert(self.cmd_index, self.console.get())
+        self.prev_cmd[self.cmd_index] = self.console.get()
         print(self.prev_cmd)
         self.console.delete(0, 'end')
      
@@ -327,11 +328,11 @@ class GUI():
         if self.cmd_index > 10:
             #self.prev_cmd.clear()
             self.cmd_index = 0
-        else:
-            print(self.cmd_index)
-            self.console.delete(0, 'end')
-            self.console.insert(0, self.prev_cmd[self.cmd_index])
-            self.cmd_index += 1
+        
+        print(self.cmd_index)
+        self.console.delete(0, 'end')
+        self.console.insert(0, self.prev_cmd[self.cmd_index])
+        self.cmd_index += 1
             
     def get_sensor_data(self):
         self.tasks.put(Task.GET_SENSOR)
@@ -415,14 +416,18 @@ class GUI():
         self.map.nodes, self.map.edges = pickle.load(self.file)
         self.map.draw()
         self.filename_frame.destroy()
-
+        
+    def apply_ip(self):
+        self.tasks.put(Task.CONNECT, self.ip_input)
+        self.ip_popup.destroy()
+                       
     def connect(self):
-        ip_popup = tk.Tk()
-        ip_popup.title("Connect to server")
-        ip_label = tk.Label(ip_popup, text="Enter IP-address")
-        ip_input = tk.Entry(ip_popup)
-        ip_popup.bind("<Return>", lambda e:self.tasks.put(Task.CONNECT, ip_input.get()))
+        self.ip_popup = tk.Tk()
+        self.ip_popup.title("Connect to server")
+        ip_label = tk.Label(self.ip_popup, text="Enter IP-address")
+        self.ip_input = tk.Entry(self.ip_popup)
+        self.ip_popup.bind("<Return>", lambda e: self.apply_ip())
         ip_label.pack()
-        ip_input.pack()
-        ip_popup.geometry("+%d+%d" % ((int(ip_popup.winfo_pointerx()), int((ip_popup.winfo_pointery())))))
-        ip_input.focus_force()
+        self.ip_input.pack()
+        self.ip_popup.geometry("+%d+%d" % ((int(self.ip_popup.winfo_pointerx()), int((self.ip_popup.winfo_pointery())))))
+        self.ip_input.focus_force()
