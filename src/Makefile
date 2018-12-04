@@ -6,7 +6,7 @@ CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
 CFLAGS.debug = -Wall -Og -ggdb -Og
 CFLAGS.release = -O3
 
-PI_REMOTE = pi@172.20.10.4
+PI_REMOTE = $(shell sh ip.sh)
 
 CXXC = g++
 CXXFLAGS = -DCPP `pkg-config --cflags opencv`
