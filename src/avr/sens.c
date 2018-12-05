@@ -23,7 +23,7 @@
 #define CHN_SENS_RIGHT 1
 
 #define WHEEL_DIAM 0.08
-#define WHEEL_SENS_FREQ 5
+#define WHEEL_SENS_FREQ 10
 #define PI 3.14
 
 const struct sens_data SENS_EMPTY = {0};
@@ -39,7 +39,7 @@ void wheel_init(){
     /* enable interrupts? */
     EIMSK = (1<<INT0)|(1<<INT1);
     /* Trigger on rising edge */
-    EICRA = (1<<ISC01)|(1<<ISC11);
+    EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
 }
 
 void adc_init(void) {   
@@ -130,6 +130,7 @@ int main(void) {
 
         sens_local.distance = PI*WHEEL_DIAM/WHEEL_SENS_FREQ*wheel_cntr;        
         lcd_send_string("  D: ");
+        //itoa((int)wheel_cntr, buf, 10);
         itoa((int)sens_local.distance, buf, 10);
         lcd_send_string(buf);
 
