@@ -35,7 +35,7 @@ int main(void) {
     int packets_sent = 0;
     int packets_lost = 0;
 
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 5; i++) {
         uint8_t cmd = 0x01;
         uint8_t data[] = {0x02, 0x03};
         uint8_t ack = 0x04;
@@ -46,7 +46,7 @@ int main(void) {
         spi_tranceive(fd, (void*)&ack, (void*)&ack, 1);
 
         packets_sent++;
-        if (cmd != 0x9a || data[0] != 0x01 || data[1] != 0x02 || ack != 0x3) {
+        if (data[0] != 0x01 || data[1] != 0x02 || ack != 0x3) {
             printf("%02x | %02x %02x | %02x\n", cmd, data[0], data[1], ack);
             packets_lost++;
         }

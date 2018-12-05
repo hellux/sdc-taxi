@@ -4,36 +4,20 @@
 
 uint8_t tranceive(uint8_t data) {
     SPDR = data;
-    //while ((SPSR & (1<<SPIF)));
+    while (!(SPSR & (1<<SPIF)));
     return SPDR;
 }
 
-static int index;
-
 ISR(SPI_STC_vect) {
     cli();
-    uint8_t data_new = SPDR;
-    index = (index+1) % 4;
-
-    if (index == 0) {
-        SPDR = 0x9a;
-    } else {
-        SPDR = SPDR;
-    }
-
-    sei();
-
-    /*
-    uint8_t start = 0x9a;
-    uint8_t cmd = tranceive(start);
-    switch 
+    uint8_t cmd = SPDR;
     if (cmd == 0x01) {
         uint8_t data[2];
         data[0] = tranceive(cmd);
         data[1] = tranceive(data[0]);
         tranceive(data[1]);
     }
-    */
+    sei();
 }
 
 int main(void) {
