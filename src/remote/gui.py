@@ -21,6 +21,8 @@ class Map():
         self.selected_node = None
         self.selected_edge = None
         self.select_mission = False
+        self.mission_node = None
+        self.path = []
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -46,7 +48,11 @@ class Map():
                self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill="green", width=2)
             else:
                 self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill=node.color, width=2)    
-    
+        
+        if(self.mission_node):
+            self.map_frame.create_oval(self.mission_node.pos_x-Map.NODE_SIZE, self.mission_node.pos_y-Map.NODE_SIZE, self.mission_node.pos_x+Map.NODE_SIZE, self.mission_node.pos_y+Map.NODE_SIZE, fill="red", width=2)
+                  
+        
     def get_node(self, x, y):
         for node in self.nodes:
             if (x-Map.NODE_SIZE < node.pos_x < x+Map.NODE_SIZE) and (y-Map.NODE_SIZE < node.pos_y < y+Map.NODE_SIZE):
@@ -76,8 +82,9 @@ class Map():
         
         if self.select_mission and self.selected_node:
             self.select_mission = False
-            path = closest_path(self.nodes, self.selected_node, current_node)
-            create_mission(path)
+            self.path = closest_path(self.nodes, self.selected_node, current_node)
+            create_mission(self.path)
+            print("MISSION SET")
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -161,6 +168,7 @@ class GUI():
             Task.CONNECT    : print,
             Task.SEND       : print,
             Task.GET_SENSOR : self.display_info,
+            Task.GET_MISSION: self.get_current_node_mission
         }
 
         self.window = tk.Tk()
@@ -169,6 +177,7 @@ class GUI():
         
         self.window.after(0, self.main_loop)
         self.window.after(0, self.get_sensor_data)
+        self.window.after(0, self.update_current_node_mission)
 
     def init_gui(self):
     
@@ -180,7 +189,6 @@ class GUI():
         self.cost_is_showing = False
         self.manual = True
         self.prev_cmd = []
-        #self.prev_cmd = [""]*10
         self.cmd_index = 0
         
         self.info_list = tk.Listbox(self.window, highlightbackground="black")
@@ -297,7 +305,14 @@ class GUI():
         self.bind_keys()
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
-
+    
+    def update_current_node_mission(self):
+        self.tasks.put(Task.GET_MISSION)
+        self.window.after(GUI.SENSOR_DELAY, self.update_current_node_mission)
+    
+    def get_current_node_mission(self, index):
+        self.map.mission_node = self.map.path[len(self.map.path)-index]
+    
     def send_command(self):
         self.cmd_index = 0
         self.tasks.put(Task.SEND, self.console.get())
