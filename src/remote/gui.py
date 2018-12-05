@@ -179,7 +179,8 @@ class GUI():
         self.file = None
         self.cost_is_showing = False
         self.manual = True
-        self.prev_cmd = [""]*10
+        self.prev_cmd = []
+        #self.prev_cmd = [""]*10
         self.cmd_index = 0
         
         self.info_list = tk.Listbox(self.window, highlightbackground="black")
@@ -197,7 +198,6 @@ class GUI():
         self.map = Map(self.window, self.map_frame)
         
         #BUTTONS
-        #TODO Bind button to send_command
         sendCommandButton = tk.Button(self.window, text="Send command", command=self.send_command)
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
@@ -299,14 +299,13 @@ class GUI():
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
 
     def send_command(self):
+        self.cmd_index = 0
         self.tasks.put(Task.SEND, self.console.get())
-        self.prev_cmd[self.cmd_index] = self.console.get()
+        self.prev_cmd.insert(0, self.console.get())
+        self.prev_cmd = self.prev_cmd[0:9]
+        print(self.prev_cmd)
         self.console.delete(0, 'end')
-
-        self.cmd_index += 1
-        if self.cmd_index >= len(self.prev_cmd):
-            self.cmd_index = 0
-            
+ 
     def send_prev_cmd(self, event):
         self.cmd_index += 1
         if self.cmd_index >= len(self.prev_cmd):
