@@ -122,18 +122,26 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* bus signal handler, called by bus thread when transmission finished */
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
+    static float distance_prev = 0;
+    static long unsigned time_prev = 0;
+    static float velocity_prev = 0;
+
     struct sens_data *sd = (struct sens_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
     struct timespec ts;
-    pthread_mutex_lock(&sens_data->lock);
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    long unsigned time = ts.tv_sec*1e3 + ts.tv_nsec*1e-6;
-    float distance_prev = sens_data->val.distance;
-    float time_prev = sens_data->val.time;
-    pthread_mutex_unlock(&sens_data->lock);
+    long unsigned time = ts.tv_sec*1e3 + ts.tv_nsec/1e6;
 
-    float velocity = (sd->distance-distance_prev)/(time-time_prev);
+    float velocity = 0;
+    if (time-time_prev > 500) {
+        velocity = (sd->distance-distance_prev)/(time-time_prev)*1e3;
+        time_prev = time;
+        distance_prev = sd->distance;
+        velocity_prev = velocity;
+    } else {
+        velocity = velocity_prev;
+    }
 
     struct sens_val sens_new = {
         .dist_front = sd->dist_front,
@@ -142,7 +150,6 @@ void bsh_sens_recv(void *received, void *data) {
         .velocity = velocity,
         .time = time,
     };
-    printf("df: %f, distance: %f \n", sens_new.dist_front, sens_new.distance);
 
     pthread_mutex_lock(&sens_data->lock);
     sens_data->val = sens_new;
