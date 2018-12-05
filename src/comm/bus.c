@@ -156,8 +156,9 @@ static void *bus_thread(void *b) {
             } else {
                 order_queue(bus, order, true);
                 packets_lost++;
-                printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
+                /*printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
+                    */
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
         } else {
@@ -222,6 +223,10 @@ void bus_destroy(struct bus *bus) {
     pthread_cond_destroy(&bus->wake_up);
     pthread_mutex_destroy(&bus->wake_up_mutex);
     free(bus);
+}
+
+void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg) {
+    bus_schedule(bus, bc, msg, NULL, NULL);
 }
 
 void bus_schedule(struct bus *bus, const struct bus_cmd *bc, void *msg,

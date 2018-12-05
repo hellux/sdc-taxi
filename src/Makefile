@@ -15,7 +15,7 @@ CXXFLAGS.release = -O3
 
 AVRCC = avr-gcc
 AVRARCH = -mmcu=atmega1284p
-AVRCFLAGS = -static -DF_CPU=16000000 -Wall -Og
+AVRCFLAGS = -static -DF_CPU=16000000 -Wall -Og -DDEBUG
 
 PROG_CONF = prog.conf
 PROG_DBG = atmelice

@@ -50,7 +50,7 @@ bool cmd_stop(const struct state *s, struct ctrl_val *c) {
     if (c->vel.value < 0.05) {
         return true;
     } else {
-        c->vel.value = wtd_speed(s->stopline_dist, c->vel.value, -1);
+        c->vel.value = wtd_speed(s->stopline_dist, c->vel.value, 0.2);
         return false;
     }
 }
@@ -327,4 +327,3 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         pthread_mutex_unlock(&o->lock);
     }
 }
-

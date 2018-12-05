@@ -38,7 +38,7 @@ void wheel_init(){
     /* enable interrupts? */
     EIMSK = (1<<INT0)|(1<<INT1);
     /* Trigger on rising edge */
-    EICRA = (1<<ISC01)|(1<<ISC11);
+    EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
 }
 
 void adc_init(void) {   
