@@ -17,7 +17,8 @@ class Worker(threading.Thread):
             Task.SET_AUTO   : self.set_auto,
             Task.GET_SENSOR : self.get_sensor,
             Task.SET_VEL    : self.set_vel,
-            Task.SET_ROT    : self.set_rot
+            Task.SET_ROT    : self.set_rot,
+            Task.GET_MISSION: self.get_mission
         }
 
         self.move_time = 0
@@ -73,6 +74,9 @@ class Worker(threading.Thread):
         if kp:
             self.send_fmt(Command.SET_ROT_KP, float(kp))
         return None
+    
+    def get_mission(self):
+        return self.send_fmt(Command.GET_MISSION)
     
     def run(self):
         while not self.terminate:
