@@ -129,8 +129,6 @@ void bsh_sens_recv(void *received, void *data) {
     pthread_mutex_lock(&sens_data->lock);
     clock_gettime(CLOCK_MONOTONIC, &ts);
     long unsigned time = ts.tv_sec*1e3 + ts.tv_nsec*1e-6;
-
-    pthread_mutex_lock(&sens_data->lock);
     float distance_prev = sens_data->val.distance;
     float time_prev = sens_data->val.time;
     pthread_mutex_unlock(&sens_data->lock);
@@ -200,7 +198,7 @@ int main(int argc, char* args[]) {
         pthread_mutex_unlock(&sens_data.lock);
 
         /*
-        bus_receive_schedule(bus, &BCSS[BBS_GET], bsh_sens_recv, &sens_data);
+        bus_schedule(bus, &BCSS[BBS_GET], NULL, bsh_sens_recv, &sens_data);
         */
 
         /* determine new ctrl values */
