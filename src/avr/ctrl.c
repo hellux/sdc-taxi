@@ -105,7 +105,7 @@ void pwm_init(void) {
 int main(void) {
     ks_init();
     pwm_init();
-    spi_init();
+    spi_init(0);
 
     reset();
 

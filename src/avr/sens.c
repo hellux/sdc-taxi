@@ -91,7 +91,7 @@ ISR(SPI_STC_vect) {
 }
 
 int main(void) {
-    spi_init();
+    spi_init(1);
     wheel_init();
     reset();
 

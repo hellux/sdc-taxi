@@ -6,12 +6,12 @@
 
 #include "protocol.h"
 
-void spi_init() {
+void spi_init(int enable_interrupt) {
     /* set MISO as output */
     DDRB |= (1<<PB6);
 
     /* enable SPI Interrupt & SPI */
-    SPCR |= (0<<SPIE)|(1<<SPE);
+    SPCR |= (enable_interrupt<<SPIE)|(1<<SPE);
 
     /* clear data reg */
     SPDR = 0;
