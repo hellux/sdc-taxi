@@ -185,6 +185,24 @@ cv::Mat mask_image(cv::Mat& image, std::vector<cv::Point> mask_poly) {
     return masked_image;
 }
 
+bool intersects(cv::Point s1, cv::Point e1, cv::Point s2, cv::Point e2) {
+    /*
+    double t = ((s1.x-s2.x)*(s2.y-e2.y)-(s1.y-s2.y)*(s2.x-e2.x)) /
+               ((s1.x-e1.x)*(s2.y-e2.y)-(s1.y-e1.y)*(s2.x-e2.x));
+    */
+    double denominator = (s1.x-e1.x)*(s2.y-e2.y)-(s1.y-e1.y)*(s2.x-e2.x);
+    if (denominator != 0) {
+        double numerator = (s1.x-e1.x)*(s1.y-s2.y)-(s1.y-e1.y)*(s1.x-s2.x);
+        double u = -(numerator / denominator);
+        printf("s1: (%d, %d), e1: (%d, %d)\n", s1.x, s1.y, e1.x, e1.y);
+        printf("s2: (%d, %d), e2: (%d, %d)\n", s2.x, s2.y, e2.x, e2.y);
+        printf("u=%f\n", u);
+        return (u >= 0 && u <= 1);
+    } else {
+        return false;
+    }
+}
+
 /* a*b = |a||b|cos v
  *           a*b
  * => v =  -------
@@ -207,7 +225,8 @@ void classify_lines(lines_t& lines, cv::Mat& image,
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
         double angle_to_lane = angle(e.x-s.x, e.y-s.y, lane_dir.x, lane_dir.y);
-        if (angle_to_lane > thresh_angle_stop) {
+        if (angle_to_lane > thresh_angle_stop &&
+            intersects(lane, lane+lane_dir, s, e)) {
             stop_lines.push_back(line);
         } else if (angle_to_lane < thresh_angle_lane && e.x > c && s.x > c) {
             right_lines.push_back(line);
@@ -490,6 +509,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     int lane_top_x = (line_pos_x(right, 0)+line_pos_x(left, 0))/2;
     lane_top_x = std::min(std::max(0, lane_top_x), WIDTH);
     ip->lane_dir = cv::Point(lane_top_x-ip->lane.x, -ip->lane.y);
+    cv::Point sum = ip->lane+ip->lane_dir;
 
     /* calc stopline position */
     int stop_x = ip->lane.x + (ip->stop.y-ip->lane.y)/ip->lane_dir.y*ip->lane_dir.x;
