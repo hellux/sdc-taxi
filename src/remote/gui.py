@@ -10,9 +10,7 @@ import matplotlib.pyplot as plt
 
 from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
-matplotlib.use('TkAgg')
+from pip._vendor.ipaddress import ip_address
 
 class Map():
     NODE_SIZE = 5
@@ -199,17 +197,6 @@ class GUI():
         self.map_frame = tk.Canvas(self.window, highlightbackground="black")
         self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
-        """
-        #GRAPH
-        fig = plt.figure(1)
-        plt.ion()
-        t = np.arange(0.0,3.0,0.01)
-        s = np.sin(np.pi*t)
-        plt.plot(t,s)
-        
-        canvas = FigureCanvasTkAgg(fig, master=self.window)
-        plot_widget = canvas.get_tk_widget()
-        """
         #MAP
         self.map = Map(self.window, self.map_frame)
         
@@ -223,7 +210,6 @@ class GUI():
         self.mode_label.pack(side=tk.TOP)
         self.info_list.pack(side=tk.LEFT, fill="both", padx=10, pady=10)
         self.map_frame.pack(fill="both", expand=True, pady=10, padx=10, side=tk.TOP)
-        #plot_widget.pack(fill="both", expand=True, side=tk.RIGHT)
         sendCommandButton.pack(side=tk.BOTTOM, padx=10)
         self.console.pack(side=tk.BOTTOM, fill="both", expand=True, pady=10, padx=10)
         
@@ -371,14 +357,11 @@ class GUI():
         self.window.unbind("<Down>")
 
     def display_info(self, sensor_data):
+        self.info_list.delete(0, 'end')
         info_labels = ["Front", "Right", "Speed", "Distance"]
         for x in range(0,4):
             self.info_list.insert(x, info_labels[x] + ": " + sensor_data[x])
         self.info_list.insert(4, "")
-        
-        #plt.plot(sensor_data[3])
-        #plt.ylabel("Speed")
-        #plt.show()
         
     def quit(self):
         self.tasks.put(Task.KILL)
@@ -420,17 +403,17 @@ class GUI():
         self.map.draw()
         self.filename_frame.destroy()
         
-    def apply_ip(self):
-        self.tasks.put(Task.CONNECT, self.ip_input)
+    def apply_ip(self, address):
+        self.tasks.put(Task.CONNECT, address)
         self.ip_popup.destroy()
                        
     def connect(self):
         self.ip_popup = tk.Tk()
         self.ip_popup.title("Connect to server")
         ip_label = tk.Label(self.ip_popup, text="Enter IP-address")
-        self.ip_input = tk.Entry(self.ip_popup)
-        self.ip_popup.bind("<Return>", lambda e: self.apply_ip())
+        ip_input = tk.Entry(self.ip_popup)
+        self.ip_popup.bind("<Return>", lambda e: self.apply_ip(ip_input.get()))
         ip_label.pack()
-        self.ip_input.pack()
+        ip_input.pack()
         self.ip_popup.geometry("+%d+%d" % ((int(self.ip_popup.winfo_pointerx()), int((self.ip_popup.winfo_pointery())))))
-        self.ip_input.focus_force()
+        ip_input.focus_force()
