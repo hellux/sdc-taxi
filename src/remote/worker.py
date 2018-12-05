@@ -59,8 +59,13 @@ class Worker(threading.Thread):
     def set_auto(self, auto):
         self.send_fmt(Command.SET_STATE, auto)
         return None
-    
+        """
+        list.insert(a)
+        list = list[:10]
+        """
     def set_vel(self, kd=0, kp=0):
+        internal_kd = kd
+        internal_kp = kp
         self.send_fmt(Command.SET_VEL, kd)
         self.send_fmt(Command.SET_REG_VEL, kp)   
         return None
