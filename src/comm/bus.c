@@ -43,9 +43,20 @@ static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
     bool success = false;
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, NULL, 0);
+    /*
+    printf("sending cs: %x, to slave: %d\n", cs, bc->slave);
+    */
+    cs_t cs_recv;
     spi_tranceive(fd, (void*)&cs, NULL, 1);
+    spi_tranceive(fd, NULL, (void*)&cs_recv, 1);
     spi_tranceive(fd, NULL, dst, bc->len);
-    success = cs_check(cs, dst, bc->len);
+    success = cs_check(cs_recv, dst, bc->len);
+    /*
+    printf("received: %d\n", cs_recv);
+    for (int i = 0; i < bc->len; i++)
+        printf("%02x ", ((uint8_t*)dst)[i]);
+    printf("\n");
+    */
 #else
     success = true;
 #endif
@@ -156,9 +167,8 @@ static void *bus_thread(void *b) {
             } else {
                 order_queue(bus, order, true);
                 packets_lost++;
-                /*printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
+                printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
-                    */
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
         } else {

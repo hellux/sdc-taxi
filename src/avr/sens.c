@@ -79,7 +79,8 @@ ISR(INT1_vect) {
 
 ISR(SPI_STC_vect) {
     cli();
-    uint8_t command = spi_accept(NULL);
+    uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR);
+    char buf[16];
 
     if (command == BBS_GET) {
         struct sens_data sensors_copy = sensors;
@@ -91,34 +92,41 @@ ISR(SPI_STC_vect) {
 }
 
 int main(void) {
-    spi_init(1);
+    spi_init(SPI_ENABLE_INT);
     wheel_init();
+    adc_init();
     reset();
 
 #ifdef DEBUG
     DDRA = 0xFC;
     lcd_init();
+    lcd_clear();
 #endif
-
-    adc_init();
 
     sei();
 
     struct sens_data sens_local;
     while (1) {
+        /* get new sensor values */
+        cli();
+        unsigned wheel_cntr = wheel_sensor_cntr;
+        sei();
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
 
-        cli();
-        unsigned wheel_cntr = wheel_sensor_cntr;
-        sensors = sens_local;
-        sei();
-
+        /* write to local struct */
         sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
         sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
         sens_local.distance = WHEEL_CIRCUM/WHEEL_N*wheel_cntr / 2;
+
+        /* save local struct to global one */
+        cli();
+        sensors = sens_local;
+        sei();
         
 #ifdef DEBUG
+        /* write values to lcd */
+        /*
         char buf[16];
         lcd_set_ddram(0);
         lcd_send_string("F:");
@@ -131,6 +139,7 @@ int main(void) {
         lcd_send_string(" D:");
         dtostrf(sens_local.distance, 5, 2, buf);
         lcd_send_string(buf);
+        */
 #endif
     }
     return 0;

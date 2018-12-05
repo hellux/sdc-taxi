@@ -142,6 +142,7 @@ void bsh_sens_recv(void *received, void *data) {
         .velocity = velocity,
         .time = time,
     };
+    printf("df: %f, distance: %f \n", sens_new.dist_front, sens_new.distance);
 
     pthread_mutex_lock(&sens_data->lock);
     sens_data->val = sens_new;
@@ -197,9 +198,7 @@ int main(int argc, char* args[]) {
         struct sens_val sens = sens_data.val;
         pthread_mutex_unlock(&sens_data.lock);
 
-        /*
         bus_schedule(bus, &BCSS[BBS_GET], NULL, bsh_sens_recv, &sens_data);
-        */
 
         /* determine new ctrl values */
         if (obj_active(obj)) {

@@ -113,7 +113,7 @@ int main(void) {
 
     while (1) {
         ctrl_val_t value_retrieved;
-        uint8_t command = spi_accept((uint8_t*)&value_retrieved);
+        uint8_t command = spi_accept((uint8_t*)&value_retrieved, false);
 
         if (command == BB_INVALID) {
             continue; /* synchronize */
