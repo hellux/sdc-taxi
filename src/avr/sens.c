@@ -13,18 +13,17 @@
 
 #define ADC_PRESCALER_128 0x07
 
-#define CNV_FRONT_MUL 17391
+#define CNV_FRONT_MUL 17.391
 #define CNV_FRONT_EXP 1.071
 
-#define CNV_RIGHT_MUL 2680
+#define CNV_RIGHT_MUL 2.680
 #define CNV_RIGHT_EXP 1.018
 
 #define CHN_SENS_FRONT 0
 #define CHN_SENS_RIGHT 1
 
-#define WHEEL_DIAM 0.08
-#define WHEEL_SENS_FREQ 5
-#define PI 3.14
+#define WHEEL_CIRCUM 0.265
+#define WHEEL_N 10 /* number of interrupts per rotation */
 
 const struct sens_data SENS_EMPTY = {0};
 
@@ -92,51 +91,47 @@ ISR(SPI_STC_vect) {
 }
 
 int main(void) {
-
-    DDRA = 0xFC;
     spi_init();
     wheel_init();
     reset();
 
+#ifdef DEBUG
+    DDRA = 0xFC;
     lcd_init();
+#endif
 
     adc_init();
-    char buf[16];
 
     sei();
 
     struct sens_data sens_local;
     while (1) {
-        _delay_ms(1000);
-        lcd_clear();
-
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
-        sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
-        dtostrf(sens_local.dist_front, 5, 2, buf);
-        lcd_send_string("F: ");
-        lcd_send_string(buf);
-        
-        lcd_set_ddram(ROW2ADR);
-
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
-        sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
-        dtostrf(sens_local.dist_right, 5, 2, buf);
-        lcd_send_string("R: ");
-        lcd_send_string(buf);
 
         cli();
         unsigned wheel_cntr = wheel_sensor_cntr;
-        sei();
-
-        sens_local.distance = PI*WHEEL_DIAM/WHEEL_SENS_FREQ*wheel_cntr;        
-        lcd_send_string("  D: ");
-        itoa((int)sens_local.distance, buf, 10);
-        lcd_send_string(buf);
-
-        cli();
         sensors = sens_local;
         sei();
+
+        sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
+        sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
+        sens_local.distance = WHEEL_CIRCUM/WHEEL_N*wheel_cntr / 2;
         
+#ifdef DEBUG
+        char buf[16];
+        lcd_set_ddram(0);
+        lcd_send_string("F:");
+        dtostrf(sens_local.dist_front, 5, 2, buf);
+        lcd_send_string(buf);
+        lcd_set_ddram(ROW2ADR);
+        dtostrf(sens_local.dist_right, 5, 2, buf);
+        lcd_send_string("R:");
+        lcd_send_string(buf);
+        lcd_send_string(" D:");
+        dtostrf(sens_local.distance, 5, 2, buf);
+        lcd_send_string(buf);
+#endif
     }
     return 0;
 }
