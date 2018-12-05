@@ -13,10 +13,10 @@
 
 #define ADC_PRESCALER_128 0x07
 
-#define CNV_FRONT_MUL 17.391
+#define CNV_FRONT_MUL 173.91
 #define CNV_FRONT_EXP 1.071
 
-#define CNV_RIGHT_MUL 2.680
+#define CNV_RIGHT_MUL 26.80
 #define CNV_RIGHT_EXP 1.018
 
 #define CHN_SENS_FRONT 0
@@ -80,7 +80,6 @@ ISR(INT1_vect) {
 ISR(SPI_STC_vect) {
     cli();
     uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR);
-    char buf[16];
 
     if (command == BBS_GET) {
         struct sens_data sensors_copy = sensors;
@@ -126,7 +125,6 @@ int main(void) {
         
 #ifdef DEBUG
         /* write values to lcd */
-        /*
         char buf[16];
         lcd_set_ddram(0);
         lcd_send_string("F:");
@@ -139,7 +137,6 @@ int main(void) {
         lcd_send_string(" D:");
         dtostrf(sens_local.distance, 5, 2, buf);
         lcd_send_string(buf);
-        */
 #endif
     }
     return 0;
