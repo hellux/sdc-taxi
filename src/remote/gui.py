@@ -198,7 +198,7 @@ class GUI():
         
         #BUTTONS
         #TODO Bind button to send_command
-        sendCommandButton = tk.Button(self.window, text="Send command", command=self.apply_ip)
+        sendCommandButton = tk.Button(self.window, text="Send command", command=self.send_command)
 
         self.mode_label = tk.Label(self.window, textvariable=self.driving_mode)
   
@@ -244,7 +244,7 @@ class GUI():
         
         #KEYBOARD BINDINGS
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
-        self.console.bind('<Return>', self.send_command)
+        self.console.bind('<Return>', lambda e:self.send_command())
         self.console.bind('<Up>', self.send_prev_cmd)
         
     def main_loop(self):
@@ -298,14 +298,11 @@ class GUI():
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
 
-    def send_command(self, event):
+    def send_command(self):
         self.tasks.put(Task.SEND, self.console.get())
-        print(self.cmd_index)
         self.prev_cmd[self.cmd_index] = self.console.get()
-        print(self.prev_cmd)
         self.console.delete(0, 'end')
-        print(self.prev_cmd)
-        
+
         self.cmd_index += 1
         if self.cmd_index >= len(self.prev_cmd):
             self.cmd_index = 0
@@ -315,7 +312,6 @@ class GUI():
         if self.cmd_index >= len(self.prev_cmd):
             self.cmd_index = 0
                     
-        print(self.cmd_index)
         self.console.delete(0, 'end')
         self.console.insert(0, self.prev_cmd[self.cmd_index])
             
@@ -354,10 +350,9 @@ class GUI():
 
     def display_info(self, sensor_data):
         self.info_list.delete(0, 'end')
-        info_labels = ["Front", "Right", "Speed", "Distance"]
-        for x in range(0,4):
-            self.info_list.insert(x, info_labels[x] + ": " + sensor_data[x])
-        self.info_list.insert(4, "")
+        info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
+        for info in info_labels:
+            self.info_list.insert(info_labels.index(info), info + ": " + sensor_data[info_labels.index(info)-1])
         
     def quit(self):
         self.tasks.put(Task.KILL)
