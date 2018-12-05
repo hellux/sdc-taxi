@@ -303,7 +303,6 @@ class GUI():
         self.tasks.put(Task.SEND, self.console.get())
         self.prev_cmd.insert(0, self.console.get())
         self.prev_cmd = self.prev_cmd[0:9]
-        print(self.prev_cmd)
         self.console.delete(0, 'end')
  
     def send_prev_cmd(self, event):
