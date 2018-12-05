@@ -63,16 +63,18 @@ class Worker(threading.Thread):
         list.insert(a)
         list = list[:10]
         """
-    def set_vel(self, kd=0, kp=0):
-        internal_kd = kd
-        internal_kp = kp
-        self.send_fmt(Command.SET_VEL, kd)
-        self.send_fmt(Command.SET_REG_VEL, kp)   
+    def set_vel(self, kd, kp):
+        if kd:
+            self.send_fmt(Command.SET_VEL, float(kd))
+        if kp:
+            self.send_fmt(Command.SET_REG_VEL, float(kp))   
         return None
     
-    def set_rot(self, kd=0, kp=0):
-        self.send_fmt(Command.SET_ROT, kd)
-        self.send_fmt(Command.SET_REG_ROT, kp)
+    def set_rot(self, kd, kp):
+        if kd:
+             self.send_fmt(Command.SET_ROT, float(kd))
+        if kp:
+            self.send_fmt(Command.SET_REG_ROT, float(kp))
         return None
     
     def run(self):
