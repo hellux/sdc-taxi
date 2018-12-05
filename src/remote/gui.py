@@ -4,13 +4,9 @@ import os
 import pickle
 import time
 import tkinter as tk
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 
 from course import Edge, Node, NodeType, closest_path, create_mission
 from tasks import Task
-from pip._vendor.ipaddress import ip_address
 
 class Map():
     NODE_SIZE = 5
