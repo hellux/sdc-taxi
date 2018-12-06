@@ -45,7 +45,6 @@ static int lane_width_max;
 static double weight_lw;
 static double weight_lx;
 static double weight_sd;
-static int thresh_lane_vis;
 static int thresh_stop_vis;
 static int stop_dmax;
 
@@ -61,14 +60,13 @@ struct ip {
 #endif
 
     /* visibility data */
-    cv::Point lane;
-    cv::Point lane_dir;
+    cv::Point lane; /* center of lane */
+    cv::Point lane_dir; /* direction of lane */
     int lane_width;
-    int lane_vis;
 
-    cv::Point stop;
-    int stop_diff;
-    int stop_vis;
+    cv::Point stop; /* center of stopline */
+    int stop_diff; /* movement of stopline per frame */
+    int stop_vis; /* visibility certainty of stopline */
 
     /* ip options */
     struct ip_opt opt;
@@ -109,7 +107,6 @@ struct ip *ip_init() {
     weight_lw = 0.06;
     weight_lx = 0.8;
     weight_sd = 0.6;
-    thresh_lane_vis = 5;
     thresh_stop_vis = 3;
     max_lane_error = 0.18*WIDTH;
     lane_width_min = 0.5*WIDTH;
@@ -118,7 +115,6 @@ struct ip *ip_init() {
     ip->lane = cv::Point(WIDTH/2, 0.8*HEIGHT);
     ip->lane_dir = cv::Point(0, 1);
     ip->lane_width = 0.8*WIDTH;
-    ip->lane_vis = 0;
 
     ip->stop = cv::Point(WIDTH/2, mask_width_top);
     ip->stop_diff = 0;
@@ -206,6 +202,11 @@ cv::Mat mask_image(cv::Mat& image, std::vector<cv::Point> mask_poly) {
     return masked_image;
 }
 
+/* distance to p from line s -- e, negative if leftward */
+double distance(cv::Point s, cv::Point e, cv::Point p) {
+    return (p.x-s.x)*(e.y-s.y)-(p.y-s.y)*(e.x-s.x);
+}
+
 bool intersects(cv::Point s1, cv::Point e1, cv::Point s2, cv::Point e2) {
     /*
     double t = ((s1.x-s2.x)*(s2.y-e2.y)-(s1.y-s2.y)*(s2.x-e2.x)) /
@@ -233,29 +234,61 @@ double angle(int ax, int ay, int bx, int by) {
     return std::min(angle, CV_PI-angle);
 }
 
-void classify_lines(struct ip *ip, lines_t& lines, cv::Mat& image,
+bool is_stopline(struct ip *ip, cv::Point s, cv::Point e,
+                 double angle_to_lane) {
+    /* must be perpendicular to lane */
+    if (angle_to_lane < thresh_angle_stop)
+        return false;
+
+    /* must intersect lane */
+    if (!intersects(ip->lane, ip->lane+ip->lane_dir, s, e))
+        return false;
+
+    return true;
+}
+
+/* -1: left, 0: none, 1: right */
+int is_side_line(struct ip *ip, cv::Point s, cv::Point e,
+                 double angle_to_lane) {
+    /* angle must match lane direction */
+    if (angle_to_lane > thresh_angle_lane)
+        return 0;
+
+    /* must start below lane center */
+    if (s.y < ip->lane.y && e.y < ip->lane.y)
+        return 0;
+
+    /* must be completely on the left or right of lane */
+    int start_side = distance(ip->lane, ip->lane+ip->lane_dir, s);
+    int end_side = distance(ip->lane, ip->lane+ip->lane_dir, e);
+    if (start_side < 0 && end_side < 0) {
+        return 1;
+    } else if (start_side > 0 && end_side > 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+void classify_lines(struct ip *ip, lines_t& lines,
                     lines_t& right_lines, lines_t& left_lines,
                     lines_t& stop_lines, lines_t& rem_lines) {
-    cv::Point lane_top = ip->lane + ip->lane_dir;
-    int c = ip->lane.x;
     for (auto line : lines) {
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
         double angle_to_lane = angle(e.x-s.x, e.y-s.y,
                                      ip->lane_dir.x, ip->lane_dir.y);
-        if (!ip->opt.ignore_stop && angle_to_lane > thresh_angle_stop
-                                 && intersects(ip->lane, lane_top, s, e)) {
+        if (!ip->opt.ignore_stop && is_stopline(ip, s, e, angle_to_lane)) {
             stop_lines.push_back(line);
-        } else if (!ip->opt.ignore_right && angle_to_lane < thresh_angle_lane
-                                         && e.x > c && s.x > c
-                                         && (s.y >= ip->lane.y || e.y >= ip->lane.y)) {
-            right_lines.push_back(line);
-        } else if (!ip->opt.ignore_left && angle_to_lane < thresh_angle_lane
-                                        && e.x < c && s.x < c
-                                        && (s.y >= ip->lane.y || e.y >= ip->lane.y)) {
-            left_lines.push_back(line);
         } else {
-            rem_lines.push_back(line);
+            int type = is_side_line(ip, s, e, angle_to_lane);
+            if (!ip->opt.ignore_left && type == -1) {
+                left_lines.push_back(line);
+            } else if (!ip->opt.ignore_right && type == 1) {
+                right_lines.push_back(line);
+            } else {
+                rem_lines.push_back(line);
+            }
         }
     }
 }
@@ -364,7 +397,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
                     hough_threshold, line_min_length, line_max_gap);
 
     lines_t right, left, stop, rem;
-    classify_lines(ip, hough_lines, edges_image, right, left, stop, rem);
+    classify_lines(ip, hough_lines, right, left, stop, rem);
 
     /* calculate lane position */
     int lane_right_x = line_pos_x(right, ip->lane.y);
@@ -374,15 +407,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     /* determine lane width, if lane visible */
     if (lane_right_x != -1 && lane_left_x != -1) {
         lw = lane_right_x - lane_left_x;
-        ip->lane_vis++;
-    } else {
-        ip->lane_vis--;
     }
+
     lw = std::min(std::max(lane_width_min, lw), lane_width_max);
     ip->lane_width = (ip->lane_width +lw*weight_lw)/(1.0+weight_lw);
-
-    /* limit visibility certainty */
-    ip->lane_vis = std::min(std::max(0, ip->lane_vis), thresh_lane_vis*2);
     
     /* determine x position of lane */
     int lane_x = 0;
