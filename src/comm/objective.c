@@ -143,7 +143,6 @@ struct obj_item {
 
 struct obj {
     ip_t *ip;
-    struct ip_opt ip_opt;
 
     /* current mission state */
     bool active;
@@ -314,8 +313,9 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         state.last_cmd = o->queue == NULL;
         state.pos = o->pos;
 
-        bool cmd_finished = o->current->func(&state, ctrl, &o->ip_opt);
-        ip_set_opt(o->ip, &o->ip_opt);
+        struct ip_opt opt = {0};
+        bool cmd_finished = o->current->func(&state, ctrl, &opt);
+        ip_set_opt(o->ip, &opt);
 
         o->pos = state.pos;
 
