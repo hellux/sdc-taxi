@@ -4,10 +4,13 @@
 #include <stdbool.h>
 
 struct ip_res {
-    float stopline_dist;
-    bool stopline_found;
     float lane_offset;
-    bool lane_found;
+    float stopline_dist;
+
+    bool stopline_visible;
+    bool stopline_passed;
+    bool lane_right_visible;
+    bool lane_left_visible;
 };
 
 typedef struct ip_data ip_t;

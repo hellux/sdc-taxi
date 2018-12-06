@@ -73,10 +73,12 @@ struct ip *ip_init() {
   
     ip->cap->set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
     ip->cap->set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+    ip->cap->set(CV_CAP_PROP_FPS, 60);
+    int fps = ip->cap->get(CV_CAP_PROP_FPS);
     WIDTH = ip->cap->get(CV_CAP_PROP_FRAME_WIDTH);
     HEIGHT = ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    printf("ip camera at %dx%d\n", WIDTH, HEIGHT);
+    printf("ip camera at %dx%d, fps: %d\n", WIDTH, HEIGHT, fps);
 
     thresh_value = 20;
     thresh_type = 6;
@@ -115,9 +117,7 @@ struct ip *ip_init() {
     ip->writer = new cv::VideoWriter(
         "opencv.avi",
         CV_FOURCC('M', 'J', 'P', 'G'),
-        ip->cap->get(CV_CAP_PROP_FPS),
-        cv::Size(ip->cap->get(CV_CAP_PROP_FRAME_WIDTH),
-                 ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT)));
+        fps, cv::Size(WIDTH, HEIGHT));
 #endif
 
     return ip;
@@ -194,9 +194,6 @@ bool intersects(cv::Point s1, cv::Point e1, cv::Point s2, cv::Point e2) {
     if (denominator != 0) {
         double numerator = (s1.x-e1.x)*(s1.y-s2.y)-(s1.y-e1.y)*(s1.x-s2.x);
         double u = -(numerator / denominator);
-        printf("s1: (%d, %d), e1: (%d, %d)\n", s1.x, s1.y, e1.x, e1.y);
-        printf("s2: (%d, %d), e2: (%d, %d)\n", s2.x, s2.y, e2.x, e2.y);
-        printf("u=%f\n", u);
         return (u >= 0 && u <= 1);
     } else {
         return false;
@@ -444,11 +441,6 @@ int line_pos_y(lines_t lines, int width) {
 }
 
 void ip_process(struct ip *ip, struct ip_res *res) {
-#ifdef VISUAL
-    typedef std::chrono::high_resolution_clock Clock;
-	auto start = Clock::now();
-#endif
-
     cv::Mat frame;
 	ip->cap->read(frame);
 
@@ -509,7 +501,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     int lane_top_x = (line_pos_x(right, 0)+line_pos_x(left, 0))/2;
     lane_top_x = std::min(std::max(0, lane_top_x), WIDTH);
     ip->lane_dir = cv::Point(lane_top_x-ip->lane.x, -ip->lane.y);
-    cv::Point sum = ip->lane+ip->lane_dir;
 
     /* calc stopline position */
     int stop_x = ip->lane.x + (ip->stop.y-ip->lane.y)/ip->lane_dir.y*ip->lane_dir.x;
@@ -536,9 +527,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 
     /* write to result struct */
     res->lane_offset = (float)(ip->lane.x-WIDTH/2)/(max_lane_error);
-    res->lane_found = ip->lane_vis >= thresh_lane_vis;
+    res->lane_right_visible = right.size() > 0;
+    res->lane_left_visible = left.size() > 0;
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
-    res->stopline_found = ip->stop_vis >= thresh_stop_vis;
+    res->stopline_visible = ip->stop_vis >= thresh_stop_vis;
 
 #ifdef VISUAL
     /*
@@ -549,22 +541,15 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     }
     */
 
-    auto stop_time = Clock::now();
-    double period = (double)(stop_time-start).count()/(1e9);
+	static auto start_time = std::chrono::high_resolution_clock::now();
+    auto stop_time = std::chrono::high_resolution_clock::now();
+    double period = (double)(stop_time-start_time).count()/(1e9);
+    start_time = stop_time;
 	std::string fps = std::to_string((int)(1/period));
     std::string err = std::to_string(res->lane_offset);
     cv::putText(frame, fps, cv::Point(0,15), FONT, 1, cvScalar(0,0,0), 2);
-    cv::putText(frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
 
-    cv::createTrackbar("b,bi,tr,z,zi,msk,otsu,tri", "", &thresh_type,
-                       TRACK_MAX_THRESH, NULL);
-    cv::createTrackbar("thresval", "", &thresh_value, TRACK_MAX, NULL);
-    cv::createTrackbar("hougthres", "", &hough_threshold, TRACK_MAX, NULL);
-    cv::createTrackbar("houghmin", "", &line_min_length, TRACK_MAX, NULL);
-    cv::createTrackbar("houghgap", "", &line_max_gap, TRACK_MAX, NULL);
-    cv::createTrackbar("mask_width_top", "", &mask_width_top, WIDTH, NULL);
-    cv::createTrackbar("mask_start_y", "", &mask_start_y, HEIGHT, NULL);
-    cv::createTrackbar("mask_end_y", "", &mask_end_y, HEIGHT, NULL);
+    cv::putText(frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
 
     plot_lines(frame, right, left, stop, rem);
     cv::polylines(frame, roi, true,
@@ -573,11 +558,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
              cv::Point(ip->lane.x - ip->lane_width/2, ip->lane.y),
              cv::Point(ip->lane.x + ip->lane_width/2, ip->lane.y),
              cv::Scalar(255,255,0), 1, CV_AA);
-    int lane_thick = res->lane_found ? 3 : 1;
     cv::line(frame,
              cv::Point(ip->lane.x, ip->lane.y),
              cv::Point(ip->lane.x+ip->lane_dir.x, ip->lane.y+ip->lane_dir.y),
-             cv::Scalar(0,255,255), lane_thick, CV_AA);
+             cv::Scalar(0,255,255), 3, CV_AA);
     /*
     int stop_thick = res->stopline_found ? 3 : 1;
     cv::line(lines_img,
@@ -585,7 +569,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
              cv::Point(lane_right_x, stop_right_y),
              cv::Scalar(255,0,255), stop_thick, CV_AA);
              */
-    if (res->stopline_found) {
+    if (res->stopline_visible) {
         cv::circle(frame,
                 cv::Point(ip->stop.x, ip->stop.y), 3,
                 cv::Scalar(255, 0, 255), CV_FILLED);
@@ -601,6 +585,16 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
     cv::imshow("Lane", frame);
+
+    cv::createTrackbar("b,bi,tr,z,zi,msk,otsu,tri", "", &thresh_type,
+                       TRACK_MAX_THRESH, NULL);
+    cv::createTrackbar("thresval", "", &thresh_value, TRACK_MAX, NULL);
+    cv::createTrackbar("hougthres", "", &hough_threshold, TRACK_MAX, NULL);
+    cv::createTrackbar("houghmin", "", &line_min_length, TRACK_MAX, NULL);
+    cv::createTrackbar("houghgap", "", &line_max_gap, TRACK_MAX, NULL);
+    cv::createTrackbar("mask_width_top", "", &mask_width_top, WIDTH, NULL);
+    cv::createTrackbar("mask_start_y", "", &mask_start_y, HEIGHT, NULL);
+    cv::createTrackbar("mask_end_y", "", &mask_end_y, HEIGHT, NULL);
 
     int k = cv::waitKey(1);
     if (k == 27) {
