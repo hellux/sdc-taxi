@@ -8,8 +8,8 @@
 
 #include "ip/img_proc.h"
 
-#define BRAKE_DIST 0.4 //distance from line when braking starts          (cm)
-#define STILL_DIST 0  //distance from line when car should be still     (cm)
+#define BRAKE_DIST 0.4
+#define STILL_DIST 0
 #define STRAIGHT 0
 #define LEFT -1
 #define RIGHT 1
@@ -17,7 +17,12 @@
 #define SLOW_VEL 0.4
 #define FULL_VEL 1
 
-#define SEC 1e3 /* milliseconds per second */
+/* positions */
+
+#define BEFORE_PREV 0
+#define BEFORE_STOP 1
+#define AFTER_STOP 2
+#define PARKED 3
 
 float wtd_speed(float distance, float current, float target) {
     return current+(target-current)/distance;
@@ -28,91 +33,97 @@ struct state {
 
     float lane_offset;
 
-    float stopline_dist; /* meters */
-    unsigned stopline_since; /* milliseconds */
-    bool stopline_passed;
+    bool stop_visible;
+    float stop_dist; /* distance to visible stopline */
+    double since_pass; /* seconds since last stopline pass */
+    bool last_cmd;
+    int pos;
 };
 
 /* objective commands */
 
-bool cmd_ignore(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    printf("ignr %d\n", s->stopline_since);
-    if (s->stopline_since > 500) {
+bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+    if (s->pos == AFTER_STOP) {
         return true;
     }
     return false;
 }
 
-bool cmd_stop(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    float cur_vel = s->sens->velocity;
-    printf("stopline: %f, c->vel: %f\n", s->stopline_dist, c->vel.value);
+bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (c->vel.value < 0.05) {
         return true;
     } else {
-        c->vel.value = wtd_speed(s->stopline_dist, c->vel.value, 0.2);
+        c->vel.value = wtd_speed(s->stop_dist, c->vel.value, STOP_VEL);
         return false;
     }
 }
 
-bool cmd_park(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+    /* TODO only return true if last cmd */
     float cur_vel = s->sens->velocity;
-    if (s->stopline_passed) {
+    if (s->pos == AFTER_STOP) {
         c->rot.value = RIGHT;
 
-        if (s->stopline_since >= SEC*1.5){
+        if (s->since_pass >= 1.5) {
             c->vel.value = STOP_VEL;
             return true;
-        }
-        else if (s->stopline_since >= SEC)
+        } else if (s->since_pass >= 1) {
             c->rot.value =STRAIGHT;
-        else if (s->stopline_since >= SEC*0.5)
+        } else if (s->since_pass >= 0.5) {
             c->rot.value = LEFT;
-    } else if (s->stopline_dist <= BRAKE_DIST) {
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, SLOW_VEL);
+        }
+    } else if (s->stop_dist <= BRAKE_DIST) {
+        c->vel.value = wtd_speed(s->stop_dist, cur_vel, SLOW_VEL);
+    } else if (s->pos == PARKED) {
+        c->rot.value = LEFT;
+        c->vel.value = SLOW_VEL;
+        
+        if (cur_vel == FULL_VEL) {
+            return true;
+        } else if (s->since_pass >= 1) {
+            c->vel.value = FULL_VEL;
+            c->rot.value = STRAIGHT;
+        } else if (s->since_pass >= 0.5) {
+            c->rot.value = RIGHT;
+        }
+        return false;
     }
     return false;
 }
 
-bool cmd_unpark(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    float cur_vel = s->sens->velocity; 
-    c->rot.value = LEFT;
-    c->vel.value = SLOW_VEL;
-    
-    if (cur_vel == FULL_VEL)
-        return true;
-    else if (s->stopline_since >= SEC){
-        c->vel.value = FULL_VEL;
-        c->rot.value = STRAIGHT;
-    }
-    else if (s->stopline_since >= SEC*0.5)
-        c->rot.value = RIGHT;
-    return false;
-}
-
-bool cmd_enter(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+bool cmd_enter(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     float cur_vel = s->sens->velocity;
-    if (s->stopline_passed) {
+    if (s->pos == AFTER_STOP) {
         c->rot.value = RIGHT;
     
-        if (s->stopline_since >= SEC*0.5){
+        if (s->since_pass >= 0.5){
             c->rot.value = STRAIGHT;
             return true;
         }
-    } else if (s->stopline_dist <= BRAKE_DIST) {
-        c->vel.value = wtd_speed(s->stopline_dist, cur_vel, SLOW_VEL);
+    } else if (s->stop_dist <= BRAKE_DIST) {
+        c->vel.value = wtd_speed(s->stop_dist, cur_vel, SLOW_VEL);
     }
     return false;
 }
 
-bool cmd_exit(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+    if (s->stop_visible) {
+        i->ignore_right = true;
+    } else if (s->pos == AFTER_STOP) {
+        return true;
+    }
+    return false;
+}
+
+bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     float cur_vel = s->sens->velocity;
-    if (s->stopline_passed) {
+    if (s->pos == AFTER_STOP) {
         c->rot.value = RIGHT;
     
         if (cur_vel == FULL_VEL){
             return true;
         }
-        else if (s->stopline_since >= SEC*0.5){
+        else if (s->since_pass >= 0.5){
             c->vel.value = FULL_VEL;
             c->rot.value = STRAIGHT;
         }
@@ -122,7 +133,7 @@ bool cmd_exit(const struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 struct obj_cmd {
     const char name[5];
-    bool (*func)(const struct state *s, struct ctrl_val *c, struct ip_opt *i);
+    bool (*func)(struct state *s, struct ctrl_val *c, struct ip_opt *i);
 };
 
 struct obj_item {
@@ -141,25 +152,24 @@ struct obj {
     pthread_mutex_t lock;
 
     /* current command state */
-    long unsigned stopline_passtime;
-    bool stopline_found;
-    bool stopline_passed;
+    double passtime;
+    int pos;
 };
 
-#define CMD_IGNORE "ignr"
-#define CMD_STOP   "stop"
-#define CMD_PARK   "park"
-#define CMD_UNPARK "uprk"
-#define CMD_ENTER  "entr"
-#define CMD_EXIT   "exit"
+#define CMD_IGNORE   "ignr"
+#define CMD_STOP     "stop"
+#define CMD_PARK     "park"
+#define CMD_ENTER    "entr"
+#define CMD_CONTINUE "cont"
+#define CMD_EXIT     "exit"
 
 const struct obj_cmd CMDS[] = {
-    {CMD_IGNORE, cmd_ignore},
-    {CMD_STOP,   cmd_stop},
-    {CMD_PARK,   cmd_park},
-    {CMD_UNPARK, cmd_unpark},
-    {CMD_ENTER,  cmd_enter},
-    {CMD_EXIT,   cmd_exit},
+    {CMD_IGNORE,   cmd_ignore},
+    {CMD_STOP,     cmd_stop},
+    {CMD_PARK,     cmd_park},
+    {CMD_ENTER,    cmd_enter},
+    {CMD_CONTINUE, cmd_continue},
+    {CMD_EXIT,     cmd_exit},
 };
 const int CMDC = sizeof(CMDS)/sizeof(*CMDS);
 
@@ -169,7 +179,7 @@ void queue_destroy(struct obj_item *queue) {
     while (queue) {
         struct obj_item *prev = queue;
         queue = queue->next;
-        free(queue);
+        free(prev);
     }
 }
 
@@ -259,9 +269,8 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
         pthread_mutex_lock(&obj->lock);
         queue_destroy(obj->queue);
         obj->queue = queue;
-        obj->stopline_passtime = 0;
-        obj->stopline_found = false;
-        obj->stopline_passed = false;
+        obj->passtime = 0;
+        obj->pos = 0; /* TODO adjust if parked */
         pthread_mutex_unlock(&obj->lock);
         return true;
     } else {
@@ -278,38 +287,44 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     if (!o->current && o->queue) {
         o->current = o->queue->cmd;
         o->queue = o->queue->next;
-
-        o->stopline_passed = false;
     }
 
     struct ip_res ip_res;
     ip_process(o->ip, &ip_res);
-    if (ip_res.stopline_visible)
-        o->stopline_found = true;
+    if (ip_res.stopline_passed) {
+        if (o->pos < AFTER_STOP) {
+            o->passtime = sens->time;
+            o->pos++;
+        } else {
+            printf("warning: invalid pass!\n");
+        }
+    }
 
     ctrl->vel.regulate = false;
     ctrl->rot.value = ip_res.lane_offset;
     ctrl->rot.regulate = true;
 
     if (o->current) {
-        if (!o->stopline_passed && ip_res.stopline_dist <= 0) {
-            o->stopline_passed = true;
-            o->stopline_passtime = sens->time;
-        }
-
         struct state state;
         state.sens = sens;
         state.lane_offset = ip_res.lane_offset;
-        state.stopline_dist = ip_res.stopline_dist;
-        state.stopline_since = sens->time - o->stopline_passtime;
-        state.stopline_passed = o->stopline_passed;
+        state.stop_visible = ip_res.stopline_visible;
+        state.stop_dist = ip_res.stopline_dist;
+        state.since_pass = sens->time - o->passtime;
+        state.last_cmd = o->queue == NULL;
+        state.pos = o->pos;
 
         bool cmd_finished = o->current->func(&state, ctrl, &o->ip_opt);
         ip_set_opt(o->ip, &o->ip_opt);
 
+        o->pos = state.pos;
+
         if (cmd_finished) {
-            o->stopline_found = false;
-            o->stopline_passed = false;
+            if (o->pos <= AFTER_STOP) {
+                o->pos--;
+            } else {
+                o->pos = 0;
+            }
             o->current = NULL;
         }
 
