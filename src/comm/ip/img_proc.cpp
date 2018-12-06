@@ -7,6 +7,13 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono>
 
+#ifdef VISUAL
+#define PLOT
+#endif
+#ifdef RECORD
+#define PLOT
+#endif
+
 typedef std::vector<cv::Vec4i> lines_t;
 
 #define FONT cv::FONT_HERSHEY_PLAIN
@@ -253,7 +260,7 @@ void classify_lines(struct ip *ip, lines_t& lines, cv::Mat& image,
     }
 }
 
-#ifdef VISUAL
+#ifdef PLOT
 
 void plot_lines(cv::Mat& img, lines_t right, lines_t left,
                               lines_t stop, lines_t rem) {
@@ -386,7 +393,13 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     } else if (lane_left_x != -1) {
         lane_x = lane_left_x + ip->lane_width/2;
     } else {
-        lane_x = ip->lane.x;
+        if (ip->opt.ignore_right) {
+            lane_x = WIDTH/2 - max_lane_error;
+        } else if (ip->opt.ignore_left) {
+            lane_x = WIDTH/2 + max_lane_error;
+        } else {
+            lane_x = ip->lane.x;
+        }
     }
     lane_x = std::min(std::max(WIDTH/2-max_lane_error, lane_x),
                       WIDTH/2+max_lane_error);
@@ -434,7 +447,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
     res->stopline_visible = ip->stop_vis >= thresh_stop_vis;
 
-#ifdef VISUAL
+#ifdef PLOT
 	static auto start_time = std::chrono::high_resolution_clock::now();
     auto stop_time = std::chrono::high_resolution_clock::now();
     double period = (double)(stop_time-start_time).count()/(1e9);
@@ -474,7 +487,9 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::circle(frame,
              cv::Point(lane_right_x, ip->lane.y), 3,
              cv::Scalar(255,0,0), CV_FILLED);
+#endif
 
+#ifdef VISUAL
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
