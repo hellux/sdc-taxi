@@ -12,9 +12,12 @@
 #include "ip/img_proc.h"
 #include "protocol.h"
 
-#define F_SPI 1000000
+#define F_SPI 1e6
+
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
+
+static struct timespec ts_start;
 
 struct data_sensors {
     struct sens_val val;
@@ -123,18 +126,20 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
     static float distance_prev = 0;
-    static long unsigned time_prev = 0;
+    static double time_prev = 0;
     static float velocity_prev = 0;
 
     struct sens_data *sd = (struct sens_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    long unsigned time = ts.tv_sec*1e3 + ts.tv_nsec/1e6;
+    struct timespec ts_now;
+    clock_gettime(CLOCK_MONOTONIC, &ts_now);
+    struct timespec ts_diff = {ts_now.tv_sec - ts_start.tv_sec,
+                               ts_now.tv_nsec - ts_start.tv_nsec};
+    double time = ts_diff.tv_sec + ts_diff.tv_nsec/1e9;
 
     float velocity = 0;
-    if (time-time_prev > 500) {
+    if (time-time_prev > 0.4) {
         velocity = (sd->distance-distance_prev)/(time-time_prev)*1e3;
         time_prev = time;
         distance_prev = sd->distance;
@@ -157,12 +162,11 @@ void bsh_sens_recv(void *received, void *data) {
 }
 
 int main(int argc, char* args[]) {
+    clock_gettime(CLOCK_MONOTONIC, &ts_start);
+
     bool quit = false;
     pthread_mutex_t quit_lock;
     pthread_mutex_init(&quit_lock, 0);
-
-    struct timespec ts;
-    printf("%lu sec\n", ts.tv_sec);
 
     const char *inet_addr = args[1];
     if (!inet_addr) {
@@ -198,6 +202,10 @@ int main(int argc, char* args[]) {
     srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
+
+    bus_sync(bus);
+    bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
+    bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
 
     while (!quit) {
         struct ctrl_val ctrl = {0};

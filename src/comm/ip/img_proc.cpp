@@ -311,7 +311,6 @@ int line_pos_x(lines_t lines, int height) {
     }
 }
 
-
 /* median y position of lines at x=width */
 int line_pos_y(lines_t lines, int width) {
     if (lines.empty()) {
@@ -344,7 +343,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     /* process image */
     cv::Mat thres_img = threshold(frame);
     cv::Mat edges_image = img_edge_detector(thres_img);
-
     /* mask proccessed image */
     std::vector<cv::Point> roi = create_mask();
     cv::Mat masked_image = mask_image(edges_image, roi);
