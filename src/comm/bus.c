@@ -12,7 +12,7 @@
 
 #define SPI_DEVICE "/dev/spidev0."
 
-#define WAIT_SLEEP 1e9 /* nanoseconds before wake up if nothing scheduled */
+#define WAIT_SLEEP 1 /* seconds before wake up if nothing scheduled */
 #define WAIT_DELAY 20e3 /* nanoseconds between orders */
 
 static unsigned packets_sent = 0;
@@ -164,7 +164,7 @@ static void *bus_thread(void *b) {
         } else {
             pthread_mutex_lock(&bus->wake_up_mutex);
             clock_gettime(CLOCK_REALTIME, &ts_sleep);
-            ts_sleep.tv_nsec += WAIT_SLEEP;
+            ts_sleep.tv_sec += WAIT_SLEEP;
             /* use timedwait to prevent deadlocks */
             pthread_cond_timedwait(&bus->wake_up, &bus->wake_up_mutex,
                                    &ts_sleep);

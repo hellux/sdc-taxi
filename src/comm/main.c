@@ -17,6 +17,8 @@
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
+#define WAIT_RC 1e7
+
 static struct timespec ts_start;
 
 struct data_sensors {
@@ -207,6 +209,7 @@ int main(int argc, char* args[]) {
     bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
     bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
 
+    int count = 0;
     while (!quit) {
         struct ctrl_val ctrl = {0};
         pthread_mutex_lock(&sens_data.lock);
@@ -219,6 +222,8 @@ int main(int argc, char* args[]) {
         if (obj_active(obj)) {
             obj_execute(obj, &sens, &ctrl);
         } else {
+            struct timespec ts_wait = {0, WAIT_RC};
+            nanosleep(&ts_wait, NULL);
             struct data_rc rc;
             pthread_mutex_lock(&rc_data.lock);
             rc = rc_data;
