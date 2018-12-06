@@ -12,7 +12,8 @@
 #include "ip/img_proc.h"
 #include "protocol.h"
 
-#define F_SPI 1000000
+#define F_SPI 1e6
+
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
@@ -161,9 +162,6 @@ int main(int argc, char* args[]) {
     pthread_mutex_t quit_lock;
     pthread_mutex_init(&quit_lock, 0);
 
-    struct timespec ts;
-    printf("%lu sec\n", ts.tv_sec);
-
     const char *inet_addr = args[1];
     if (!inet_addr) {
         fprintf(stderr, "error: no IP address specified\n");
@@ -198,6 +196,10 @@ int main(int argc, char* args[]) {
     srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
                             cmds, cmdc);
     if (!srv) return EXIT_FAILURE;
+
+    bus_sync(bus);
+    bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
+    bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
 
     while (!quit) {
         struct ctrl_val ctrl = {0};

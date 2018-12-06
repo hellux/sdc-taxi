@@ -13,6 +13,9 @@ bus_t *bus_create(int freq);
 /* deallocate resources and terminate thread, blocks until dead */
 void bus_destroy(bus_t *bus);
 
+/* ensure modules are in sync */
+void bus_sync(bus_t *bus);
+
 /* transmit or receive and block until finished */
 void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg);
 

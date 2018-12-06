@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
 #include <pthread.h>
 
@@ -11,7 +12,8 @@
 
 #define SPI_DEVICE "/dev/spidev0."
 
-#define WAITTIME 1 /* seconds before wake up if nothing scheduled */
+#define WAIT_SLEEP 1e9 /* nanoseconds before wake up if nothing scheduled */
+#define WAIT_DELAY 20e3 /* nanoseconds between orders */
 
 static unsigned packets_sent = 0;
 static unsigned packets_lost = 0;
@@ -43,20 +45,11 @@ static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
     bool success = false;
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, NULL, 0);
-    /*
-    printf("sending cs: %x, to slave: %d\n", cs, bc->slave);
-    */
     cs_t cs_recv;
     spi_tranceive(fd, (void*)&cs, NULL, 1);
     spi_tranceive(fd, NULL, (void*)&cs_recv, 1);
     spi_tranceive(fd, NULL, dst, bc->len);
     success = cs_check(cs_recv, dst, bc->len);
-    /*
-    printf("received: %d\n", cs_recv);
-    for (int i = 0; i < bc->len; i++)
-        printf("%02x ", ((uint8_t*)dst)[i]);
-    printf("\n");
-    */
 #else
     success = true;
 #endif
@@ -65,12 +58,6 @@ static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
 
 static bool transmit(int fd, const struct bus_cmd *bc, void *msg) {
     bool success = false;
-    /*
-    printf("transmit:\n");
-    for (int i = 0; i < bc->len; i++)
-        printf("%02x ", ((uint8_t*)msg)[i]);
-    printf("\n");
-    */
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, msg, bc->len);
     spi_tranceive(fd, (void*)&cs, NULL, 1);
@@ -136,7 +123,8 @@ static void *bus_thread(void *b) {
 
     bool quit = false;
 
-    struct timespec ts;
+    struct timespec ts_sleep;
+    struct timespec ts_delay = {0, WAIT_DELAY};
 
     while (!quit) {
         /* get first order in queue, if any */
@@ -171,12 +159,15 @@ static void *bus_thread(void *b) {
                     ((float)packets_lost/(float)packets_sent)*100);
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
+
+            nanosleep(&ts_delay, NULL);
         } else {
             pthread_mutex_lock(&bus->wake_up_mutex);
-            clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += WAITTIME;
+            clock_gettime(CLOCK_REALTIME, &ts_sleep);
+            ts_sleep.tv_nsec += WAIT_SLEEP;
             /* use timedwait to prevent deadlocks */
-            pthread_cond_timedwait(&bus->wake_up, &bus->wake_up_mutex, &ts);
+            pthread_cond_timedwait(&bus->wake_up, &bus->wake_up_mutex,
+                                   &ts_sleep);
             pthread_mutex_unlock(&bus->wake_up_mutex);
         }
     }
@@ -233,6 +224,11 @@ void bus_destroy(struct bus *bus) {
     pthread_cond_destroy(&bus->wake_up);
     pthread_mutex_destroy(&bus->wake_up_mutex);
     free(bus);
+}
+
+void bus_sync(struct bus *bus) {
+    spi_sync(bus->fds[SLAVE_SENS], MAX_DATA_LENGTH+2);
+    spi_sync(bus->fds[SLAVE_CTRL], MAX_DATA_LENGTH+2);
 }
 
 void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg) {
