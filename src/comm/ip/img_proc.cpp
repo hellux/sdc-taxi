@@ -227,18 +227,21 @@ double angle(int ax, int ay, int bx, int by) {
 void classify_lines(struct ip *ip, lines_t& lines, cv::Mat& image,
                     lines_t& right_lines, lines_t& left_lines,
                     lines_t& stop_lines, lines_t& rem_lines) {
+    cv::Point lane_top = ip->lane + ip->lane_dir;
     int c = WIDTH/2;
     for (auto line : lines) {
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
         double angle_to_lane = angle(e.x-s.x, e.y-s.y,
                                      ip->lane_dir.x, ip->lane_dir.y);
-        if (angle_to_lane > thresh_angle_stop &&
-            intersects(ip->lane, ip->lane+ip->lane_dir, s, e)) {
+        if (!ip->opt.ignore_stop && angle_to_lane > thresh_angle_stop
+                                 && intersects(ip->lane, lane_top, s, e)) {
             stop_lines.push_back(line);
-        } else if (angle_to_lane < thresh_angle_lane && e.x > c && s.x > c) {
+        } else if (!ip->opt.ignore_right && angle_to_lane < thresh_angle_lane
+                                         && e.x > c && s.x > c) {
             right_lines.push_back(line);
-        } else if (angle_to_lane < thresh_angle_lane && e.x < c && s.x < c) {
+        } else if (!ip->opt.ignore_left && angle_to_lane < thresh_angle_lane
+                                        && e.x < c && s.x < c) {
             left_lines.push_back(line);
         } else {
             rem_lines.push_back(line);
