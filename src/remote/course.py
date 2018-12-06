@@ -28,8 +28,8 @@ class Command:
     EXIT = 'exit'
 
 class Node:
-    def __init__(self, node_type=NodeType.STOPLINE):
-        self.type = node_type
+    def __init__(self, type=NodeType.STOPLINE):
+        self.type = type
         self.outgoing = []
 
     def addEdge(self, end, cost):
