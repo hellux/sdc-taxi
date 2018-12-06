@@ -32,6 +32,8 @@ static int mask_end_y;
 static float thresh_angle_lane;
 static float thresh_angle_stop;
 static int max_lane_error;
+static int lane_width_min;
+static int lane_width_max;
 
 static double weight_lw;
 static double weight_lx;
@@ -103,6 +105,8 @@ struct ip *ip_init() {
     thresh_lane_vis = 5;
     thresh_stop_vis = 3;
     max_lane_error = 0.35*WIDTH;
+    lane_width_min = 0.5*WIDTH;
+    lane_width_max = 0.8*WIDTH;
 
     ip->lane = cv::Point(WIDTH/2, 0.8*HEIGHT);
     ip->lane_dir = cv::Point(0, 1);
@@ -356,17 +360,20 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     /* calculate lane position */
     int lane_right_x = line_pos_x(right, ip->lane.y);
     int lane_left_x = line_pos_x(left, ip->lane.y);
+    int lw;
 
     /* determine lane width, if lane visible */
     if (lane_right_x != -1 && lane_left_x != -1) {
-        int lw = lane_right_x - lane_left_x;
-        ip->lane_width = (ip->lane_width +lw*weight_lw)/(1.0+weight_lw);
+        lw = lane_right_x - lane_left_x;
         ip->lane_vis++;
     } else {
         ip->lane_vis--;
     }
+    lw = std::min(std::max(lane_width_min, lw), lane_width_max);
+    ip->lane_width = (ip->lane_width +lw*weight_lw)/(1.0+weight_lw);
+
     /* limit visibility certainty */
-    ip->lane_vis = std::min(std::max(ip->lane_vis, 0), thresh_lane_vis*2);
+    ip->lane_vis = std::min(std::max(0, ip->lane_vis), thresh_lane_vis*2);
     
     /* determine x position of lane */
     int lane_x = 0;
