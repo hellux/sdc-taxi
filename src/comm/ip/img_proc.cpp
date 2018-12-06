@@ -42,6 +42,7 @@ static int stop_dmax;
 
 extern "C" struct ip *ip_init();
 extern "C" void ip_destroy(struct ip *ip);
+extern "C" void ip_set_opt(struct ip *ip, struct ip_opt *opt);
 extern "C" void ip_process(struct ip *ip, struct ip_res *res);
 
 struct ip {
@@ -50,6 +51,7 @@ struct ip {
     cv::VideoWriter *writer;
 #endif
 
+    /* visibility data */
     cv::Point lane;
     cv::Point lane_dir;
     int lane_width;
@@ -58,6 +60,9 @@ struct ip {
     cv::Point stop;
     int stop_diff;
     int stop_vis;
+
+    /* ip options */
+    struct ip_opt opt;
 };
 
 struct ip *ip_init() {
@@ -114,13 +119,16 @@ struct ip *ip_init() {
 #endif
 
 #ifdef RECORD
-    ip->writer = new cv::VideoWriter(
-        "opencv.avi",
+    ip->writer = new cv::VideoWriter("opencv.avi",
         CV_FOURCC('M', 'J', 'P', 'G'),
         fps, cv::Size(WIDTH, HEIGHT));
 #endif
 
     return ip;
+}
+
+void ip_set_opt(struct ip *ip, struct ip_opt *opt) {
+    ip->opt = *opt;
 }
 
 void ip_destroy(struct ip *ip) {
