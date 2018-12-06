@@ -111,7 +111,7 @@ struct ip *ip_init() {
     weight_sd = 0.6;
     thresh_lane_vis = 5;
     thresh_stop_vis = 3;
-    max_lane_error = 0.35*WIDTH;
+    max_lane_error = 0.18*WIDTH;
     lane_width_min = 0.5*WIDTH;
     lane_width_max = 0.8*WIDTH;
 
@@ -487,6 +487,18 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::circle(frame,
              cv::Point(lane_right_x, ip->lane.y), 3,
              cv::Scalar(255,0,0), CV_FILLED);
+    cv::circle(frame,
+             cv::Point(WIDTH/2, ip->lane.y), 2,
+             cv::Scalar(0, 0, 0), CV_FILLED);
+    cv::circle(frame,
+             cv::Point(ip->lane.x, ip->lane.y), 2,
+             cv::Scalar(255, 0, 255), CV_FILLED);
+    cv::circle(frame,
+             cv::Point(WIDTH/2+max_lane_error, ip->lane.y), 2,
+             cv::Scalar(0, 0, 0), CV_FILLED);
+    cv::circle(frame,
+             cv::Point(WIDTH/2-max_lane_error, ip->lane.y), 2,
+             cv::Scalar(0, 0, 0), CV_FILLED);
 #endif
 
 #ifdef VISUAL
