@@ -23,13 +23,13 @@ class Command:
     IGNORE = 'ignr'
     STOP = 'stop'
     PARK = 'park'
-    UN_PARK = 'uprk'
+    CONTINUE = 'cont'
     ENTER = 'entr'
     EXIT = 'exit'
 
 class Node:
-    def __init__(self, node_type=NodeType.STOPLINE):
-        self.type = node_type
+    def __init__(self, type=NodeType.STOPLINE):
+        self.type = type
         self.outgoing = []
 
     def addEdge(self, end, cost):
@@ -86,8 +86,6 @@ def closest_path(course, src, dst):
 
 def create_mission(path):
     mission = []
-    if path[0].type is NodeType.PARKING:
-        mission.append(Command.UN_PARK)
     rest = path[1:]
 
     while(rest):
@@ -99,11 +97,11 @@ def create_mission(path):
             if rest: mission.append(Command.IGNORE)
             else: mission.append(Command.PARK)
         else:
-            ignore_count = 0
+            cont_count = 0
             rest = rest[1:]
             while(rest[0].type == NodeType.ROUNDABOUT):
                 rest = rest[1:]
-                ignore_count += 1
-            mission += [Command.ENTER] + ignore_count*[Command.IGNORE] + [Command.EXIT]
+                cont_count += 1
+            mission += [Command.ENTER] + cont_count*[Command.CONTINUE] + [Command.EXIT]
     
     return mission

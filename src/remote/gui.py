@@ -47,12 +47,8 @@ class Map():
             if(node == self.selected_node):
                self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill="green", width=2)
             else:
-                self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill=node.color, width=2)    
-        
-        if(self.mission_node):
-            self.map_frame.create_oval(self.mission_node.pos_x-Map.NODE_SIZE, self.mission_node.pos_y-Map.NODE_SIZE, self.mission_node.pos_x+Map.NODE_SIZE, self.mission_node.pos_y+Map.NODE_SIZE, fill="red", width=2)
-                  
-        
+                self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill=node.color, width=2)     
+                
     def get_node(self, x, y):
         for node in self.nodes:
             if (x-Map.NODE_SIZE < node.pos_x < x+Map.NODE_SIZE) and (y-Map.NODE_SIZE < node.pos_y < y+Map.NODE_SIZE):
@@ -145,8 +141,8 @@ class Map():
         self.draw()
         
 class GraphNode(Node):
-    def __init__(self, node_type, pos_x, pos_y, color="black"):
-        super().__init__(node_type)
+    def __init__(self, type, pos_x, pos_y, color="black"):
+        super().__init__(type)
         self.pos_x = pos_x
         self.pos_y = pos_y
         self.color = color
@@ -310,9 +306,23 @@ class GUI():
         self.tasks.put(Task.GET_MISSION)
         self.window.after(GUI.SENSOR_DELAY, self.update_current_node_mission)
     
+    def restore_node_color(self, node):
+        if node.type == NodeType.STOPLINE:
+            node.color = 'red'
+        elif node.type == NodeType.PARKING:
+            node.color = 'yellow'
+        elif node.type == NodeType.ROUNDABOUT:
+            node.color = 'blue'
+            
     def get_current_node_mission(self, index):
-        self.map.mission_node = self.map.path[len(self.map.path)-index]
-    
+        if self.map.mission_node:
+            self.restore_node_color(self.map.mission_node)
+        print(len(self.map.path) - index)
+        if (len(self.map.path) - index) >= 0:
+            self.map.mission_node = self.map.path[index-len(self.map.path)]
+            self.map.mission_node.color = 'purple'
+            self.map.draw()
+        
     def send_command(self):
         self.cmd_index = 0
         self.tasks.put(Task.SEND, self.console.get())
@@ -365,7 +375,7 @@ class GUI():
         self.info_list.delete(0, 'end')
         info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
         for info in info_labels:
-            self.info_list.insert(info_labels.index(info), info + ": " + sensor_data[info_labels.index(info)-1])
+            self.info_list.insert(info_labels.index(info), info + ": " + sensor_data[info_labels.index(info)])
         
     def quit(self):
         self.tasks.put(Task.KILL)

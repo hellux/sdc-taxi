@@ -1,6 +1,7 @@
 import threading
 from remote import Client, Command
 from tasks import Task
+from pip._vendor.progress import counter
 
 class Worker(threading.Thread):
     def __init__(self, tasks, client):
@@ -8,6 +9,7 @@ class Worker(threading.Thread):
 
         self.client = client
         self.tasks = tasks
+        self.counter = 0
 
         self.actions = {
             Task.CONNECT    : self.task_connect,
@@ -44,7 +46,7 @@ class Worker(threading.Thread):
         return None
         
     def get_sensor(self):
-        return ("60, 9, 2, 30").split(',')
+        return ("60, 9, 2, 30, 0.5").split(',')
         #return self.send_fmt(Command.GET_DATA).split(',')
 
     def task_move(self, keys, schedule_time):
@@ -76,7 +78,11 @@ class Worker(threading.Thread):
         return None
     
     def get_mission(self):
-        return self.send_fmt(Command.GET_MISSION)
+        self.counter += 1
+        if self.counter > 5:
+            self.counter = 0
+        return self.counter
+        #return self.send_fmt(Command.GET_MISSION)
     
     def run(self):
         while not self.terminate:
