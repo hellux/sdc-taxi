@@ -39,9 +39,11 @@ static int mask_end_y;
 static float thresh_angle_lane;
 static float thresh_angle_stop;
 static int max_lane_error;
+static int max_stop_diff;
 static int lane_width_min;
 static int lane_width_max;
 
+static double weight_lt;
 static double weight_lw;
 static double weight_lx;
 static double weight_sd;
@@ -63,10 +65,12 @@ struct ip {
     cv::Point lane; /* center of lane */
     cv::Point lane_dir; /* direction of lane */
     int lane_width;
+    int lane_top_x; /* center of lane at top of screen */
 
     cv::Point stop; /* center of stopline */
     int stop_diff; /* movement of stopline per frame */
     int stop_vis; /* visibility certainty of stopline */
+    bool stop_valid;
 
     /* ip options */
     struct ip_opt opt;
@@ -104,11 +108,13 @@ struct ip *ip_init() {
     thresh_angle_stop = 0.45*CV_PI;
     stop_dmax = 0.2*HEIGHT;
 
+    weight_lt = 0.3;
     weight_lw = 0.06;
-    weight_lx = 0.8;
+    weight_lx = 0.5;
     weight_sd = 0.6;
     thresh_stop_vis = 3;
     max_lane_error = 0.18*WIDTH;
+    max_stop_diff = 0.1*HEIGHT;
     lane_width_min = 0.5*WIDTH;
     lane_width_max = 0.8*WIDTH;
 
@@ -395,7 +401,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     lines_t hough_lines;
     cv::HoughLinesP(masked_image, hough_lines, 1, CV_PI/180,
                     hough_threshold, line_min_length, line_max_gap);
-
     lines_t right, left, stop, rem;
     classify_lines(ip, hough_lines, right, left, stop, rem);
 
@@ -441,27 +446,52 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         lane_lines.insert(lane_lines.end(), left.begin(), left.end());
         int lane_top_x = line_pos_x(lane_lines, 0);
         lane_top_x = std::min(std::max(0, lane_top_x), WIDTH);
+        ip->lane_top_x = (ip->lane_top_x+lane_top_x*weight_lt)/(1.0+weight_lt);
 
-        ip->lane_dir = cv::Point(lane_top_x-ip->lane.x, -ip->lane.y);
+        ip->lane_dir = cv::Point(ip->lane_top_x-ip->lane.x, 0-ip->lane.y);
     }
 
     /* calc stopline position */
+    bool stopline_passed = false;
     int stop_x = ip->lane.x + (ip->stop.y-ip->lane.y)/ip->lane_dir.y*ip->lane_dir.x;
     int stop_y = line_pos_y(stop, stop_x);
 
     if (stop_y != -1) {
-        ip->stop_vis++;
         int diff = std::max(ip->stop.y-stop_y, 0);
         ip->stop_diff = (ip->stop_diff+diff*weight_sd)/(1+weight_sd);
+        ip->stop_vis++;
+        if (!ip->stop_valid) {
+            /* stop must appear near top of mask */
+            ip->stop_valid = stop_y < mask_end_y + 0.2*HEIGHT;
+        } else if (diff < -0.1*max_stop_diff || diff > max_stop_diff) {
+            /* stop may not move up or too fast down */
+            ip->stop_valid = false;
+        }
     } else {
         ip->stop_vis--;
-        stop_y = ip->stop.y + ip->stop_diff;
+        if (ip->stop_vis > thresh_stop_vis) {
+            stop_y = ip->stop.y + ip->stop_diff;
+        } else {
+            ip->stop_valid = false;
+            stop_y = mask_end_y;
+        }
     }
 
-    if (stop_y < mask_end_y || HEIGHT*1.2 <= stop_y) {
+    if (stop_y < mask_end_y) {
         stop_y = mask_end_y;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
+    }
+
+    if (stop_y > HEIGHT*1.2) {
+        stop_y = mask_end_y;
+        ip->stop_diff = 0;
+        ip->stop_vis = 0;
+        if (ip->stop_valid) {
+            ip->stop_valid = false;
+            stopline_passed = true;
+            printf("stopline passed!\n");
+        }
     }
     ip->stop = cv::Point(stop_x, stop_y);
 
@@ -474,6 +504,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     res->lane_left_visible = left.size() > 0;
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
     res->stopline_visible = ip->stop_vis >= thresh_stop_vis;
+    res->stopline_passed = stopline_passed;
 
 #ifdef PLOT
 	static auto start_time = std::chrono::high_resolution_clock::now();
@@ -497,18 +528,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
              cv::Point(ip->lane.x, ip->lane.y),
              cv::Point(ip->lane.x+ip->lane_dir.x, ip->lane.y+ip->lane_dir.y),
              cv::Scalar(0,255,255), 3, CV_AA);
-    /*
-    int stop_thick = res->stopline_found ? 3 : 1;
-    cv::line(lines_img,
-             cv::Point(lane_left_x, stop_left_y),
-             cv::Point(lane_right_x, stop_right_y),
+    int stop_thick = ip->stop_valid ? 3 : 1;
+    cv::Point stop_dir(-ip->lane_dir.y/2, ip->lane_dir.x/2);
+    cv::line(frame, ip->stop-stop_dir, ip->stop+stop_dir,
              cv::Scalar(255,0,255), stop_thick, CV_AA);
-             */
-    if (res->stopline_visible) {
-        cv::circle(frame,
-                cv::Point(ip->stop.x, ip->stop.y), 3,
-                cv::Scalar(255, 0, 255), CV_FILLED);
-    }
     cv::circle(frame,
              cv::Point(lane_left_x, ip->lane.y), 3,
              cv::Scalar(0,255,0), CV_FILLED);
