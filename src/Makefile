@@ -74,6 +74,10 @@ comm.remote.visual: comm.push
 	ssh -XY $(PI_REMOTE) -t 'cd module; make comm.pi.visual'
 comm.remote: comm.push
 	ssh -XY $(PI_REMOTE) -t 'cd module; make comm.pi'
+comm.pull_video:
+	ssh $(PI_REMOTE) -t 'cd module; ffmpeg -i opencv.avi -vcodec libx265 -crf 24 lowrate.mp4'
+	scp $(PI_REMOTE):module/lowrate.mp4 .
+
 
 # avr modules
 sens: $(BINDIR)/sens
