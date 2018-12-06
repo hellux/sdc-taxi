@@ -235,93 +235,6 @@ void classify_lines(lines_t& lines, cv::Mat& image,
     }
 }
 
-std::vector<cv::Point> linear_regression(lines_t& lines_right,
-                                         lines_t& lines_left,
-                                         lines_t& lines_stop) {
-    std::vector<cv::Point> points(6); //6 when stop
-    cv::Point start;
-    cv::Point end;
-    cv::Vec4f right_line;
-    cv::Vec4f left_line;
-    cv::Vec4f stop_line;
-    std::vector<cv::Point2f> right_pts;
-    std::vector<cv::Point2f> left_pts;
-    std::vector<cv::Point2f> stop_pts;
-
-    double rline_slope = 0;
-    double lline_slope = 0;
-    double sline_slope = 0;
-    cv::Point rline_intercept = {0};
-    cv::Point lline_intercept = {0};
-    cv::Point sline_intercept = {0};
-
-    if (!lines_right.empty()) {
-        for (auto points : lines_right) {
-            start = cv::Point(points[0], points[1]);
-            end = cv::Point(points[2], points[3]);
-
-            right_pts.push_back(start);
-            right_pts.push_back(end);
-        }
-        if (right_pts.size() > 0) {
-            cv::fitLine(right_pts, right_line, CV_DIST_L2, 0, 0.01, 0.01);
-            rline_slope = right_line[1] / right_line[0];
-            rline_intercept = cv::Point(right_line[2], right_line[3]);
-        }
-    }
-    if (!lines_left.empty()) {
-        for (auto point : lines_left) {
-            start = cv::Point(point[0], point[1]);
-            end = cv::Point(point[2], point[3]);
-
-            left_pts.push_back(start);
-            left_pts.push_back(end);
-        }
-        if (left_pts.size() > 0) {
-            cv::fitLine(left_pts, left_line, CV_DIST_L2, 0, 0.01, 0.01);
-            lline_slope = left_line[1] / left_line[0];
-            lline_intercept = cv::Point(left_line[2], left_line[3]);
-        }
-    }
-    if (!lines_stop.empty()) {
-        for (auto point : lines_stop) {
-            start = cv::Point(point[0], point[1]);
-            end = cv::Point(point[2], point[3]);
-
-            stop_pts.push_back(start);
-            stop_pts.push_back(end);
-        }
-        if (stop_pts.size() > 0) {
-            cv::fitLine(stop_pts, stop_line, CV_DIST_L2, 0, 0.01, 0.01);
-            sline_slope = stop_line[1] / stop_line[0];
-            sline_intercept = cv::Point(stop_line[2], stop_line[3]);
-        }
-    }
-
-    int lines_start_y = HEIGHT;
-    int lines_end_y = 0.60*HEIGHT;
-    int sline_start_x = 0.20*WIDTH;
-    int sline_end_x = 0.80*WIDTH;
-
-    double rline_start_x = ((lines_start_y - rline_intercept.y) / rline_slope) + rline_intercept.x;
-    double rline_end_x = ((lines_end_y - rline_intercept.y) / rline_slope) + rline_intercept.x;
-
-    double lline_start_x = ((lines_start_y - lline_intercept.y) / lline_slope) + lline_intercept.x;
-    double lline_end_x = ((lines_end_y - lline_intercept.y) / lline_slope) + lline_intercept.x;
-
-    double sline_start_y = (sline_slope * (sline_start_x - sline_intercept.x)) + sline_intercept.y;
-    double sline_end_y = (sline_slope * (sline_end_x - sline_intercept.x)) + sline_intercept.y;
-
-    points[0] = cv::Point(rline_start_x, lines_start_y);
-    points[1] = cv::Point(rline_end_x, lines_end_y);
-    points[2] = cv::Point(lline_start_x, lines_start_y);
-    points[3] = cv::Point(lline_end_x, lines_end_y);
-    points[4] = cv::Point(sline_start_x, sline_start_y);
-    points[5] = cv::Point(sline_end_x, sline_end_y);
-    
-    return points;
-}
-
 #ifdef VISUAL
 
 void plot_lines(cv::Mat& img, lines_t right, lines_t left,
@@ -346,41 +259,6 @@ void plot_lines(cv::Mat& img, lines_t right, lines_t left,
         cv::Point end(l[2], l[3]);
         cv::line(img, start, end, cv::Scalar(0, 0, 255), 1, CV_AA);
     }
-}
-
-void plotLane(cv::Mat& original_img, std::vector<cv::Point>& points) {
-    std::vector<cv::Point> polygon_pts;
-    cv::Mat lane;
-
-    original_img.copyTo(lane);
-    polygon_pts.push_back(points[0]);
-    polygon_pts.push_back(points[1]);
-    polygon_pts.push_back(points[3]);
-    polygon_pts.push_back(points[2]);
-
-    cv::fillConvexPoly(lane, polygon_pts, cv::Scalar(0, 0, 255), CV_AA, 0);
-    cv::addWeighted(lane, 0.3, original_img, 1.0 - 0.3, 0, original_img);
-
-    cv::line(original_img, points[0], points[1], cv::Scalar(255, 0, 0), 5, CV_AA);
-    cv::circle(original_img, points[0], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(original_img, points[1], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-
-    cv::line(original_img, points[2], points[3], cv::Scalar(255, 0, 0), 5, CV_AA);
-    cv::circle(original_img, points[2], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(original_img, points[3], 6, cv::Scalar(0, 0, 0), CV_FILLED);
-
-    cv::line(original_img, points[4], points[5], cv::Scalar(0, 0, 0), 5, CV_AA);
-    cv::circle(original_img, points[4], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-    cv::circle(original_img, points[5], 6, cv::Scalar(0, 0, 255), CV_FILLED);
-    
-    /*Test: Getting distance between a specified line point and the camera*/ 
-    cv::Point2f stop_center_pt = cv::Point((points[4].x + points[5].x)/2, (points[4].y + points[5].y)/2);
-    cv::circle(original_img, stop_center_pt, 6, cv::Scalar(0, 0, 255), CV_FILLED);
-
-    float stop_dist = std::sqrt(pow(stop_center_pt.x-WIDTH/2, 2) + pow(stop_center_pt.y - original_img.rows, 2));
-	std::string distance = std::to_string(stop_dist);
-    cv::putText(original_img, distance, cv::Point(0, 45), FONT, 1,
-                cvScalar(255, 0, 0), 2);
 }
 
 #endif
@@ -533,14 +411,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     res->stopline_visible = ip->stop_vis >= thresh_stop_vis;
 
 #ifdef VISUAL
-    /*
-    if (!hough_lines.empty()) {
-        std::vector<cv::Point> lane;
-        lane = linear_regression(right, left, stop);
-        plotLane(frame, lane);
-    }
-    */
-
 	static auto start_time = std::chrono::high_resolution_clock::now();
     auto stop_time = std::chrono::high_resolution_clock::now();
     double period = (double)(stop_time-start_time).count()/(1e9);
