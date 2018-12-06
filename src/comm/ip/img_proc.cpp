@@ -117,6 +117,8 @@ struct ip *ip_init() {
     ip->stop_diff = 0;
     ip->stop_vis = 0;
 
+    ip->opt = {0};
+
 #ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);
     cv::namedWindow("", CV_WINDOW_AUTOSIZE);
