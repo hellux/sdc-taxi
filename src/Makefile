@@ -50,6 +50,8 @@ comm.gdb: $(BINDIR)/comm
 comm.pi.release: CXXFLAGS += $(CXXFLAGS.release)
 comm.pi.release: CFLAGS += $(CFLAGS.release)
 comm.pi.release: comm.pi
+comm.pi.record: CXXFLAGS += -DRECORD
+comm.pi.record: comm.pi
 comm.pi.visual: CXXFLAGS += -DVISUAL
 comm.pi.visual: comm.pi
 comm.pi.debug: CXXFLAGS += $(CXXFLAGS.debug)
@@ -66,6 +68,8 @@ comm.remote.clean:
 	ssh $(PI_REMOTE) -t 'cd module; make clean'
 comm.push:
 	scp -rp comm spi Makefile $(PI_REMOTE):module
+comm.remote.record: comm.push
+	ssh -XY $(PI_REMOTE) -t 'cd module; make comm.pi.record'
 comm.remote.visual: comm.push
 	ssh -XY $(PI_REMOTE) -t 'cd module; make comm.pi.visual'
 comm.remote: comm.push
