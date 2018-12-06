@@ -224,18 +224,17 @@ double angle(int ax, int ay, int bx, int by) {
     return std::min(angle, CV_PI-angle);
 }
 
-void classify_lines(lines_t& lines, cv::Mat& image,
+void classify_lines(struct ip *ip, lines_t& lines, cv::Mat& image,
                     lines_t& right_lines, lines_t& left_lines,
-                    lines_t& stop_lines, lines_t& rem_lines,
-                    cv::Point lane, cv::Point lane_dir,
-                    cv::Point stop) {
+                    lines_t& stop_lines, lines_t& rem_lines) {
     int c = WIDTH/2;
     for (auto line : lines) {
         cv::Point s(line[0], line[1]);
         cv::Point e(line[2], line[3]);
-        double angle_to_lane = angle(e.x-s.x, e.y-s.y, lane_dir.x, lane_dir.y);
+        double angle_to_lane = angle(e.x-s.x, e.y-s.y,
+                                     ip->lane_dir.x, ip->lane_dir.y);
         if (angle_to_lane > thresh_angle_stop &&
-            intersects(lane, lane+lane_dir, s, e)) {
+            intersects(ip->lane, ip->lane+ip->lane_dir, s, e)) {
             stop_lines.push_back(line);
         } else if (angle_to_lane < thresh_angle_lane && e.x > c && s.x > c) {
             right_lines.push_back(line);
@@ -353,9 +352,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
                     hough_threshold, line_min_length, line_max_gap);
 
     lines_t right, left, stop, rem;
-    classify_lines(hough_lines, edges_image,
-                   right, left, stop, rem,
-                   ip->lane, ip->lane_dir, ip->stop);
+    classify_lines(ip, hough_lines, edges_image, right, left, stop, rem);
 
     /* calculate lane position */
     int lane_right_x = line_pos_x(right, ip->lane.y);
