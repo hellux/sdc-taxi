@@ -6,7 +6,7 @@ struct sens_val {
     float dist_right;
     float distance;
     float velocity;
-    long unsigned time; /* milliseconds since program start */
+    double time; /* monotonic seconds, accuracy <= nanosecond */
 };
 
 struct ctrl_val {
