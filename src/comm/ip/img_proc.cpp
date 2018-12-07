@@ -68,6 +68,7 @@ struct ip {
     int lane_top_x; /* center of lane at top of screen */
 
     cv::Point stop; /* center of stopline */
+    cv::Point stop_dir; /* direction of stop */
     int stop_diff; /* movement of stopline per frame */
     int stop_vis; /* visibility certainty of stopline */
     bool stop_valid;
@@ -114,7 +115,7 @@ struct ip *ip_init() {
     weight_sd = 0.6;
     thresh_stop_vis = 10;
     max_lane_error = 0.18*WIDTH;
-    max_stop_diff = 0.1*HEIGHT;
+    max_stop_diff = 0.2*HEIGHT;
     lane_width_min = 0.5*WIDTH;
     lane_width_max = 0.8*WIDTH;
 
@@ -208,6 +209,11 @@ cv::Mat mask_image(cv::Mat& image, std::vector<cv::Point> mask_poly) {
     return masked_image;
 }
 
+cv::Point2d unit(cv::Point p) {
+    double length = std::sqrt(p.x*p.x + p.y*p.y);
+    return cv::Point2d(p.x/length, p.y/length);
+}
+
 /* distance to p from line s -- e, negative if leftward */
 double distance(cv::Point s, cv::Point e, cv::Point p) {
     return (p.x-s.x)*(e.y-s.y)-(p.y-s.y)*(e.x-s.x);
@@ -248,6 +254,17 @@ bool is_stopline(struct ip *ip, cv::Point s, cv::Point e,
 
     /* must intersect lane */
     if (!intersects(ip->lane, ip->lane+ip->lane_dir, s, e))
+        return false;
+
+    /* must be close to estimated pos */
+    double dis_s = std::abs(distance(ip->stop, ip->stop+ip->stop_dir, s)) /
+                   norm(ip->stop_dir);
+    if (dis_s > max_stop_diff)
+        return false;
+
+    double dis_e = std::abs(distance(ip->stop, ip->stop+ip->stop_dir, e)) /
+                   norm(ip->stop_dir);
+    if (dis_e > max_stop_diff)
         return false;
 
     return true;
@@ -449,6 +466,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         ip->lane_top_x = (ip->lane_top_x+lane_top_x*weight_lt)/(1.0+weight_lt);
 
         ip->lane_dir = cv::Point(ip->lane_top_x-ip->lane.x, 0-ip->lane.y);
+        ip->stop_dir = cv::Point(-ip->lane_dir.y/2, ip->lane_dir.x/2);
     }
 
     /* calc stopline position */
@@ -463,9 +481,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         if (!ip->stop_valid) {
             /* stop must appear near top of mask */
             ip->stop_valid = stop_y < mask_end_y + 0.2*HEIGHT;
-        } else if (diff < -0.1*max_stop_diff || diff > max_stop_diff) {
-            /* stop may not move up or too fast down */
-            ip->stop_valid = false;
         }
     } else {
         ip->stop_vis--;
@@ -483,7 +498,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         ip->stop_vis = 0;
     }
 
-    if (stop_y > 0.98*HEIGHT) {
+    if (stop_y > 0.95*HEIGHT) {
         stop_y = mask_end_y;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
@@ -528,10 +543,22 @@ void ip_process(struct ip *ip, struct ip_res *res) {
              cv::Point(ip->lane.x, ip->lane.y),
              cv::Point(ip->lane.x+ip->lane_dir.x, ip->lane.y+ip->lane_dir.y),
              cv::Scalar(0,255,255), 3, CV_AA);
-    int stop_thick = ip->stop_valid ? 3 : 1;
-    cv::Point stop_dir(-ip->lane_dir.y/2, ip->lane_dir.x/2);
-    cv::line(frame, ip->stop-stop_dir, ip->stop+stop_dir,
+    int stop_thick = ip->stop_valid ? 2 : 1;
+    cv::line(frame, ip->stop-ip->stop_dir, ip->stop+ip->stop_dir,
              cv::Scalar(255,0,255), stop_thick, CV_AA);
+    cv::line(frame, ip->stop-ip->stop_dir, ip->stop+ip->stop_dir,
+             cv::Scalar(255,0,255), stop_thick, CV_AA);
+    cv::Point2d u = unit(ip->lane_dir);
+    cv::Point d(u.x*max_stop_diff, u.y*max_stop_diff);
+    cv::Point p0 = ip->stop-ip->stop_dir*5-d;
+    cv::Point p1 = ip->stop-ip->stop_dir*5+d;
+    cv::Point p2 = ip->stop+ip->stop_dir*5+d;
+    cv::Point p3 = ip->stop+ip->stop_dir*5-d;
+    std::vector<cv::Point> stop_poly = {p0, p1, p2, p3};
+    cv::Mat stop_detect;
+    frame.copyTo(stop_detect);
+    cv::fillConvexPoly(stop_detect, stop_poly, cv::Scalar(255,0,255), CV_AA, 0);
+    cv::addWeighted(stop_detect, .2, frame, .8, 0, frame);
     cv::circle(frame,
              cv::Point(lane_left_x, ip->lane.y), 3,
              cv::Scalar(0,255,0), CV_FILLED);
@@ -550,14 +577,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::circle(frame,
              cv::Point(WIDTH/2-max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
-    /*
-    for (int i = 0; i < 100; i++) {
-        cv::Point p(rand()%WIDTH, rand()%HEIGHT);
-        double dis = std::abs(distance(ip->lane, ip->lane+ip->lane_dir, p));
-        int col = dis < 4000 ? 0 : 255;
-        cv::circle(frame, p, 2, cv::Scalar(0, col, 0), CV_FILLED);
-    }
-    */
 #endif
 
 #ifdef VISUAL
