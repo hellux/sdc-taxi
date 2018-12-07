@@ -8,14 +8,14 @@
 
 #include "ip/img_proc.h"
 
-#define BRAKE_DIST 0.4
+#define BRAKE_DIST 20
 #define STILL_DIST 0
 #define STRAIGHT 0
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
 #define SLOW_VEL 0.4
-#define FULL_VEL 1
+#define FULL_VEL 0.5
 
 /* positions */
 
@@ -43,7 +43,7 @@ struct state {
 /* objective commands */
 
 bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    if (s->pos == AFTER_STOP) {
+    if (s->pos >= AFTER_STOP) {
         return true;
     }
     return false;
@@ -52,8 +52,8 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (c->vel.value < 0.05) {
         return true;
-    } else if (s->stop_dist <= BRAKE_DIST) {
-        c->vel.value = wtd_speed(s->stop_dist, c->vel.value, STOP_VEL);
+    } else if (s->stop_visible) { // && s->stop_dist <= BRAKE_DIST) {
+        return true;
     }
     return false;
 }
@@ -92,42 +92,29 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 }
 
 bool cmd_enter(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    float cur_vel = s->sens->velocity;
-    if (s->pos == AFTER_STOP) {
-        c->rot.value = RIGHT;
-    
-        if (s->since_pass >= 0.5){
-            c->rot.value = STRAIGHT;
-            return true;
-        }
-    } else if (s->stop_dist <= BRAKE_DIST) {
-        c->vel.value = wtd_speed(s->stop_dist, cur_vel, SLOW_VEL);
+    if (s->pos <= BEFORE_STOP && s->stop_visible) {
+        i->ignore_left = true;
+    } else if (s->pos >= AFTER_STOP) {
+        return true;
     }
     return false;
 }
 
 bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    if (s->stop_visible) {
+    if (s->pos <= BEFORE_STOP && s->stop_visible) {
         i->ignore_right = true;
-    } else if (s->pos == AFTER_STOP) {
+    } else if (s->pos >= AFTER_STOP) {
         return true;
     }
     return false;
 }
 
 bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    float cur_vel = s->sens->velocity;
-    if (s->pos == AFTER_STOP) {
-        c->rot.value = RIGHT;
-    
-        if (cur_vel == FULL_VEL){
-            return true;
-        }
-        else if (s->since_pass >= 0.5){
-            c->vel.value = FULL_VEL;
-            c->rot.value = STRAIGHT;
-        }
-    }     
+    if (s->pos <= BEFORE_STOP && s->stop_visible) {
+        i->ignore_left = true;
+    } else if (s->pos >= AFTER_STOP) {
+        return true;
+    }
     return false;
 }
 
@@ -269,7 +256,7 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
         queue_destroy(obj->queue);
         obj->queue = queue;
         obj->passtime = 0;
-        obj->pos = 0; /* TODO adjust if parked */
+        obj->pos = BEFORE_STOP; /* TODO adjust if parked */
         pthread_mutex_unlock(&obj->lock);
         return true;
     } else {
@@ -297,6 +284,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         } else {
             printf("warning: invalid pass!\n");
         }
+        printf("pos: %d, obj: %s\n", o->pos, o->current->name);
     }
 
     ctrl->vel.regulate = false;
@@ -304,6 +292,8 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     ctrl->rot.regulate = true;
 
     if (o->current) {
+        //ctrl->vel.value = FULL_VEL;
+
         struct state state;
         state.sens = sens;
         state.lane_offset = ip_res.lane_offset;
@@ -320,6 +310,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         o->pos = state.pos;
 
         if (cmd_finished) {
+            printf("finished mission\n");
             if (o->pos <= AFTER_STOP) {
                 o->pos--;
             } else {
@@ -334,6 +325,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         ctrl->vel.value = 0;
     }
 
+    ctrl->vel.value = FULL_VEL;
     /*
     if (finished) {
         pthread_mutex_lock(&o->lock);
