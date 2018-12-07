@@ -23,6 +23,12 @@ class Map():
         self.select_mission = False
         self.mission_node = None
         self.path = []
+        self.latest_node_distance = 0
+        self.total_distance = 0
+        
+        self.previous_pos = 0
+        self.current_pos = 0
+        
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -36,13 +42,21 @@ class Map():
      
     def draw(self):
         self.map_frame.delete("all")
+        mission_edge = self.get_current_edge_mission()
+        dist = self.get_traveled_on_edge(mission_edge)
         
+
+        print("DIST: " + str(dist))
         for edge in self.edges:
             if(edge == self.selected_edge):
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=2, arrow=tk.LAST)
             else:
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2, arrow=tk.LAST)
         
+        if mission_edge and dist > 0:        
+            self.map_frame.create_line(mission_edge.start.pos_x, mission_edge.start.pos_y, mission_edge.end.pos_x*dist, mission_edge.end.pos_y*dist, fill="purple", width=2)
+                
+                
         for node in self.nodes:
             if(node == self.selected_node):
                self.map_frame.create_oval(node.pos_x-Map.NODE_SIZE, node.pos_y-Map.NODE_SIZE, node.pos_x+Map.NODE_SIZE, node.pos_y+Map.NODE_SIZE, fill="green", width=2)
@@ -80,7 +94,6 @@ class Map():
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
             create_mission(self.path)
-            print("MISSION SET")
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -111,7 +124,42 @@ class Map():
         self.cost_entry.pack()
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
         self.cost_entry.focus_force()
-
+    
+    def restore_node_color(self, node):
+        if node.type == NodeType.STOPLINE:
+            node.color = 'red'
+        elif node.type == NodeType.PARKING:
+            node.color = 'yellow'
+        elif node.type == NodeType.ROUNDABOUT:
+            node.color = 'blue'
+            
+    def get_current_edge_mission(self):
+        if self.mission_node:
+            for edge in self.mission_node.outgoing:
+                if edge.end == self.path[self.current_pos+1]:
+                    return edge
+        return None
+        
+    def get_traveled_on_edge(self, edge):
+        if edge:
+            print(str(self.total_distance) + " - " + str(self.latest_node_distance) + " / " + str(edge.cost))
+            return (self.total_distance - self.latest_node_distance)/edge.cost
+        return 0
+    
+    def get_current_node_mission(self, index):
+        if self.previous_pos != self.current_pos:
+                self.latest_node_distance = self.total_distance
+                self.previous_pos = self.current_pos
+        
+        print("CURRENT: " + str(self.current_pos))
+        print("PREVIOUS: " + str(self.previous_pos))
+        self.current_pos = index-len(self.path)
+        if self.mission_node:
+            self.restore_node_color(self.mission_node)
+        if self.current_pos < len(self.path):
+            self.mission_node = self.path[self.current_pos]
+            self.draw()
+            
     def create_edge(self, node_start, node_end, cost):
         if cost < 0:
             print("INPUT POSITIVE COST")
@@ -159,14 +207,6 @@ class GUI():
 
     def __init__(self, tasks):
         self.tasks = tasks
-
-        self.complete_actions = {
-            Task.CONNECT    : print,
-            Task.SEND       : print,
-            Task.GET_SENSOR : self.display_info,
-            Task.GET_MISSION: self.get_current_node_mission
-        }
-
         self.window = tk.Tk()
         self.init_gui()
         self.window.protocol('WM_DELETE_WINDOW', self.quit)
@@ -174,7 +214,13 @@ class GUI():
         self.window.after(0, self.main_loop)
         self.window.after(0, self.get_sensor_data)
         self.window.after(0, self.update_current_node_mission)
-
+        
+        self.complete_actions = {
+            Task.CONNECT    : print,
+            Task.SEND       : print,
+            Task.GET_SENSOR : self.display_info,
+            Task.GET_MISSION: self.map.get_current_node_mission
+        }
     def init_gui(self):
     
         #VARIABLES
@@ -301,27 +347,6 @@ class GUI():
         self.bind_keys()
         self.window.focus_set()
         self.driving_mode.set(GUI.PREFIX_MODE + "Manual")
-    
-    def update_current_node_mission(self):
-        self.tasks.put(Task.GET_MISSION)
-        self.window.after(GUI.SENSOR_DELAY, self.update_current_node_mission)
-    
-    def restore_node_color(self, node):
-        if node.type == NodeType.STOPLINE:
-            node.color = 'red'
-        elif node.type == NodeType.PARKING:
-            node.color = 'yellow'
-        elif node.type == NodeType.ROUNDABOUT:
-            node.color = 'blue'
-            
-    def get_current_node_mission(self, index):
-        if self.map.mission_node:
-            self.restore_node_color(self.map.mission_node)
-        print(len(self.map.path) - index)
-        if (len(self.map.path) - index) >= 0:
-            self.map.mission_node = self.map.path[index-len(self.map.path)]
-            self.map.mission_node.color = 'purple'
-            self.map.draw()
         
     def send_command(self):
         self.cmd_index = 0
@@ -341,6 +366,10 @@ class GUI():
     def get_sensor_data(self):
         self.tasks.put(Task.GET_SENSOR)
         self.window.after(GUI.SENSOR_DELAY, self.get_sensor_data)
+        
+    def update_current_node_mission(self):
+        self.tasks.put(Task.GET_MISSION)
+        self.window.after(GUI.SENSOR_DELAY, self.update_current_node_mission)
         
     def set_mission(self):
         print("SELECT START AND DESTINATION")
@@ -372,6 +401,7 @@ class GUI():
         self.window.unbind("<Down>")
 
     def display_info(self, sensor_data):
+        self.map.total_distance = int(sensor_data[3])
         self.info_list.delete(0, 'end')
         info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
         for info in info_labels:
