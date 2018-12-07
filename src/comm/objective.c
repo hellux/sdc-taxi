@@ -52,10 +52,10 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (c->vel.value < 0.05) {
         return true;
-    } else {
+    } else if (s->stop_dist <= BRAKE_DIST) {
         c->vel.value = wtd_speed(s->stop_dist, c->vel.value, STOP_VEL);
-        return false;
     }
+    return false;
 }
 
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
