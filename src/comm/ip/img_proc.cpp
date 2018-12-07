@@ -101,18 +101,18 @@ struct ip *ip_init() {
     hough_threshold = 7;
     line_min_length = 0;
     line_max_gap = 40;
-    mask_width_top = 0.23*WIDTH;
+    mask_width_top = 0.75*WIDTH;
     mask_start_y = 0.9*HEIGHT;
     mask_end_y = 0.52*HEIGHT;
-    thresh_angle_lane = 0.4*CV_PI;
-    thresh_angle_stop = 0.45*CV_PI;
+    thresh_angle_lane = 0.3*CV_PI;
+    thresh_angle_stop = 0.3*CV_PI;
     stop_dmax = 0.2*HEIGHT;
 
     weight_lt = 0.3;
     weight_lw = 0.06;
     weight_lx = 0.5;
     weight_sd = 0.6;
-    thresh_stop_vis = 3;
+    thresh_stop_vis = 10;
     max_lane_error = 0.18*WIDTH;
     max_stop_diff = 0.1*HEIGHT;
     lane_width_min = 0.5*WIDTH;
@@ -439,12 +439,12 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     ip->lane.x = (ip->lane.x+lane_x*weight_lx)/(1.0+weight_lx);
 
     /* determine lane direction */
-    if (!right.empty() || !left.empty())  {
+    if (!right.empty() || !left.empty()) {
         lines_t lane_lines;
         lane_lines.reserve(left.size() + right.size());
         lane_lines.insert(lane_lines.end(), right.begin(), right.end());
         lane_lines.insert(lane_lines.end(), left.begin(), left.end());
-        int lane_top_x = line_pos_x(lane_lines, 0);
+        int lane_top_x = line_pos_x(lane_lines, -100);
         lane_top_x = std::min(std::max(0, lane_top_x), WIDTH);
         ip->lane_top_x = (ip->lane_top_x+lane_top_x*weight_lt)/(1.0+weight_lt);
 
@@ -483,7 +483,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         ip->stop_vis = 0;
     }
 
-    if (stop_y > HEIGHT*1.2) {
+    if (stop_y > 0.98*HEIGHT) {
         stop_y = mask_end_y;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
@@ -550,6 +550,14 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::circle(frame,
              cv::Point(WIDTH/2-max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
+    /*
+    for (int i = 0; i < 100; i++) {
+        cv::Point p(rand()%WIDTH, rand()%HEIGHT);
+        double dis = std::abs(distance(ip->lane, ip->lane+ip->lane_dir, p));
+        int col = dis < 4000 ? 0 : 255;
+        cv::circle(frame, p, 2, cv::Scalar(0, col, 0), CV_FILLED);
+    }
+    */
 #endif
 
 #ifdef VISUAL
