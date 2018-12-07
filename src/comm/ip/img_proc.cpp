@@ -114,10 +114,10 @@ struct ip *ip_init() {
     weight_lx = 0.5;
     weight_sd = 0.6;
     thresh_stop_vis = 10;
-    max_lane_error = 0.18*WIDTH;
+    max_lane_error = 0.16*WIDTH;
     max_stop_diff = 0.2*HEIGHT;
-    lane_width_min = 0.5*WIDTH;
-    lane_width_max = 0.8*WIDTH;
+    lane_width_min = 0.65*WIDTH;
+    lane_width_max = 0.85*WIDTH;
 
     ip->lane = cv::Point(WIDTH/2, 0.8*HEIGHT);
     ip->lane_dir = cv::Point(0, 1);
@@ -498,7 +498,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
         ip->stop_vis = 0;
     }
 
-    if (stop_y > 0.95*HEIGHT) {
+    if (stop_y > 0.9*HEIGHT) {
         stop_y = mask_end_y;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
@@ -605,5 +605,4 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 #ifdef RECORD
     ip->writer->write(frame);
 #endif
-
 }
