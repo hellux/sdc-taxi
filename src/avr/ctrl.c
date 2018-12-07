@@ -10,15 +10,15 @@
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 /* PWM */
+#define VEL_K 1.0/11.45
 #define DUTY_MAX 0.10
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
-#define VEL_MIN 0.06
-#define VEL_MAX 0.11
-#define VEL_MIN_NEG 0.06
-#define VEL_MAX_NEG 0.13
-#define ROT_MIN 0
-#define ROT_MAX 0.95
+#define VEL_MIN -0.2
+#define VEL_NEUTRAL 0.06
+#define VEL_MAX 0.2
+#define ROT_MIN -1
+#define ROT_MAX 1
 
 #define PWM_T 0.020
 #define PWM_PSC 16
@@ -30,8 +30,8 @@
 #define VEL_KP_DEF 1
 #define VEL_KD_DEF 0.0
 
-#define ROT_KP_DEF 2.3
-#define ROT_KD_DEF 20
+#define ROT_KP_DEF 1
+#define ROT_KD_DEF 15
 
 /* killswitch */
 #define KS_OCR OCR3A
@@ -134,27 +134,24 @@ int main(void) {
                     value_new = pd_ctrl(pdv);
                     sei();
                 } else {
-                    value_new = value_retrieved;
+                    if (command & BF_VEL_ROT) {
+                        if (value_retrieved <= 0) {
+                            value_new = value_retrieved;
+                        } else {
+                            value_new = VEL_NEUTRAL+value_retrieved*VEL_K;
+                        }
+                    } else {
+                        value_new = value_retrieved;
+                    }
                 }
 
                 float min = (command & BF_VEL_ROT) ? VEL_MIN : ROT_MIN;
                 float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
-                float min_neg = (command & BF_VEL_ROT) ? VEL_MIN_NEG : ROT_MIN;
-                float max_neg = (command & BF_VEL_ROT) ? VEL_MAX_NEG : ROT_MAX;
 
                 /* limit value to valid interval */
-                value_new = MIN(MAX(-1, value_new), 1);
+                value_new = MIN(MAX(min, value_new), max);
 
-                float duty_scaler;
-                if (value_new == 0) {
-                    duty_scaler = 0;
-                } else if (value_new > 0) {
-                    duty_scaler = (max-min)*value_new + min;
-                } else {
-                    duty_scaler = (max_neg-min_neg)*value_new - min_neg;
-                }
-
-                float duty = DUTY_NEUTRAL + duty_scaler*(DUTY_MAX-DUTY_NEUTRAL);
+                float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
 
                 if (command & BF_VEL_ROT) {
                     OCR_VEL = duty*PWM_TOP; 
