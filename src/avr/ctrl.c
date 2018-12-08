@@ -28,9 +28,11 @@
 #define OCR_ROT OCR1A
 
 #define VEL_KP_DEF 1
-#define VEL_KD_DEF 0.0
+#define VEL_KI_DEF 1
+#define VEL_KD_DEF 1
 
 #define ROT_KP_DEF 1
+#define ROT_KI_DEF 0
 #define ROT_KD_DEF 15
 
 /* killswitch */
@@ -43,9 +45,12 @@
 
 struct pd_values {
     ctrl_val_t kp;
+    ctrl_val_t ki;
     ctrl_val_t kd;
+
     ctrl_val_t err;
     ctrl_val_t err_prev;
+    ctrl_val_t err_sum;
 };
 
 const struct pd_values PD_EMPTY = {0};
@@ -57,9 +62,11 @@ void reset(void) {
     cli();
     vel = PD_EMPTY;
     vel.kp = VEL_KP_DEF;
+    vel.ki = VEL_KI_DEF;
     vel.kd = VEL_KD_DEF;
     rot = PD_EMPTY;
     rot.kp = ROT_KP_DEF;
+    rot.ki = ROT_KI_DEF;
     rot.kd = ROT_KD_DEF;
     OCR_VEL = DUTY_NEUTRAL*PWM_TOP;
     OCR_ROT = DUTY_NEUTRAL*PWM_TOP;
@@ -68,9 +75,10 @@ void reset(void) {
 
 float pd_ctrl(volatile struct pd_values *v){
     float proportion =  v->err                * v->kp;
+    float integration = v->err_sum            * v->ki;
     float derivative = (v->err - v->err_prev) * v->kd;
 
-    return proportion + derivative;
+    return proportion + integration + derivative;
 }
 
 /* killswitch */
@@ -131,12 +139,14 @@ int main(void) {
                     cli();
                     pdv->err_prev = pdv->err;
                     pdv->err = value_retrieved;
+                    pdv->err_sum += value_retrieved;
                     value_new = pd_ctrl(pdv);
                     sei();
                 } else {
                     cli();
                     pdv->err = 0;
-                    sli();
+                    pdv->err_sum = 0;
+                    sei();
 
                     if (command & BF_VEL_ROT) {
                         if (value_retrieved <= 0) {
