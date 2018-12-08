@@ -34,27 +34,61 @@ static int thresh_type;
 static int hough_threshold;
 static int line_min_length;
 static int line_max_gap;
+
 static int mask_width_top;
 static int mask_start_y;
 static int mask_end_y;
+
 static float thresh_angle_lane;
 static float thresh_angle_stop;
-static int max_lane_error;
 static int max_stop_diff;
-static int lane_width_min;
-static int lane_width_max;
 
 static double weight_lt;
 static double weight_lw;
 static double weight_lx;
 static double weight_sd;
-static int thresh_stop_vis;
-static int stop_dmax;
 
-extern "C" struct ip *ip_init();
+static int thresh_stop_vis;
+static int max_lane_error;
+static int lane_width_min;
+static int lane_width_max;
+
+static void set_constants() {
+    /* image processing */
+    thresh_value = 20;
+    thresh_type = 6;
+    hough_threshold = 7;
+    line_min_length = 0;
+    line_max_gap = 40;
+
+    /* masking */
+    mask_width_top = 0.75*WIDTH;
+    mask_start_y = 0.9*HEIGHT;
+    mask_end_y = 0.52*HEIGHT;
+
+    /* classificication */
+    thresh_angle_lane = 0.3*CV_PI;
+    thresh_angle_stop = 0.3*CV_PI;
+    max_stop_diff = 0.2*HEIGHT;
+
+    /* weights */
+    weight_lt = 0.3;
+    weight_lw = 0.06;
+    weight_lx = 1;
+    weight_sd = 0.6;
+
+    /* limits */
+    thresh_stop_vis = 10;
+    max_lane_error = 0.18*WIDTH;
+    lane_width_min = 0.55*WIDTH;
+    lane_width_max = 0.65*WIDTH;
+}
+
+extern "C" struct ip *ip_init(void);
 extern "C" void ip_destroy(struct ip *ip);
 extern "C" void ip_set_opt(struct ip *ip, struct ip_opt *opt);
 extern "C" void ip_process(struct ip *ip, struct ip_res *res);
+extern "C" void ip_reset(struct ip *ip);
 
 struct ip {
     cv::VideoCapture *cap;
@@ -77,6 +111,20 @@ struct ip {
     /* ip options */
     struct ip_opt opt;
 };
+
+void ip_reset(struct ip *ip) {
+    ip->lane = cv::Point(WIDTH/2, 0.7*HEIGHT);
+    ip->lane_dir = cv::Point(0, -1);
+    ip->lane_width = 0.8*WIDTH;
+
+    ip->stop = cv::Point(WIDTH/2, mask_width_top);
+    ip->stop_dir = cv::Point(1, 0);
+    ip->stop_diff = 0;
+    ip->stop_vis = 0;
+    ip->stop_valid = false;
+
+    ip->opt = {0};
+}
 
 struct ip *ip_init() {
     struct ip *ip = (struct ip*)calloc(1, sizeof(*ip));
@@ -103,37 +151,9 @@ struct ip *ip_init() {
     ip->frame = new cv::Mat();
     printf("ip camera at %dx%d, fps: %d\n", WIDTH, HEIGHT, fps);
 
-    thresh_value = 20;
-    thresh_type = 6;
-    hough_threshold = 7;
-    line_min_length = 0;
-    line_max_gap = 40;
-    mask_width_top = 0.75*WIDTH;
-    mask_start_y = 0.9*HEIGHT;
-    mask_end_y = 0.52*HEIGHT;
-    thresh_angle_lane = 0.3*CV_PI;
-    thresh_angle_stop = 0.3*CV_PI;
-    stop_dmax = 0.2*HEIGHT;
+    ip_reset(ip);
 
-    weight_lt = 0.3;
-    weight_lw = 0.06;
-    weight_lx = 1;
-    weight_sd = 0.6;
-    thresh_stop_vis = 10;
-    max_lane_error = 0.18*WIDTH;
-    max_stop_diff = 0.2*HEIGHT;
-    lane_width_min = 0.55*WIDTH;
-    lane_width_max = 0.65*WIDTH;
-
-    ip->lane = cv::Point(WIDTH/2, 0.7*HEIGHT);
-    ip->lane_dir = cv::Point(0, 1);
-    ip->lane_width = 0.8*WIDTH;
-
-    ip->stop = cv::Point(WIDTH/2, mask_width_top);
-    ip->stop_diff = 0;
-    ip->stop_vis = 0;
-
-    ip->opt = {0};
+    set_constants();
 
 #ifdef VISUAL
     cv::namedWindow("Lane", CV_WINDOW_AUTOSIZE);

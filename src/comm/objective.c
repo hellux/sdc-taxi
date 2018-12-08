@@ -226,8 +226,8 @@ struct obj *obj_create(void) {
 #endif
     struct obj *obj = calloc(1, sizeof(*obj));
     pthread_mutex_init(&obj->lock, 0);
-    obj_set_mission(obj, 0, NULL);
     obj->ip = ip;
+    obj_set_mission(obj, 0, NULL);
 
     return obj;
 }
@@ -283,6 +283,9 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
         obj->queue = queue;
         obj->passtime = 0;
         obj->pos = BEFORE_STOP;
+#ifdef IP
+        ip_reset(obj->ip);
+#endif
         pthread_mutex_unlock(&obj->lock);
         return true;
     } else {

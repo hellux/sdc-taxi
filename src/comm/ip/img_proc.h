@@ -26,6 +26,7 @@ ip_t *ip_init(void);
 void ip_destroy(ip_t *ip);
 void ip_set_opt(ip_t *ip, struct ip_opt *opt);
 void ip_process(ip_t *ip, struct ip_res *res);
+void ip_reset(ip_t *ip);
 #endif
 
 #endif
