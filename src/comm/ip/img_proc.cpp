@@ -57,6 +57,7 @@ extern "C" void ip_process(struct ip *ip, struct ip_res *res);
 
 struct ip {
     cv::VideoCapture *cap;
+    cv::Mat *frame;
 #ifdef RECORD
     cv::VideoWriter *writer;
 #endif
@@ -78,9 +79,13 @@ struct ip {
 };
 
 struct ip *ip_init() {
-    struct ip *ip = (struct ip*)malloc(sizeof(*ip));
+    struct ip *ip = (struct ip*)calloc(1, sizeof(*ip));
 
+#ifdef SAMPLE
+    ip->cap = new cv::VideoCapture("sample.avi");
+#else
     ip->cap = new cv::VideoCapture(-1);
+#endif
 
     if (!ip->cap->isOpened()) {
         std::cout << "Error: Camera not found\n";
@@ -95,6 +100,7 @@ struct ip *ip_init() {
     WIDTH = ip->cap->get(CV_CAP_PROP_FRAME_WIDTH);
     HEIGHT = ip->cap->get(CV_CAP_PROP_FRAME_HEIGHT);
 
+    ip->frame = new cv::Mat();
     printf("ip camera at %dx%d, fps: %d\n", WIDTH, HEIGHT, fps);
 
     thresh_value = 20;
@@ -159,6 +165,7 @@ void ip_destroy(struct ip *ip) {
 #endif
         ip->cap->release();
         delete ip->cap;
+        delete ip->frame;
     }
 
     free(ip);
@@ -399,16 +406,20 @@ int line_pos_y(lines_t lines, int width) {
 }
 
 void ip_process(struct ip *ip, struct ip_res *res) {
-    cv::Mat frame;
-	ip->cap->read(frame);
+    printf("frame\n");
+	ip->cap->read(*ip->frame);
 
-	if (frame.empty()) {
+	if (ip->frame->empty()) {
 	    std::cout << "Error: Empty frame\n";
-	    return;
+#ifdef SAMPLE
+        ip_destroy(ip);
+        exit(0);
+#endif
+        return;
 	}
 
     /* process image */
-    cv::Mat thres_img = threshold(frame);
+    cv::Mat thres_img = threshold(*ip->frame);
     cv::Mat edges_image = img_edge_detector(thres_img);
     /* mask proccessed image */
     std::vector<cv::Point> roi = create_mask();
@@ -528,25 +539,25 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     start_time = stop_time;
 	std::string fps = std::to_string((int)(1/period));
     std::string err = std::to_string(res->lane_offset);
-    cv::putText(frame, fps, cv::Point(0,15), FONT, 1, cvScalar(0,0,0), 2);
+    cv::putText(*ip->frame, fps, cv::Point(0,15), FONT, 1, cvScalar(0,0,0), 2);
 
-    cv::putText(frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
+    cv::putText(*ip->frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
 
-    plot_lines(frame, right, left, stop, rem);
-    cv::polylines(frame, roi, true,
+    plot_lines(*ip->frame, right, left, stop, rem);
+    cv::polylines(*ip->frame, roi, true,
                   cv::Scalar(50, 50, 50));
-    cv::line(frame,
+    cv::line(*ip->frame,
              cv::Point(ip->lane.x - ip->lane_width/2, ip->lane.y),
              cv::Point(ip->lane.x + ip->lane_width/2, ip->lane.y),
              cv::Scalar(255,255,0), 1, CV_AA);
-    cv::line(frame,
+    cv::line(*ip->frame,
              cv::Point(ip->lane.x, ip->lane.y),
              cv::Point(ip->lane.x+ip->lane_dir.x, ip->lane.y+ip->lane_dir.y),
              cv::Scalar(0,255,255), 3, CV_AA);
     int stop_thick = ip->stop_valid ? 2 : 1;
-    cv::line(frame, ip->stop-ip->stop_dir, ip->stop+ip->stop_dir,
+    cv::line(*ip->frame, ip->stop-ip->stop_dir, ip->stop+ip->stop_dir,
              cv::Scalar(255,0,255), stop_thick, CV_AA);
-    cv::line(frame, ip->stop-ip->stop_dir, ip->stop+ip->stop_dir,
+    cv::line(*ip->frame, ip->stop-ip->stop_dir, ip->stop+ip->stop_dir,
              cv::Scalar(255,0,255), stop_thick, CV_AA);
     cv::Point2d u = unit(ip->lane_dir);
     cv::Point d(u.x*max_stop_diff, u.y*max_stop_diff);
@@ -556,25 +567,25 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::Point p3 = ip->stop+ip->stop_dir*5-d;
     std::vector<cv::Point> stop_poly = {p0, p1, p2, p3};
     cv::Mat stop_detect;
-    frame.copyTo(stop_detect);
+    ip->frame->copyTo(stop_detect);
     cv::fillConvexPoly(stop_detect, stop_poly, cv::Scalar(255,0,255), CV_AA, 0);
-    cv::addWeighted(stop_detect, .2, frame, .8, 0, frame);
-    cv::circle(frame,
+    cv::addWeighted(stop_detect, .2, *ip->frame, .8, 0, *ip->frame);
+    cv::circle(*ip->frame,
              cv::Point(lane_left_x, ip->lane.y), 3,
              cv::Scalar(0,255,0), CV_FILLED);
-    cv::circle(frame,
+    cv::circle(*ip->frame,
              cv::Point(lane_right_x, ip->lane.y), 3,
              cv::Scalar(255,0,0), CV_FILLED);
-    cv::circle(frame,
+    cv::circle(*ip->frame,
              cv::Point(WIDTH/2, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(frame,
+    cv::circle(*ip->frame,
              cv::Point(ip->lane.x, ip->lane.y), 2,
              cv::Scalar(255, 0, 255), CV_FILLED);
-    cv::circle(frame,
+    cv::circle(*ip->frame,
              cv::Point(WIDTH/2+max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
-    cv::circle(frame,
+    cv::circle(*ip->frame,
              cv::Point(WIDTH/2-max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
 #endif
@@ -583,7 +594,7 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::imshow("threshold", thres_img);
     cv::imshow("CannyEdges: ", edges_image);
     cv::imshow("mask", masked_image);
-    cv::imshow("Lane", frame);
+    cv::imshow("Lane", *ip->frame);
 
     cv::createTrackbar("b,bi,tr,z,zi,msk,otsu,tri", "", &thresh_type,
                        TRACK_MAX_THRESH, NULL);
@@ -603,6 +614,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 #endif
 
 #ifdef RECORD
-    ip->writer->write(frame);
+    ip->writer->write(*ip->frame);
 #endif
 }

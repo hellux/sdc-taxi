@@ -166,14 +166,19 @@ void bsh_sens_recv(void *received, void *data) {
 int main(int argc, char* args[]) {
     clock_gettime(CLOCK_MONOTONIC, &ts_start);
 
+    int success = EXIT_SUCCESS;
     bool quit = false;
     pthread_mutex_t quit_lock;
     pthread_mutex_init(&quit_lock, 0);
 
+    bus_t *bus = NULL;
+    obj_t *obj = NULL;
+    srv_t *srv = NULL;
+
     const char *inet_addr = args[1];
     if (!inet_addr) {
         fprintf(stderr, "error: no IP address specified\n");
-        return EXIT_FAILURE;
+        goto fail;
     }
 
     struct data_sensors sens_data = {0};
@@ -181,11 +186,11 @@ int main(int argc, char* args[]) {
     pthread_mutex_init(&sens_data.lock, 0);
     pthread_mutex_init(&rc_data.lock, 0);
 
-    bus_t *bus = bus_create(F_SPI);
-    if (!bus) return EXIT_FAILURE;
+    bus = bus_create(F_SPI);
+    if (!bus) goto fail;
 
-    obj_t *obj = obj_create();
-    if (!bus) return EXIT_FAILURE;
+    obj = obj_create();
+    if (!obj) goto fail;
 
     struct srv_cmd cmds[] = {
     {"get_sensor",  0, &sens_data,        NULL,            *sc_get_sens},
@@ -201,9 +206,9 @@ int main(int argc, char* args[]) {
     {"set_rot_kd",  1, &BCCS[BBC_ROT_KD], bus,             *sc_bus_send_float},
     };
     int cmdc = sizeof(cmds)/sizeof(*cmds);
-    srv_t *srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
-                            cmds, cmdc);
-    if (!srv) return EXIT_FAILURE;
+    srv = srv_create(inet_addr, SERVER_PORT_START, SERVER_PORT_END,
+                     cmds, cmdc);
+    if (!srv) goto fail;
 
     bus_sync(bus);
     bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
@@ -243,9 +248,13 @@ int main(int argc, char* args[]) {
         bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL);
     }
 
+    goto exit;
+fail:
+    success = EXIT_FAILURE;
+exit:
     obj_destroy(obj);
     srv_destroy(srv);
     bus_destroy(bus);
 
-    return EXIT_SUCCESS;
+    return success;
 }

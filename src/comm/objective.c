@@ -207,25 +207,31 @@ struct obj_item *queue_create(int cmdc, char **cmds) {
 /* external functions */
 
 struct obj *obj_create(void) {
+    ip_t *ip = NULL;
+#ifdef IP
+    ip = ip_init();
+    if (!ip)
+        return NULL;
+#endif
     struct obj *obj = calloc(1, sizeof(*obj));
     pthread_mutex_init(&obj->lock, 0);
     obj_set_mission(obj, 0, NULL);
-#ifdef IP
-    obj->ip = ip_init();
-#endif
+    obj->ip = ip;
 
     return obj;
 }
 
 void obj_destroy(struct obj *obj) {
     /* TODO properly destroy, avoid multithreading issues */
-    pthread_mutex_destroy(&obj->lock);
+    if (obj) {
+        pthread_mutex_destroy(&obj->lock);
 #ifdef IP
-    ip_destroy(obj->ip);
+        ip_destroy(obj->ip);
 #endif
-    queue_destroy(obj->queue);
+        queue_destroy(obj->queue);
 
-    free(obj);
+        free(obj);
+    }
 }
 
 bool obj_active(obj_t *obj) {

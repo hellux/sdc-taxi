@@ -47,6 +47,10 @@ comm.gdb: CXXFLAGS += $(CXXFLAGS.debug)
 comm.gdb: CFLAGS += $(CFLAGS.debug)
 comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
+comm.sample: CFLAGS += $(CFLAGS.debug)
+comm.sample: CXXFLAGS += $(CXXFLAGS.debug) -DRECORD -DSAMPLE
+comm.sample: $(BINDIR)/comm
+	$(BINDIR)/$(COMM_BIN) 127.0.0.1
 comm.pi.release: CXXFLAGS += $(CXXFLAGS.release)
 comm.pi.release: CFLAGS += $(CFLAGS.release)
 comm.pi.release: comm.pi
