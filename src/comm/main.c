@@ -239,11 +239,19 @@ int main(int argc, char* args[]) {
             ctrl.rot.regulate = false;
         }
 
-        /* TODO check for obstacles and override ctrl */
+        if (sens.distance < 1) {
+            ctrl.vel.value = (1+.3-sens.distance)*sens.velocity;
+            ctrl.vel.regulate = true;
+        }
 
         /* send new ctrl commands */
-        int bcc_vel = ctrl.vel.regulate ? BBC_VEL_ERR : BBC_VEL_VAL;
+        int bcc_vel;
+        if (ctrl.vel.regulate) {
+            bcc_vel = BBC_VEL_ERR;
+            ctrl.vel.value = ctrl.vel.value - sens.velocity;
+        }
         int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
+
         bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL);
         bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL);
     }
@@ -255,8 +263,8 @@ exit:
     pthread_mutex_destroy(&quit_lock);
     pthread_mutex_destroy(&sens_data.lock);
     pthread_mutex_destroy(&rc_data.lock);
-    obj_destroy(obj);
     srv_destroy(srv);
+    obj_destroy(obj);
     bus_destroy(bus);
 
     return success;
