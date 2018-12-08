@@ -27,40 +27,40 @@ int main(void) {
     int CTRL_CMDC = sizeof(CTRL_CMDS)/sizeof(*CTRL_CMDS);
     int SENS_CMDC = sizeof(SENS_CMDS)/sizeof(*SENS_CMDS);
 
-    assert (CTRL_CMDC > 0);
-    assert (SENS_CMDC > 0);
+    assert(CTRL_CMDC > 0);
+    assert(SENS_CMDC > 0);
 
     /* check that commands are mapped correct */
     for (int i = 0; i < CTRL_CMDC; i++) {
         int command = CTRL_CMDS[i];
-        assert (BCCS[command].cmd == command);
+        assert(BCCS[command].cmd == command);
     }
     for (int i = 0; i < SENS_CMDC; i++) {
         int command = SENS_CMDS[i];
-        assert (BCSS[command].cmd == command);
+        assert(BCSS[command].cmd == command);
     }
 
     double data1 = 34324.98;
     double data1_copy = data1;
     uint8_t cmd1 = BBC_ROT_VAL;
     cs_t cs1 = cs_create(cmd1, (void*)&data1, sizeof(data1));
-    assert (cs_check(cs1, (void*)&data1, sizeof(data1)));
-    assert (cs_check(cs1, (void*)&data1_copy, sizeof(data1_copy)));
-    assert (cs_cmd(cs1) == cmd1);
+    assert(cs_check(cs1, (void*)&data1, sizeof(data1)));
+    assert(cs_check(cs1, (void*)&data1_copy, sizeof(data1_copy)));
+    assert(cs_cmd(cs1) == cmd1);
 
     uint8_t data2[100];
     uint8_t cmd2;
     cs_t cs2 = cs_create(cmd2, (void*)&data2, sizeof(data2));
-    assert (cs_check(cs2, (void*)&data2, sizeof(data2)));
-    assert (cs_cmd(cs2) == cmd2);
+    assert(cs_check(cs2, (void*)&data2, sizeof(data2)));
+    assert(cs_cmd(cs2) == cmd2);
 
     char *data3 = "hej hej hej";
     char *data3_copy = "hej hej hej";
     uint8_t cmd3 = 0x33;
-    assert (strcmp(data3, data3_copy) == 0);
+    assert(strcmp(data3, data3_copy) == 0);
     cs_t cs3 = cs_create(cmd3, (void*)&data3, sizeof(data3));
-    assert (cs_check(cs3, (void*)&data3, sizeof(data3)));
-    assert (strcmp(data3, data3_copy) == 0);
+    assert(cs_check(cs3, (void*)&data3, sizeof(data3)));
+    assert(strcmp(data3, data3_copy) == 0);
 
     return 0;
 }
