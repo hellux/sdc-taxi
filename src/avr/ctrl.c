@@ -134,6 +134,10 @@ int main(void) {
                     value_new = pd_ctrl(pdv);
                     sei();
                 } else {
+                    cli();
+                    pdv->err = 0;
+                    sli();
+
                     if (command & BF_VEL_ROT) {
                         if (value_retrieved <= 0) {
                             value_new = value_retrieved;
