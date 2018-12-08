@@ -190,7 +190,7 @@ int main(int argc, char* args[]) {
     struct srv_cmd cmds[] = {
     {"get_sensor",  0, &sens_data,        NULL,            *sc_get_sens},
     {"get_mission", 0, obj,               NULL,            *sc_get_mission},
-    {"set_mission", 1, obj,               NULL,            *sc_set_mission},
+    {"set_mission", 0, obj,               NULL,            *sc_set_mission},
     {"set_state",   1, obj,               NULL,            *sc_set_state},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
     {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
@@ -209,7 +209,6 @@ int main(int argc, char* args[]) {
     bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
     bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
 
-    int count = 0;
     while (!quit) {
         struct ctrl_val ctrl = {0};
         pthread_mutex_lock(&sens_data.lock);
