@@ -8,12 +8,15 @@ LFLAGS = -lpthread
 SRC.proto = spi/protocol.c proto.c 
 $(BINDIR)/proto: $(patsubst %.c, $(OBJDIR)/%.o, $(SRC.proto))
 
-SRC.bus = comm/bus.c bus.c comm/spi.c
+SRC.bus = comm/bus.c comm/spi.c bus.c
 $(BINDIR)/bus: $(patsubst %.c, $(OBJDIR)/%.o, $(SRC.bus))
+
+SRC.obj = comm/objective.c obj.c
+$(BINDIR)/obj: $(patsubst %.c, $(OBJDIR)/%.o, $(SRC.obj))
 
 .SILENT:
 
-all: testc.proto testc.bus testpy.course
+all: testc.proto testc.bus testpy.course testc.obj
 	echo "All tests passed, yeeeeeess."
 
 testpy.%:
