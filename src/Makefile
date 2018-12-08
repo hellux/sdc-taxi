@@ -2,7 +2,7 @@ OBJDIR = build
 BINDIR = $(OBJDIR)/bin
 
 CC = gcc
-CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -DIP
 CFLAGS.debug = -Wall -Og -ggdb -Og
 CFLAGS.release = -O3
 

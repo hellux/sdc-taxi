@@ -178,6 +178,7 @@ struct obj_item *queue_create(int cmdc, char **cmds) {
     for (int i = 0; i < cmdc; i++) {
         current = calloc(1, sizeof(*current));
         *prev_ptr = current;
+        prev_ptr = &current->next;
 
         for (int j = 0; j < CMDC; j++) {
             if (strcmp(cmds[i], CMDS[j].name) == 0) {
@@ -192,6 +193,10 @@ struct obj_item *queue_create(int cmdc, char **cmds) {
     }
 
     if (valid) {
+        struct obj_item *curr = root;
+        while (curr) {
+            curr = curr->next;
+        }
         return root;
     } else {
         queue_destroy(root);
@@ -205,7 +210,9 @@ struct obj *obj_create(void) {
     struct obj *obj = calloc(1, sizeof(*obj));
     pthread_mutex_init(&obj->lock, 0);
     obj_set_mission(obj, 0, NULL);
+#ifdef IP
     obj->ip = ip_init();
+#endif
 
     return obj;
 }
@@ -213,7 +220,9 @@ struct obj *obj_create(void) {
 void obj_destroy(struct obj *obj) {
     /* TODO properly destroy, avoid multithreading issues */
     pthread_mutex_destroy(&obj->lock);
+#ifdef IP
     ip_destroy(obj->ip);
+#endif
     queue_destroy(obj->queue);
 
     free(obj);
@@ -251,12 +260,12 @@ int obj_remaining(obj_t *obj) {
 bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
     struct obj_item *queue = queue_create(cmdc, cmds);
 
-    if (queue) {
+    if (cmdc == 0 || queue) {
         pthread_mutex_lock(&obj->lock);
         queue_destroy(obj->queue);
         obj->queue = queue;
         obj->passtime = 0;
-        obj->pos = BEFORE_STOP; /* TODO adjust if parked */
+        obj->pos = BEFORE_STOP;
         pthread_mutex_unlock(&obj->lock);
         return true;
     } else {
@@ -276,7 +285,9 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     }
 
     struct ip_res ip_res;
+#ifdef IP
     ip_process(o->ip, &ip_res);
+#endif
     if (ip_res.stopline_passed) {
         if (o->pos < AFTER_STOP) {
             o->passtime = sens->time;
@@ -305,7 +316,9 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
 
         struct ip_opt opt = {0};
         bool cmd_finished = o->current->func(&state, ctrl, &opt);
+#ifdef IP
         ip_set_opt(o->ip, &opt);
+#endif
 
         o->pos = state.pos;
 
