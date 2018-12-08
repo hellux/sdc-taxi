@@ -6,6 +6,7 @@
 #include <cmath>
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono>
+#include <thread>
 
 #ifdef VISUAL
 #define PLOT
@@ -66,7 +67,6 @@ struct ip {
     cv::Point lane; /* center of lane */
     cv::Point lane_dir; /* direction of lane */
     int lane_width;
-    int lane_top_x; /* center of lane at top of screen */
 
     cv::Point stop; /* center of stopline */
     cv::Point stop_dir; /* direction of stop */
@@ -117,15 +117,15 @@ struct ip *ip_init() {
 
     weight_lt = 0.3;
     weight_lw = 0.06;
-    weight_lx = 0.5;
+    weight_lx = 1;
     weight_sd = 0.6;
     thresh_stop_vis = 10;
-    max_lane_error = 0.16*WIDTH;
+    max_lane_error = 0.18*WIDTH;
     max_stop_diff = 0.2*HEIGHT;
-    lane_width_min = 0.65*WIDTH;
-    lane_width_max = 0.85*WIDTH;
+    lane_width_min = 0.55*WIDTH;
+    lane_width_max = 0.65*WIDTH;
 
-    ip->lane = cv::Point(WIDTH/2, 0.8*HEIGHT);
+    ip->lane = cv::Point(WIDTH/2, 0.7*HEIGHT);
     ip->lane_dir = cv::Point(0, 1);
     ip->lane_width = 0.8*WIDTH;
 
@@ -323,34 +323,6 @@ void classify_lines(struct ip *ip, lines_t& lines,
     }
 }
 
-#ifdef PLOT
-
-void plot_lines(cv::Mat& img, lines_t right, lines_t left,
-                              lines_t stop, lines_t rem) {
-    for (auto l : rem) {
-        cv::Point start(l[0], l[1]);
-        cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(100, 100, 100), 1, CV_AA);
-    }
-    for (auto l : right) {
-        cv::Point start(l[0], l[1]);
-        cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(255, 0, 0), 1, CV_AA);
-    }
-    for (auto l : left) {
-        cv::Point start(l[0], l[1]);
-        cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(0, 255, 0), 1, CV_AA);
-    }
-    for (auto l : stop) {
-        cv::Point start(l[0], l[1]);
-        cv::Point end(l[2], l[3]);
-        cv::line(img, start, end, cv::Scalar(0, 0, 255), 1, CV_AA);
-    }
-}
-
-#endif
-
 template<class T>
 T median(std::vector<T> v) {
     int middle = v.size()/2;
@@ -409,10 +381,11 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 	ip->cap->read(*ip->frame);
 
 	if (ip->frame->empty()) {
-	    std::cout << "Error: Empty frame\n";
 #ifdef SAMPLE
         ip_destroy(ip);
         exit(0);
+#else
+	    std::cout << "error: empty frame\n";
 #endif
         return;
 	}
@@ -466,17 +439,29 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     ip->lane.x = (ip->lane.x+lane_x*weight_lx)/(1.0+weight_lx);
 
     /* determine lane direction */
-    if (!right.empty() || !left.empty()) {
-        lines_t lane_lines;
-        lane_lines.reserve(left.size() + right.size());
-        lane_lines.insert(lane_lines.end(), right.begin(), right.end());
-        lane_lines.insert(lane_lines.end(), left.begin(), left.end());
-        int lane_top_x = line_pos_x(lane_lines, -100);
-        lane_top_x = std::min(std::max(0, lane_top_x), WIDTH);
-        ip->lane_top_x = (ip->lane_top_x+lane_top_x*weight_lt)/(1.0+weight_lt);
+    cv::Point lane_dir(0, 0);
+    for (auto l : right) {
+        cv::Point s(l[0], l[1]), e(l[2], l[3]);
+        if (e.y < s.y) {
+            lane_dir += e-s;
+        } else {
+            lane_dir += s-e;
+        }
+    }
+    for (auto l : left) {
+        cv::Point s(l[0], l[1]), e(l[2], l[3]);
+        if (e.y < s.y) {
+            lane_dir += e-s;
+        } else {
+            lane_dir += s-e;
+        }
+    }
+    ip->lane_dir = cv::Point(lane_dir.x, 3*lane_dir.y);
+    ip->stop_dir = cv::Point(-ip->lane_dir.y/2, ip->lane_dir.x/2);
 
-        ip->lane_dir = cv::Point(ip->lane_top_x-ip->lane.x, 0-ip->lane.y);
-        ip->stop_dir = cv::Point(-ip->lane_dir.y/2, ip->lane_dir.x/2);
+    if (ip->lane_dir.y == 0) {
+        ip->lane_dir.x = 0;
+        ip->lane_dir.y = -1;
     }
 
     /* calc stopline position */
@@ -528,12 +513,20 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     res->lane_right_visible = right.size() > 0;
     res->lane_left_visible = left.size() > 0;
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
-    res->stopline_visible = ip->stop_vis >= thresh_stop_vis;
+    res->stopline_visible = ip->stop_valid;
     res->stopline_passed = stopline_passed;
 
 #ifdef PLOT
 	static auto start_time = std::chrono::high_resolution_clock::now();
     auto stop_time = std::chrono::high_resolution_clock::now();
+#ifdef VISUAL
+#ifdef SAMPLE
+    while (stop_time < start_time + std::chrono::milliseconds((int)(1e3/90))) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        stop_time = std::chrono::high_resolution_clock::now();
+    }
+#endif
+#endif
     double period = (double)(stop_time-start_time).count()/(1e9);
     start_time = stop_time;
 	std::string fps = std::to_string((int)(1/period));
@@ -542,7 +535,28 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 
     cv::putText(*ip->frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
 
-    plot_lines(*ip->frame, right, left, stop, rem);
+    for (auto l : rem) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(*ip->frame, start, end, cv::Scalar(100, 100, 100), 1, CV_AA);
+    }
+    int right_col = ip->opt.ignore_right ? 150 : 255;
+    for (auto l : right) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(*ip->frame, start, end, cv::Scalar(right_col, 0, 0), 1, CV_AA);
+    }
+    int left_col = ip->opt.ignore_left ? 150 : 255;
+    for (auto l : left) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(*ip->frame, start, end, cv::Scalar(0, left_col, 0), 1, CV_AA);
+    }
+    for (auto l : stop) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        cv::line(*ip->frame, start, end, cv::Scalar(0, 0, 255), 1, CV_AA);
+    }
     cv::polylines(*ip->frame, roi, true,
                   cv::Scalar(50, 50, 50));
     cv::line(*ip->frame,
@@ -587,6 +601,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     cv::circle(*ip->frame,
              cv::Point(WIDTH/2-max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
+    if (stopline_passed) {
+        cv::circle(*ip->frame, cv::Point(WIDTH/2, HEIGHT/2),
+                   WIDTH/2, cv::Scalar(255,0,255), CV_FILLED);
+    }
 #endif
 
 #ifdef VISUAL
