@@ -24,7 +24,7 @@
 #define AFTER_STOP 2
 
 float wtd_speed(float distance, float current, float target) {
-    return current+(target-current)/distance;
+    return current - distance*(current-target);
 }
 
 struct state {
@@ -44,6 +44,7 @@ struct state {
 /* objective commands */
 
 bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
+    /* skip mission when passing stopline */
     if (s->pos >= AFTER_STOP) {
         return true;
     }
@@ -52,48 +53,58 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 }
 
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    if (c->vel.value < 0.05) {
-        return true;
-    } else if (s->stop_visible) { // && s->stop_dist <= BRAKE_DIST) {
-        c->vel.value = 0;
-        c->vel.regulate = true;
+    /* brake when approaching stopline */
+    if (s->pos >= BEFORE_STOP) {
+        if (s->sens->velocity == 0) {
+            return true;
+        } else if (s->stop_visible || s->pos >= AFTER_STOP) {
+            c->vel.value = wtd_speed(s->stop_dist, s->sens->velocity, 0);
+            c->vel.regulate = true;
+        }
     }
     return false;
 }
 
-#define PARKING 3
-#define PARKED 4
-#define UNPARKING 5
+#define PARKED 3
+#define UNPARKING 4
 
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    /* TODO only return true if last cmd */
-    float cur_vel = s->sens->velocity;
-    if (s->pos == AFTER_STOP) {
-        c->rot.value = RIGHT;
+    switch (s->pos) {
+    case BEFORE_STOP:
+        if (s->stop_visible) {
+            i->ignore_left = true;
+            c->vel.value = SLOW_VEL;
+            c->vel.regulate = true;
+        }
+        break;
+    case AFTER_STOP:
+        i->ignore_left = true;
 
-        if (s->postime >= 1.5) {
-            c->vel.value = STOP_VEL;
-            return true;
-        } else if (s->postime >= 1) {
-            c->rot.value =STRAIGHT;
-        } else if (s->postime >= 0.5) {
-            c->rot.value = LEFT;
-        }
-    } else if (s->stop_dist <= BRAKE_DIST) {
-        c->vel.value = wtd_speed(s->stop_dist, cur_vel, SLOW_VEL);
-    } else if (s->pos == PARKED) {
-        c->rot.value = LEFT;
-        c->vel.value = SLOW_VEL;
-        
-        if (cur_vel == FULL_VEL) {
-            return true;
-        } else if (s->postime >= 1) {
-            c->vel.value = FULL_VEL;
-            c->rot.value = STRAIGHT;
-        } else if (s->postime >= 0.5) {
+        if (s->posdist < 0.5) {
             c->rot.value = RIGHT;
+        } else if (s->posdist < 1) {
+            c->rot.value = LEFT;
+            c->vel.value = 0;
+            c->vel.regulate = true;
         }
-        return false;
+        break;
+    case PARKED:
+        if (s->postime >= 3) {
+            s->pos = UNPARKING;
+        }
+        break;
+    case UNPARKING:
+        i->ignore_left = true;
+
+        if (s->posdist < 0.5) {
+            c->rot.value = LEFT;
+            c->vel.value = SLOW_VEL;
+        } else if (s->posdist < 1) {
+            c->rot.value = RIGHT;
+        } else {
+            return true;
+        }
+        break;
     }
     return false;
 }
@@ -110,7 +121,7 @@ bool cmd_enter(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos <= BEFORE_STOP && s->stop_visible) {
         i->ignore_right = true;
-    } else if (s->pos >= AFTER_STOP) {
+    } else if (s->pos >= AFTER_STOP && s->posdist >= 0.5) {
         return true;
     }
     return false;
@@ -122,7 +133,7 @@ bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         i->ignore_left = true;
 
     /* finish after exit */
-    if (s->pos >= AFTER_STOP && s->postime > 1)
+    if (s->pos >= AFTER_STOP && s->posdist > 0.5)
         return true;
 
     return false;
@@ -233,7 +244,6 @@ struct obj *obj_create(void) {
 }
 
 void obj_destroy(struct obj *obj) {
-    /* TODO properly destroy, avoid multithreading issues */
     if (obj) {
         pthread_mutex_destroy(&obj->lock);
 #ifdef IP
