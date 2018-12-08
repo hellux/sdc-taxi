@@ -175,16 +175,16 @@ int main(int argc, char* args[]) {
     obj_t *obj = NULL;
     srv_t *srv = NULL;
 
+    struct data_sensors sens_data = {0};
+    struct data_rc rc_data = {0};
+    pthread_mutex_init(&sens_data.lock, 0);
+    pthread_mutex_init(&rc_data.lock, 0);
+
     const char *inet_addr = args[1];
     if (!inet_addr) {
         fprintf(stderr, "error: no IP address specified\n");
         goto fail;
     }
-
-    struct data_sensors sens_data = {0};
-    struct data_rc rc_data = {0};
-    pthread_mutex_init(&sens_data.lock, 0);
-    pthread_mutex_init(&rc_data.lock, 0);
 
     bus = bus_create(F_SPI);
     if (!bus) goto fail;
@@ -252,6 +252,9 @@ int main(int argc, char* args[]) {
 fail:
     success = EXIT_FAILURE;
 exit:
+    pthread_mutex_destroy(&quit_lock);
+    pthread_mutex_destroy(&sens_data.lock);
+    pthread_mutex_destroy(&rc_data.lock);
     obj_destroy(obj);
     srv_destroy(srv);
     bus_destroy(bus);

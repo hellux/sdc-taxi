@@ -406,7 +406,6 @@ int line_pos_y(lines_t lines, int width) {
 }
 
 void ip_process(struct ip *ip, struct ip_res *res) {
-    printf("frame\n");
 	ip->cap->read(*ip->frame);
 
 	if (ip->frame->empty()) {
