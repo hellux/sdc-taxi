@@ -58,7 +58,7 @@ static void set_constants() {
     thresh_value = 20;
     thresh_type = 6;
     hough_threshold = 7;
-    line_min_length = 0;
+    line_min_length = 20;
     line_max_gap = 40;
 
     /* masking */
@@ -94,7 +94,8 @@ struct ip {
     cv::VideoCapture *cap;
     cv::Mat *frame;
 #ifdef RECORD
-    cv::VideoWriter *writer;
+    cv::VideoWriter *writer_or;
+    cv::VideoWriter *writer_cv;
 #endif
 
     /* visibility data */
@@ -161,7 +162,10 @@ struct ip *ip_init() {
 #endif
 
 #ifdef RECORD
-    ip->writer = new cv::VideoWriter("opencv.avi",
+    ip->writer_or = new cv::VideoWriter("original.avi",
+        CV_FOURCC('M', 'J', 'P', 'G'),
+        fps, cv::Size(WIDTH, HEIGHT));
+    ip->writer_cv = new cv::VideoWriter("opencv.avi",
         CV_FOURCC('M', 'J', 'P', 'G'),
         fps, cv::Size(WIDTH, HEIGHT));
 #endif
@@ -180,8 +184,10 @@ void ip_destroy(struct ip *ip) {
 
     if (ip) {
 #ifdef RECORD
-        ip->writer->release();
-        delete ip->writer;
+        ip->writer_or->release();
+        ip->writer_cv->release();
+        delete ip->writer_or;
+        delete ip->writer_cv;
 #endif
         ip->cap->release();
         delete ip->cap;
@@ -460,28 +466,30 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 
     /* determine lane direction */
     cv::Point lane_dir(0, 0);
-    for (auto l : right) {
-        cv::Point s(l[0], l[1]), e(l[2], l[3]);
-        if (e.y < s.y) {
-            lane_dir += e-s;
-        } else {
-            lane_dir += s-e;
+    if (!right.empty() || !left.empty()) {
+        for (auto l : right) {
+            cv::Point s(l[0], l[1]), e(l[2], l[3]);
+            if (e.y < s.y) {
+                lane_dir += e-s;
+            } else {
+                lane_dir += s-e;
+            }
         }
-    }
-    for (auto l : left) {
-        cv::Point s(l[0], l[1]), e(l[2], l[3]);
-        if (e.y < s.y) {
-            lane_dir += e-s;
-        } else {
-            lane_dir += s-e;
+        for (auto l : left) {
+            cv::Point s(l[0], l[1]), e(l[2], l[3]);
+            if (e.y < s.y) {
+                lane_dir += e-s;
+            } else {
+                lane_dir += s-e;
+            }
         }
+        ip->lane_dir = cv::Point(lane_dir.x, 3*lane_dir.y);
+        ip->stop_dir = cv::Point(-ip->lane_dir.y/2, ip->lane_dir.x/2);
     }
-    ip->lane_dir = cv::Point(lane_dir.x, 3*lane_dir.y);
-    ip->stop_dir = cv::Point(-ip->lane_dir.y/2, ip->lane_dir.x/2);
 
     if (ip->lane_dir.y == 0) {
         ip->lane_dir.x = 0;
-        ip->lane_dir.y = -1;
+        ip->lane_dir.y = -HEIGHT;
     }
 
     /* calc stopline position */
@@ -535,6 +543,10 @@ void ip_process(struct ip *ip, struct ip_res *res) {
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
     res->stopline_visible = ip->stop_valid;
     res->stopline_passed = stopline_passed;
+
+#ifdef RECORD
+    ip->writer_or->write(*ip->frame);
+#endif
 
 #ifdef PLOT
 	static auto start_time = std::chrono::high_resolution_clock::now();
@@ -651,6 +663,6 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 #endif
 
 #ifdef RECORD
-    ip->writer->write(*ip->frame);
+    ip->writer_cv->write(*ip->frame);
 #endif
 }
