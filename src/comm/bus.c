@@ -155,8 +155,10 @@ static void *bus_thread(void *b) {
             } else {
                 order_queue(bus, order, true);
                 packets_lost++;
+                /*
                 printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
+                */
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
 
