@@ -8,14 +8,16 @@
 
 #include "ip/img_proc.h"
 
+#define PICKUP_TIME 5
+
 #define BRAKE_DIST 20
 #define STILL_DIST 0
 #define STRAIGHT 0
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
-#define SLOW_VEL 0.4
-#define FULL_VEL 0.5
+#define SLOW_VEL 0.5
+#define FULL_VEL 0.7
 
 /* initial positions */
 
@@ -52,25 +54,16 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     return false;
 }
 
-#define STOPPED AFTER_STOP+1
-
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    /* brake when approaching stopline */
-    if (s->pos >= BEFORE_STOP) {
-        if (s->sens->velocity < 0.1) {
+    if (s->pos == BEFORE_STOP && s->stop_visible) {
+        c->vel.value = -1;
+    } else if (s->pos >= AFTER_STOP) {
+        c->vel.value = 0;
+        if (s->last_cmd || s->postime >= PICKUP_TIME) {
             return true;
-        } else if (s->stop_visible || s->pos >= AFTER_STOP) {
-            c->vel.value = 0;
-            c->vel.regulate = true;
-        }
-    } else if (s->pos == AFTER_STOP) {
-        if (s->sens->velocity < 0.1) {
-            return true;
-        } else {
-            c->vel.value = 0;
-            c->vel.regulate = true;
         }
     }
+    
     return false;
 }
 
@@ -80,37 +73,28 @@ bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     switch (s->pos) {
     case BEFORE_STOP:
-        if (s->stop_visible) {
+        if (s->stop_visible)
             i->ignore_left = true;
-            c->vel.value = SLOW_VEL;
-            c->vel.regulate = true;
-        }
         break;
     case AFTER_STOP:
+        c->vel.value = SLOW_VEL;
         i->ignore_left = true;
-
         if (s->posdist < 0.5) {
             c->rot.value = RIGHT;
-        } else if (s->posdist < 1) {
-            c->rot.value = LEFT;
-            c->vel.value = 0;
-            c->vel.regulate = true;
+        } else if (s->posdist > 1) {
+            s->pos = PARKED;
         }
         break;
     case PARKED:
-        if (s->postime >= 3) {
+        c->vel.value = 0;
+        if (s->postime >= PICKUP_TIME)
             s->pos = UNPARKING;
-        }
         break;
     case UNPARKING:
         i->ignore_left = true;
-
-        if (s->posdist < 0.5) {
+        if (s->posdist < 0.2) {
             c->rot.value = LEFT;
-            c->vel.value = SLOW_VEL;
-        } else if (s->posdist < 1) {
-            c->rot.value = RIGHT;
-        } else {
+        } else if (s->posdist > 1) {
             return true;
         }
         break;
@@ -120,7 +104,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_enter(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos >= AFTER_STOP) {
-        if (s->posdist < 0.3) {
+        if (s->posdist < 0.1) {
             i->ignore_left = true;
             return false;
         } else {
@@ -381,7 +365,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
             if (o->pos <= AFTER_STOP) {
                 o->pos--;
             } else {
-                o->pos = 0;
+                o->pos = 1;
             }
             o->current = NULL;
         }
