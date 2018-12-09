@@ -142,7 +142,7 @@ void bsh_sens_recv(void *received, void *data) {
 
     float velocity = 0;
     if (time-time_prev > 0.4) {
-        velocity = (sd->distance-distance_prev)/(time-time_prev)*1e3;
+        velocity = (sd->distance-distance_prev)/(time-time_prev);
         time_prev = time;
         distance_prev = sd->distance;
         velocity_prev = velocity;
@@ -249,6 +249,8 @@ int main(int argc, char* args[]) {
         if (ctrl.vel.regulate) {
             bcc_vel = BBC_VEL_ERR;
             ctrl.vel.value = ctrl.vel.value - sens.velocity;
+        } else {
+            bcc_vel = BBC_VEL_VAL;
         }
         int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
 
