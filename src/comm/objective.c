@@ -52,13 +52,22 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     return false;
 }
 
+#define STOPPED AFTER_STOP+1
+
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     /* brake when approaching stopline */
     if (s->pos >= BEFORE_STOP) {
-        if (s->sens->velocity == 0) {
+        if (s->sens->velocity < 0.1) {
             return true;
         } else if (s->stop_visible || s->pos >= AFTER_STOP) {
-            c->vel.value = wtd_speed(s->stop_dist, s->sens->velocity, 0);
+            c->vel.value = 0;
+            c->vel.regulate = true;
+        }
+    } else if (s->pos == AFTER_STOP) {
+        if (s->sens->velocity < 0.1) {
+            return true;
+        } else {
+            c->vel.value = 0;
             c->vel.regulate = true;
         }
     }
@@ -110,31 +119,43 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 }
 
 bool cmd_enter(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    if (s->pos <= BEFORE_STOP && s->stop_visible) {
-        i->ignore_left = true;
-    } else if (s->pos >= AFTER_STOP) {
-        return true;
+    if (s->pos >= AFTER_STOP) {
+        if (s->posdist < 0.3) {
+            i->ignore_left = true;
+            return false;
+        } else {
+            return true;
+        }
     }
     return false;
 }
 
 bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    if (s->pos <= BEFORE_STOP && s->stop_visible) {
+    if (s->pos == BEFORE_STOP && s->stop_visible) {
         i->ignore_right = true;
-    } else if (s->pos >= AFTER_STOP && s->posdist >= 0.5) {
-        return true;
     }
+
+    if (s->pos >= AFTER_STOP) {
+        if (s->posdist < 0.7) {
+            i->ignore_right = true;
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     return false;
 }
 
 bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    /* begin holding right before stopline */
-    if ((s->pos <= BEFORE_STOP && s->stop_visible) || s->pos >= AFTER_STOP)
-        i->ignore_left = true;
-
-    /* finish after exit */
-    if (s->pos >= AFTER_STOP && s->posdist > 0.5)
-        return true;
+    if (s->pos >= AFTER_STOP) {
+        if (s->posdist < 1) {
+            i->ignore_left = true;
+            return false;
+        } else {
+            return true;
+        }
+    }
 
     return false;
 }
@@ -371,9 +392,11 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         ctrl->vel.value = 0;
     }
 
+    /*
     if (finished) {
         pthread_mutex_lock(&o->lock);
         o->active = false;
         pthread_mutex_unlock(&o->lock);
     }
+    */
 }
