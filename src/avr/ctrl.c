@@ -10,7 +10,7 @@
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 /* PWM */
-#define VEL_K 1.0/11.45
+#define VEL_K 0.067
 #define DUTY_MAX 0.10
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
