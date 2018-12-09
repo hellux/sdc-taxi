@@ -79,9 +79,9 @@ static void set_constants() {
 
     /* limits */
     thresh_stop_vis = 10;
-    max_lane_error = 0.18*WIDTH;
+    max_lane_error = 0.17*WIDTH;
     lane_width_min = 0.55*WIDTH;
-    lane_width_max = 0.65*WIDTH;
+    lane_width_max = 0.8*WIDTH;
 }
 
 extern "C" struct ip *ip_init(void);
@@ -114,7 +114,7 @@ struct ip {
 };
 
 void ip_reset(struct ip *ip) {
-    ip->lane = cv::Point(WIDTH/2, 0.7*HEIGHT);
+    ip->lane = cv::Point(WIDTH/2, mask_end_y);
     ip->lane_dir = cv::Point(0, -1);
     ip->lane_width = 0.8*WIDTH;
 
