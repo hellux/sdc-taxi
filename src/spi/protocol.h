@@ -101,7 +101,7 @@ const static struct bus_cmd BCSS[16] = {
     {0}, {0}, {0}, {0},
 };
 
-#define MAX_DATA_LENGTH 12
+#define MAX_DATA_LENGTH 16
 
 /* SYN/ACK magic values */
 #define CTRL_ACK 0xc7
