@@ -8,7 +8,7 @@
 
 #include "ip/img_proc.h"
 
-#define PICKUP_TIME 5
+#define PICKUP_TIME 5 /* seconds to wait at pickup */
 
 #define BRAKE_DIST 20
 #define STILL_DIST 0
@@ -67,8 +67,8 @@ bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     return false;
 }
 
-#define PARKED 3
-#define UNPARKING 4
+#define PARKED AFTER_STOP+1
+#define UNPARKING PARKED+1
 
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     switch (s->pos) {
@@ -321,7 +321,17 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
 
     struct ip_res ip_res;
 #ifdef IP
-    ip_process(o->ip, &ip_res);
+    struct ip_osd *osd = NULL;
+#ifdef PLOT
+    struct ip_osd osd_struct = {
+        .cmd = (o->current ? o->current->name : NULL),
+        .pos = o->pos,
+        .postime = sens->time - o->passtime,
+        .posdist = sens->distance - o->passdist,
+    };
+    osd = &osd_struct;
+#endif
+    ip_process(o->ip, &ip_res, osd);
 #endif
     if (ip_res.stopline_passed) {
         o->pos++;

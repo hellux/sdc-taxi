@@ -8,16 +8,8 @@
 #include <chrono>
 #include <thread>
 
-#ifdef VISUAL
-#define PLOT
-#endif
-#ifdef RECORD
-#define PLOT
-#endif
-
 typedef std::vector<cv::Vec4i> lines_t;
 
-#define FONT cv::FONT_HERSHEY_PLAIN
 
 static int WIDTH = 256;
 static int HEIGHT = 144;
@@ -87,7 +79,7 @@ static void set_constants() {
 extern "C" struct ip *ip_init(void);
 extern "C" void ip_destroy(struct ip *ip);
 extern "C" void ip_set_opt(struct ip *ip, struct ip_opt *opt);
-extern "C" void ip_process(struct ip *ip, struct ip_res *res);
+extern "C" void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd);
 extern "C" void ip_reset(struct ip *ip);
 
 struct ip {
@@ -403,7 +395,18 @@ int line_pos_y(lines_t lines, int width) {
     }
 }
 
-void ip_process(struct ip *ip, struct ip_res *res) {
+#ifdef PLOT
+void osd_text(struct ip *ip, const char *str, int x, int y) {
+    cv::Point pos(x, y);
+    cv::Scalar bgcol(0, 0, 0);
+    cv::Scalar fgcol(255, 255, 255);
+    int font = cv::FONT_HERSHEY_PLAIN;
+    cv::putText(*ip->frame, str, pos, font, 1, bgcol, 2);
+    cv::putText(*ip->frame, str, pos, font, 1, fgcol);
+}
+#endif
+
+void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
 	ip->cap->read(*ip->frame);
 
 	if (ip->frame->empty()) {
@@ -561,11 +564,22 @@ void ip_process(struct ip *ip, struct ip_res *res) {
 #endif
     double period = (double)(stop_time-start_time).count()/(1e9);
     start_time = stop_time;
-	std::string fps = std::to_string((int)(1/period));
-    std::string err = std::to_string(res->lane_offset);
-    cv::putText(*ip->frame, fps, cv::Point(0,15), FONT, 1, cvScalar(0,0,0), 2);
+	std::string fpsstr = std::to_string((int)(1/period));
+    osd_text(ip, fpsstr.c_str(), 0, 13*1);
 
-    cv::putText(*ip->frame, err, cv::Point(0,30), FONT, 1, cvScalar(0,100,0), 2);
+    char errstr[10];
+    sprintf(errstr, "%.2f", res->lane_offset);
+    osd_text(ip, errstr, 0, 13*2);
+
+    if (osd) {
+        char osdstr1[64], osdstr2[64], osdstr3[64];
+        sprintf(osdstr1, "%s:%d", osd->cmd, osd->pos);
+        sprintf(osdstr2, "t:%.2f", osd->postime);
+        sprintf(osdstr3, "d:%.2f", osd->posdist);
+        osd_text(ip, osdstr1, WIDTH-13*5, 13);
+        osd_text(ip, osdstr2, WIDTH-13*5, 13*2);
+        osd_text(ip, osdstr3, WIDTH-13*5, 13*3);
+    }
 
     for (auto l : rem) {
         cv::Point start(l[0], l[1]);

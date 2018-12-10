@@ -47,17 +47,20 @@ comm.gdb: CXXFLAGS += $(CXXFLAGS.debug)
 comm.gdb: CFLAGS += $(CFLAGS.debug)
 comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
+comm.sample.visual: CFLAGS += -DVISUAL
 comm.sample.visual: CXXFLAGS += -DVISUAL
 comm.sample.visual: comm.sample
-comm.sample: CFLAGS += $(CFLAGS.debug)
+comm.sample: CFLAGS += $(CFLAGS.debug) -DRECORD -DSAMPLE
 comm.sample: CXXFLAGS += $(CXXFLAGS.debug) -DRECORD -DSAMPLE
 comm.sample: $(BINDIR)/comm
 	$(BINDIR)/$(COMM_BIN) 127.0.0.1 && mpv "opencv.avi"
 comm.pi.release: CXXFLAGS += $(CXXFLAGS.release)
 comm.pi.release: CFLAGS += $(CFLAGS.release)
 comm.pi.release: comm.pi
+comm.pi.record: CFLAGS += -DRECORD
 comm.pi.record: CXXFLAGS += -DRECORD
 comm.pi.record: comm.pi
+comm.pi.visual: CFLAGS += -DVISUAL
 comm.pi.visual: CXXFLAGS += -DVISUAL
 comm.pi.visual: comm.pi
 comm.pi.debug: CXXFLAGS += $(CXXFLAGS.debug)
