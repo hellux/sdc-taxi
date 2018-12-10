@@ -296,6 +296,7 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
         obj->current = NULL;
         obj->queue = queue;
         obj->passtime = 0;
+        obj->passdist = 0;
         obj->pos = BEFORE_STOP;
 #ifdef IP
         ip_reset(obj->ip);
