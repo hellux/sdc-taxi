@@ -9,7 +9,6 @@ class Worker(threading.Thread):
         self.client = client
         self.tasks = tasks
         self.counter = 0
-        self.counter_dist = 0
         
         self.actions = {
             Task.CONNECT    : self.task_connect,
@@ -20,7 +19,8 @@ class Worker(threading.Thread):
             Task.GET_SENSOR : self.get_sensor,
             Task.SET_VEL    : self.set_vel,
             Task.SET_ROT    : self.set_rot,
-            Task.GET_MISSION: self.get_mission
+            Task.GET_MISSION: self.get_mission,
+            Task.SEND_MISSION: self.send_mission
         }
 
         self.move_time = 0
@@ -29,8 +29,10 @@ class Worker(threading.Thread):
 
     def send(self, msg):
         print('worker: sending cmd: ', msg)
-        return self.client.send_cmd_retry(msg)[1]
-
+        if self.client.connected():
+            return self.client.send_cmd_retry(msg)[1]
+        return None
+            
     def send_fmt(self, cmd, *args):
         return self.send(Client.create_msg(cmd, *args))
 
@@ -48,11 +50,11 @@ class Worker(threading.Thread):
         return None
         
     def get_sensor(self):
-        self.counter_dist += 20
-        if self.counter_dist > 140:
-            self.counter_dist = 0
-        return self.send_fmt(Command.GET_DATA).split(' ')
-
+        response = self.send_fmt(Command.GET_DATA)
+        if response:
+            return response.split(' ')
+        return None
+            
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
             self.move_time = schedule_time
@@ -82,7 +84,22 @@ class Worker(threading.Thread):
         return None
     
     def get_mission(self):
-        return self.send_fmt(Command.GET_MISSION)
+        response = self.send_fmt(Command.GET_MISSION)
+        print(response)
+        if response:
+            if response.isdigit():
+                return response
+        return None
+        
+        """
+        self.counter -= 1
+        if self.counter <= 0:
+            self.counter = 5
+        return self.counter
+        """
+    def send_mission(self, mission):
+        #print(mission)
+        self.send_fmt(Command.SET_MISSION, *mission)
     
     def run(self):
         while not self.terminate:

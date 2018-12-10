@@ -11,11 +11,12 @@ from tasks import Task
 class Map():
     NODE_SIZE = 5
     
-    def __init__(self, window, map_frame):
+    def __init__(self, window, map_frame, tasks):
         self.window = window
         self.map_frame = map_frame
+        self.tasks = tasks
         self.map_frame.bind('<Button-1>', self.select)
-        self.map_frame.bind('<Button-2>', self.node_options)
+        self.map_frame.bind('<Button-3>', self.node_options)
         self.nodes = []    
         self.edges = []
         self.selected_node = None
@@ -23,12 +24,6 @@ class Map():
         self.select_mission = False
         self.mission_node = None
         self.path = []
-        self.latest_node_distance = 0
-        self.total_distance = 0
-        
-        self.previous_pos = 0
-        self.current_pos = 0
-        
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -43,18 +38,15 @@ class Map():
     def draw(self):
         self.map_frame.delete("all")
         mission_edge = self.get_current_edge_mission()
-        dist = self.get_traveled_on_edge(mission_edge)
         
-
-        print("DIST: " + str(dist))
         for edge in self.edges:
             if(edge == self.selected_edge):
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=2, arrow=tk.LAST)
             else:
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2, arrow=tk.LAST)
         
-        if mission_edge and dist > 0:        
-            self.map_frame.create_line(mission_edge.start.pos_x, mission_edge.start.pos_y, mission_edge.end.pos_x*dist, mission_edge.end.pos_y*dist, fill="purple", width=2)
+        if mission_edge:
+            self.map_frame.create_line(mission_edge.start.pos_x, mission_edge.start.pos_y, mission_edge.end.pos_x, mission_edge.end.pos_y, fill="purple", width=2)
                 
                 
         for node in self.nodes:
@@ -70,7 +62,6 @@ class Map():
         return None
         
     def get_edge_pos(self, x, y):
-        
         for edge in self.edges:
             if min(edge.start.pos_x, edge.end.pos_x)+2 < x < max(edge.end.pos_x, edge.start.pos_x)-2:
                 if(edge.end.pos_x-edge.start.pos_x != 0):
@@ -91,9 +82,11 @@ class Map():
         current_node = self.get_node(event.x, event.y)
         
         if self.select_mission and self.selected_node:
+            print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
-            create_mission(self.path)
+            
+            self.tasks.put(Task.SEND_MISSION, create_mission(self.path))
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -124,39 +117,23 @@ class Map():
         self.cost_entry.pack()
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
         self.cost_entry.focus_force()
-    
-    def restore_node_color(self, node):
-        if node.type == NodeType.STOPLINE:
-            node.color = 'red'
-        elif node.type == NodeType.PARKING:
-            node.color = 'yellow'
-        elif node.type == NodeType.ROUNDABOUT:
-            node.color = 'blue'
             
     def get_current_edge_mission(self):
         if self.mission_node:
             for edge in self.mission_node.outgoing:
-                if edge.end == self.path[self.current_pos+1]:
+                if edge.start == self.path[self.current_pos]:
                     return edge
         return None
-        
-    def get_traveled_on_edge(self, edge):
-        if edge:
-            print(str(self.total_distance) + " - " + str(self.latest_node_distance) + " / " + str(edge.cost))
-            return (self.total_distance - self.latest_node_distance)/edge.cost
-        return 0
-    
+
     def get_current_node_mission(self, index):
-        if self.previous_pos != self.current_pos:
-                self.latest_node_distance = self.total_distance
-                self.previous_pos = self.current_pos
-        self.current_pos = int(index)-len(self.path)
         if self.mission_node:
             self.restore_node_color(self.mission_node)
-        if self.current_pos < len(self.path):
+
+        if index <= len(self.path):
+            self.current_pos = len(self.path)-index
             self.mission_node = self.path[self.current_pos]
             self.draw()
-            
+
     def create_edge(self, node_start, node_end, cost):
         if cost < 0:
             print("INPUT POSITIVE COST")
@@ -242,7 +219,7 @@ class GUI():
         self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
         #MAP
-        self.map = Map(self.window, self.map_frame)
+        self.map = Map(self.window, self.map_frame, self.tasks)
         
         #BUTTONS
         sendCommandButton = tk.Button(self.window, text="Send command", command=self.send_command)
