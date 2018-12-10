@@ -9,7 +9,6 @@ class Worker(threading.Thread):
         self.client = client
         self.tasks = tasks
         self.counter = 0
-        self.counter_dist = 0
         
         self.actions = {
             Task.CONNECT    : self.task_connect,
@@ -28,9 +27,11 @@ class Worker(threading.Thread):
         self.terminate = False
 
     def send(self, msg):
-        print('worker: sending cmd: ', msg)
-        return self.client.send_cmd_retry(msg)[1]
-
+        #print('worker: sending cmd: ', msg)
+        if self.client.connected():
+            return self.client.send_cmd_retry(msg)[1]
+        return None
+            
     def send_fmt(self, cmd, *args):
         return self.send(Client.create_msg(cmd, *args))
 
@@ -48,11 +49,11 @@ class Worker(threading.Thread):
         return None
         
     def get_sensor(self):
-        self.counter_dist += 10
-        if self.counter_dist > 140:
-            self.counter_dist = 0
-        return self.send_fmt(Command.GET_DATA).split(' ')
-
+        response = self.send_fmt(Command.GET_DATA)
+        if response:
+            return response.split(' ')
+        return None
+            
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
             self.move_time = schedule_time
@@ -82,7 +83,19 @@ class Worker(threading.Thread):
         return None
     
     def get_mission(self):
-        return self.send_fmt(Command.GET_MISSION)
+        response = self.send_fmt(Command.GET_MISSION)
+        
+        if response.isdigit():
+            return response
+        return None
+        
+        """
+        self.counter -= 1
+        if self.counter <= 0:
+            self.counter = 5
+        return self.counter
+        """
+
     
     def run(self):
         while not self.terminate:

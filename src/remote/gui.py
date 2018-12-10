@@ -23,12 +23,6 @@ class Map():
         self.select_mission = False
         self.mission_node = None
         self.path = []
-        self.latest_node_distance = 0
-        self.total_distance = 0
-        
-        self.previous_pos = 0
-        self.current_pos = 0
-        
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -43,18 +37,15 @@ class Map():
     def draw(self):
         self.map_frame.delete("all")
         mission_edge = self.get_current_edge_mission()
-        dist = self.get_traveled_on_edge(mission_edge)
         
-
-        print("DIST: " + str(dist))
         for edge in self.edges:
             if(edge == self.selected_edge):
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=2, arrow=tk.LAST)
             else:
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2, arrow=tk.LAST)
         
-        if mission_edge and dist > 0:        
-            self.map_frame.create_line(mission_edge.start.pos_x, mission_edge.start.pos_y, mission_edge.end.pos_x*dist, mission_edge.end.pos_y*dist, fill="purple", width=2)
+        if mission_edge:
+            self.map_frame.create_line(mission_edge.start.pos_x, mission_edge.start.pos_y, mission_edge.end.pos_x, mission_edge.end.pos_y, fill="purple", width=2)
                 
                 
         for node in self.nodes:
@@ -70,7 +61,6 @@ class Map():
         return None
         
     def get_edge_pos(self, x, y):
-        
         for edge in self.edges:
             if min(edge.start.pos_x, edge.end.pos_x)+2 < x < max(edge.end.pos_x, edge.start.pos_x)-2:
                 if(edge.end.pos_x-edge.start.pos_x != 0):
@@ -137,31 +127,19 @@ class Map():
     def get_current_edge_mission(self):
         if self.mission_node:
             for edge in self.mission_node.outgoing:
-                if edge.end == self.path[self.current_pos]:
+                if edge.start == self.path[self.current_pos]:
                     return edge
         return None
-        
-    def get_traveled_on_edge(self, edge):
-        if edge:
-            print(str(self.total_distance) + " - " + str(self.latest_node_distance) + " / " + str(edge.cost))
-            return (self.total_distance - self.latest_node_distance)/edge.cost
-        return 0
-    
+
     def get_current_node_mission(self, index):
         if self.mission_node:
             self.restore_node_color(self.mission_node)
 
-        if index <= len(self.path) and index > 0:
+        if index <= len(self.path):
             self.current_pos = len(self.path)-index
             self.mission_node = self.path[self.current_pos]
             self.draw()
-        
-            if self.previous_pos != self.current_pos:
-                self.latest_node_distance = self.total_distance
-                self.previous_pos = self.current_pos
-        
-                print("CURRENT: " + str(self.current_pos)+ " PREVIOUS: " + str(self.previous_pos))
-            
+
     def create_edge(self, node_start, node_end, cost):
         if cost < 0:
             print("INPUT POSITIVE COST")
