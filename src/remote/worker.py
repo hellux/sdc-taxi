@@ -85,7 +85,7 @@ class Worker(threading.Thread):
     
     def get_mission(self):
         response = self.send_fmt(Command.GET_MISSION)
-        
+        print(response)
         if response:
             if response.isdigit():
                 return response
