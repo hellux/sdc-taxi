@@ -39,7 +39,9 @@ class Worker(threading.Thread):
         return self.client.connect()
 
     def task_send(self, msg):
-        return 'response: {}'.format(self.send(msg))
+        response = self.send(msg)
+        print(response)
+        return response
 
     def task_kill(self):
         self.terminate = True
@@ -49,8 +51,7 @@ class Worker(threading.Thread):
         self.counter_dist += 20
         if self.counter_dist > 140:
             self.counter_dist = 0
-        return ("60, 9, 2," + str(self.counter_dist) + ",0.5").split(',')
-        #return self.send_fmt(Command.GET_DATA).split(',')
+        return self.send_fmt(Command.GET_DATA).split(' ')
 
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
@@ -81,11 +82,7 @@ class Worker(threading.Thread):
         return None
     
     def get_mission(self):
-        self.counter += 1
-        if self.counter > 5:
-            self.counter = 0
-        return self.counter
-        #return self.send_fmt(Command.GET_MISSION)
+        return self.send_fmt(Command.GET_MISSION)
     
     def run(self):
         while not self.terminate:

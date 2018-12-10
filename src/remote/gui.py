@@ -150,10 +150,7 @@ class Map():
         if self.previous_pos != self.current_pos:
                 self.latest_node_distance = self.total_distance
                 self.previous_pos = self.current_pos
-        
-        print("CURRENT: " + str(self.current_pos))
-        print("PREVIOUS: " + str(self.previous_pos))
-        self.current_pos = index-len(self.path)
+        self.current_pos = int(index)-len(self.path)
         if self.mission_node:
             self.restore_node_color(self.mission_node)
         if self.current_pos < len(self.path):
@@ -401,7 +398,7 @@ class GUI():
         self.window.unbind("<Down>")
 
     def display_info(self, sensor_data):
-        self.map.total_distance = int(sensor_data[3])
+        self.map.total_distance = float(sensor_data[3])
         self.info_list.delete(0, 'end')
         info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
         for info in info_labels:
