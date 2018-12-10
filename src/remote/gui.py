@@ -91,6 +91,7 @@ class Map():
         current_node = self.get_node(event.x, event.y)
         
         if self.select_mission and self.selected_node:
+            print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
             create_mission(self.path)
@@ -136,7 +137,7 @@ class Map():
     def get_current_edge_mission(self):
         if self.mission_node:
             for edge in self.mission_node.outgoing:
-                if edge.end == self.path[self.current_pos+1]:
+                if edge.end == self.path[self.current_pos]:
                     return edge
         return None
         
@@ -147,18 +148,19 @@ class Map():
         return 0
     
     def get_current_node_mission(self, index):
-        if self.previous_pos != self.current_pos:
+        if self.mission_node:
+            self.restore_node_color(self.mission_node)
+
+        if index <= len(self.path) and index > 0:
+            self.current_pos = len(self.path)-index
+            self.mission_node = self.path[self.current_pos]
+            self.draw()
+        
+            if self.previous_pos != self.current_pos:
                 self.latest_node_distance = self.total_distance
                 self.previous_pos = self.current_pos
         
-        print("CURRENT: " + str(self.current_pos))
-        print("PREVIOUS: " + str(self.previous_pos))
-        self.current_pos = index-len(self.path)
-        if self.mission_node:
-            self.restore_node_color(self.mission_node)
-        if self.current_pos < len(self.path):
-            self.mission_node = self.path[self.current_pos]
-            self.draw()
+                print("CURRENT: " + str(self.current_pos)+ " PREVIOUS: " + str(self.previous_pos))
             
     def create_edge(self, node_start, node_end, cost):
         if cost < 0:

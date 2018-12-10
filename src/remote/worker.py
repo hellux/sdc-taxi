@@ -46,7 +46,7 @@ class Worker(threading.Thread):
         return None
         
     def get_sensor(self):
-        self.counter_dist += 20
+        self.counter_dist += 10
         if self.counter_dist > 140:
             self.counter_dist = 0
         return ("60, 9, 2," + str(self.counter_dist) + ",0.5").split(',')
