@@ -28,12 +28,12 @@
 #define OCR_ROT OCR1A
 
 #define VEL_KP_DEF 1
-#define VEL_KI_DEF 1
-#define VEL_KD_DEF 1
+#define VEL_KI_DEF 0
+#define VEL_KD_DEF 0
 
-#define ROT_KP_DEF 1
+#define ROT_KP_DEF 1.5
 #define ROT_KI_DEF 0
-#define ROT_KD_DEF 15
+#define ROT_KD_DEF 0.2
 
 /* killswitch */
 #define KS_OCR OCR3A
