@@ -6,8 +6,6 @@
 
 #include <pthread.h>
 
-#include "ip/img_proc.h"
-
 #define PICKUP_TIME 5 /* seconds to wait at pickup */
 
 #define BRAKE_DIST 20
@@ -21,13 +19,8 @@
 
 /* initial positions */
 
-#define BEFORE_PREV 0
-#define BEFORE_STOP 1
-#define AFTER_STOP 2
-
-float wtd_speed(float distance, float current, float target) {
-    return current - distance*(current-target);
-}
+#define BEFORE_STOP 0
+#define AFTER_STOP 1
 
 struct state {
     const struct sens_val *sens; 
@@ -165,12 +158,13 @@ struct obj {
     bool active;
     struct obj_cmd const *current;
     struct obj_item *queue;
-    pthread_mutex_t lock;
 
     /* current command state */
     double passtime; /* time when passing stopline or changing pos */
     double passdist;
     int pos;
+
+    pthread_mutex_t lock;
 };
 
 #define CMD_IGNORE   "ignr"
@@ -299,6 +293,7 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
     if (cmdc == 0 || queue) {
         pthread_mutex_lock(&obj->lock);
         queue_destroy(obj->queue);
+        obj->current = NULL;
         obj->queue = queue;
         obj->passtime = 0;
         obj->pos = BEFORE_STOP;
@@ -314,10 +309,12 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
 
 /* execute objective command */
 void obj_execute(struct obj *o, const struct sens_val *sens,
-        struct ctrl_val *ctrl) {
+        struct ctrl_val *ctrl, struct ip_res *ip_save) {
     bool finished = false;
 
-    /* get next command if needed */
+    pthread_mutex_lock(&o->lock);
+
+    /* get current command */
     if (!o->current && o->queue) {
         o->current = o->queue->cmd;
         o->queue = o->queue->next;
@@ -328,7 +325,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     struct ip_osd *osd = NULL;
 #ifdef PLOT
     struct ip_osd osd_struct = {
-        .cmd = (o->current ? o->current->name : NULL),
+        .cmd = (o->current ? o->current->name : "none"),
         .pos = o->pos,
         .postime = sens->time - o->passtime,
         .posdist = sens->distance - o->passdist,
@@ -337,11 +334,11 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
 #endif
     ip_process(o->ip, &ip_res, osd);
 #endif
+
     if (ip_res.stopline_passed) {
         o->pos++;
         o->passtime = sens->time;
         o->passdist = sens->distance;
-        printf("pos: %d, obj: %s\n", o->pos, o->current->name);
     }
 
     ctrl->vel.value = 0;
@@ -359,7 +356,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         state.stop_dist = ip_res.stopline_dist;
         state.postime = sens->time - o->passtime;
         state.posdist = sens->distance - o->passdist;
-        state.last_cmd = o->queue == NULL;
+        state.last_cmd = !o->queue;
         state.pos = o->pos;
 
         struct ip_opt opt = {0};
@@ -375,12 +372,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         }
 
         if (cmd_finished) {
-            printf("finished cmd\n");
-            if (o->pos <= AFTER_STOP) {
-                o->pos--;
-            } else {
-                o->pos = 1;
-            }
+            o->pos = BEFORE_STOP;
             o->current = NULL;
         }
 
@@ -390,11 +382,13 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         ctrl->vel.value = 0;
     }
 
-    /*
-       if (finished) {
-       pthread_mutex_lock(&o->lock);
+    if (finished) {
        o->active = false;
-       pthread_mutex_unlock(&o->lock);
-       }
-       */
+    }
+
+    if (ip_save) {
+        *ip_save = ip_res;
+    }
+
+    pthread_mutex_unlock(&o->lock);
 }

@@ -23,6 +23,7 @@ static struct timespec ts_start;
 
 struct data_sensors {
     struct sens_val val;
+    struct ip_res ip;
     
     pthread_mutex_t lock;
 };
@@ -36,16 +37,18 @@ struct data_rc {
 
 /* server commands */
 bool sc_get_sens(struct srv_cmd_args *a) {
-    pthread_mutex_t lock = ((struct data_sensors*)a->data1)->lock;
-    struct sens_val *sensors = (struct sens_val*)a->data1;
+    struct data_sensors *sens_data = (struct data_sensors*)a->data1;
 
-    struct sens_val local;
-    pthread_mutex_lock(&lock);
-    local = *sensors;
-    pthread_mutex_unlock(&lock);
+    struct sens_val sens;
+    struct ip_res ip;
+    pthread_mutex_lock(&sens_data->lock);
+    sens = sens_data->val;
+    ip = sens_data->ip;
+    pthread_mutex_unlock(&sens_data->lock);
 
-    a->resp = str_create("%f %f %f %f 0",
-        local.dist_front, local.dist_right, local.velocity, local.distance);   
+    a->resp = str_create("%f %f %f %f %f",
+        sens.dist_front, sens.dist_right, sens.velocity,
+        sens.distance, ip.lane_offset);
 
     return true;
 }
@@ -224,7 +227,11 @@ int main(int argc, char* args[]) {
 
         /* determine new ctrl values */
         if (obj_active(obj)) {
-            obj_execute(obj, &sens, &ctrl);
+            struct ip_res ip_res;
+            obj_execute(obj, &sens, &ctrl, &ip_res);
+            pthread_mutex_lock(&sens_data.lock);
+            sens_data.ip = ip_res;
+            pthread_mutex_unlock(&sens_data.lock);
         } else {
             struct timespec ts_wait = {0, WAIT_RC};
             nanosleep(&ts_wait, NULL);
