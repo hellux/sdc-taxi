@@ -84,7 +84,7 @@ class Map():
             print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
-            create_mission(self.path)
+            Task.put(Task.SEND_MISSION, create_mission(self.path))
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:

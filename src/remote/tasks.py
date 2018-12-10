@@ -11,6 +11,7 @@ class Task(Enum):
     SET_VEL = auto()
     SET_ROT = auto()
     GET_MISSION = auto()
+    SEND_MISSION = auto()
 
 class TaskQueue():
     def __init__(self):

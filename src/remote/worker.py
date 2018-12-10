@@ -19,7 +19,8 @@ class Worker(threading.Thread):
             Task.GET_SENSOR : self.get_sensor,
             Task.SET_VEL    : self.set_vel,
             Task.SET_ROT    : self.set_rot,
-            Task.GET_MISSION: self.get_mission
+            Task.GET_MISSION: self.get_mission,
+            Task.SEND_MISSION: self.send_mission
         }
 
         self.move_time = 0
@@ -95,7 +96,8 @@ class Worker(threading.Thread):
             self.counter = 5
         return self.counter
         """
-
+    def send_mission(self, mission):
+        self.send_fmt(Command.SEND_MISSION, mission)
     
     def run(self):
         while not self.terminate:
