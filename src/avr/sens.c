@@ -9,7 +9,7 @@
 #include "lcd.h"
 
 #include "bus.h"
-#include "../spi/protocol.h"
+#include "protocol.h"
 
 #define ADC_PRESCALER_128 0x07
 
@@ -24,18 +24,44 @@
 
 #define WHEEL_CIRCUM 0.265
 #define WHEEL_N 10 /* number of interrupts per rotation */
+#define WHEEL_N_DIST WHEEL_CIRCUM / WHEEL_N /* distance per measure */
+
+#define WL_OCR OCR1A
+#define WL_TCNT TCNT1
+#define WR_OCR OCR3A
+#define WR_TCNT TCNT3
+
+#define WT_PSC 1024
+#define WT_TOP 65535
 
 const struct sens_data SENS_EMPTY = {0};
 
 volatile struct sens_data sensors; 
-volatile unsigned wheel_sensor_cntr;
+
+volatile uint16_t wheel_left_count = 0;
+volatile uint16_t wheel_left_period = WT_TOP;
+volatile uint16_t wheel_right_count = 0;
+volatile uint16_t wheel_right_period = WT_TOP;
 
 void reset(void) {
     sensors = SENS_EMPTY;
 }
 
 void wheel_init(){
-    /* enable interrupts? */
+    /* setup timer for velocity calculation */
+    TIMSK1 = (1<<OCIE1A);
+    TCCR1B = (1<<WGM12)|(1<<CS12)|(1<<CS10);
+    TCCR1A = 0;
+    WL_TCNT = 0;
+    WL_OCR = WT_TOP;
+
+    TIMSK3 = (1<<OCIE3A);
+    TCCR3B = (1<<WGM32)|(1<<CS32)|(1<<CS30);
+    TCCR3A = 0;
+    WR_TCNT = 0;
+    WR_OCR = WT_TOP;
+
+    /* enable external interrupts */
     EIMSK = (1<<INT0)|(1<<INT1);
     /* Trigger on rising edge */
     EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
@@ -65,15 +91,32 @@ uint16_t adc_read(uint8_t channel) {
     return (ADC); //ADCL-ADCH
 }
 
-ISR(INT0_vect) {
+ISR(TIMER1_COMPA_vect) {
     cli();
-    wheel_sensor_cntr++;
+    wheel_left_period = WT_TOP;
     sei();
 }
 
+ISR(INT0_vect) {
+    cli();
+    wheel_left_count++;
+    wheel_left_period = WL_TCNT;
+    sei();
+}
+
+/* right wheel has stopped */
+ISR(TIMER3_COMPA_vect) {
+    cli();
+    wheel_right_period = WT_TOP;
+    sei();
+}
+
+/* right wheel sensor detect */
 ISR(INT1_vect) {
     cli();
-    wheel_sensor_cntr++;
+    wheel_right_count++;
+    wheel_right_period = WR_TCNT;
+    WR_TCNT = 0;
     sei();
 }
 
@@ -108,7 +151,8 @@ int main(void) {
     while (1) {
         /* get new sensor values */
         cli();
-        unsigned wheel_cntr = wheel_sensor_cntr;
+        uint16_t wheel_count = wheel_left_count + wheel_right_count;
+        uint32_t wheel_period = wheel_left_period + wheel_right_period;
         sei();
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
@@ -116,7 +160,8 @@ int main(void) {
         /* write to local struct */
         sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
         sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
-        sens_local.distance = WHEEL_CIRCUM/WHEEL_N*wheel_cntr / 2;
+        sens_local.distance = WHEEL_CIRCUM/WHEEL_N*wheel_count / 2;
+        sens_local.velocity = 2.0*F_CPU*WHEEL_N_DIST/WT_PSC/wheel_period;
 
         /* save local struct to global one */
         cli();
@@ -130,12 +175,16 @@ int main(void) {
         lcd_send_string("F:");
         dtostrf(sens_local.dist_front, 5, 2, buf);
         lcd_send_string(buf);
-        lcd_set_ddram(ROW2ADR);
         dtostrf(sens_local.dist_right, 5, 2, buf);
-        lcd_send_string("R:");
+        lcd_send_string(" R:");
         lcd_send_string(buf);
-        lcd_send_string(" D:");
+        lcd_set_ddram(ROW2ADR);
+        lcd_send_string("D:");
         dtostrf(sens_local.distance, 5, 2, buf);
+        lcd_send_string(buf);
+        lcd_send_string(" V:");
+        dtostrf(sens_local.velocity, 5, 2, buf);
+        //ltoa(wheel_right_period, buf, 10);
         lcd_send_string(buf);
 #endif
     }
