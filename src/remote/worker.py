@@ -28,7 +28,7 @@ class Worker(threading.Thread):
         self.terminate = False
 
     def send(self, msg):
-        #print('worker: sending cmd: ', msg)
+        print('worker: sending cmd: ', msg)
         if self.client.connected():
             return self.client.send_cmd_retry(msg)[1]
         return None
@@ -86,8 +86,9 @@ class Worker(threading.Thread):
     def get_mission(self):
         response = self.send_fmt(Command.GET_MISSION)
         
-        if response.isdigit():
-            return response
+        if response:
+            if response.isdigit():
+                return response
         return None
         
         """
@@ -97,7 +98,8 @@ class Worker(threading.Thread):
         return self.counter
         """
     def send_mission(self, mission):
-        self.send_fmt(Command.SEND_MISSION, mission)
+        #print(mission)
+        self.send_fmt(Command.SET_MISSION, *mission)
     
     def run(self):
         while not self.terminate:

@@ -11,9 +11,10 @@ from tasks import Task
 class Map():
     NODE_SIZE = 5
     
-    def __init__(self, window, map_frame):
+    def __init__(self, window, map_frame, tasks):
         self.window = window
         self.map_frame = map_frame
+        self.tasks = tasks
         self.map_frame.bind('<Button-1>', self.select)
         self.map_frame.bind('<Button-3>', self.node_options)
         self.nodes = []    
@@ -84,7 +85,8 @@ class Map():
             print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
-            Task.put(Task.SEND_MISSION, create_mission(self.path))
+            
+            self.tasks.put(Task.SEND_MISSION, create_mission(self.path))
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -115,14 +117,6 @@ class Map():
         self.cost_entry.pack()
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
         self.cost_entry.focus_force()
-    
-    def restore_node_color(self, node):
-        if node.type == NodeType.STOPLINE:
-            node.color = 'red'
-        elif node.type == NodeType.PARKING:
-            node.color = 'yellow'
-        elif node.type == NodeType.ROUNDABOUT:
-            node.color = 'blue'
             
     def get_current_edge_mission(self):
         if self.mission_node:
@@ -225,7 +219,7 @@ class GUI():
         self.console = tk.Entry(self.window, text="Enter command", highlightbackground="black")
 
         #MAP
-        self.map = Map(self.window, self.map_frame)
+        self.map = Map(self.window, self.map_frame, self.tasks)
         
         #BUTTONS
         sendCommandButton = tk.Button(self.window, text="Send command", command=self.send_command)
