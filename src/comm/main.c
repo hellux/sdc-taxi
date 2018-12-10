@@ -44,7 +44,7 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     local = *sensors;
     pthread_mutex_unlock(&lock);
 
-    a->resp = str_create("%f %f %f %f",
+    a->resp = str_create("%f %f %f %f 0",
         local.dist_front, local.dist_right, local.velocity, local.distance);   
 
     return true;
@@ -141,7 +141,7 @@ void bsh_sens_recv(void *received, void *data) {
     double time = ts_diff.tv_sec + ts_diff.tv_nsec/1e9;
 
     float velocity = 0;
-    if (time-time_prev > 0.4) {
+    if (time-time_prev > 0.5) {
         velocity = (sd->distance-distance_prev)/(time-time_prev);
         time_prev = time;
         distance_prev = sd->distance;
@@ -247,14 +247,7 @@ int main(int argc, char* args[]) {
         */
 
         /* send new ctrl commands */
-        int bcc_vel;
-        /*
-        if (ctrl.vel.regulate) {
-            bcc_vel = BBC_VEL_ERR;
-            ctrl.vel.value = ctrl.vel.value - sens.velocity;
-        } else {
-        */
-        bcc_vel = BBC_VEL_VAL;
+        int bcc_vel = BBC_VEL_VAL;
         int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
 
         bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL);
