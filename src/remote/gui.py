@@ -15,7 +15,7 @@ class Map():
         self.window = window
         self.map_frame = map_frame
         self.map_frame.bind('<Button-1>', self.select)
-        self.map_frame.bind('<Button-3>', self.node_options)
+        self.map_frame.bind('<Button-2>', self.node_options)
         self.nodes = []    
         self.edges = []
         self.selected_node = None

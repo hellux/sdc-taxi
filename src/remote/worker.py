@@ -66,14 +66,14 @@ class Worker(threading.Thread):
         self.send_fmt(Command.SET_STATE, auto)
         return None
 
-    def set_vel(self, kd, kp):
+    def set_vel(self, kp, kd):
         if kd:
             self.send_fmt(Command.SET_VEL_KD, float(kd))
         if kp:
             self.send_fmt(Command.SET_VEL_KP, float(kp))   
         return None
     
-    def set_rot(self, kd, kp):
+    def set_rot(self, kp, kd):
         if kd:
              self.send_fmt(Command.SET_ROT_KD, float(kd))
         if kp:
