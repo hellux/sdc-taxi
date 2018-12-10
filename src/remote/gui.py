@@ -403,7 +403,7 @@ class GUI():
         self.window.unbind("<Down>")
 
     def display_info(self, sensor_data):
-        self.map.total_distance = int(sensor_data[3])
+        self.map.total_distance = float(sensor_data[3])
         self.info_list.delete(0, 'end')
         info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
         for info in info_labels:
