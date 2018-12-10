@@ -26,11 +26,13 @@ bool cs_check(cs_t cs, void *data, int len);
 typedef float ctrl_val_t;
 typedef float sens_dist_t;
 typedef float sens_odom_t;
+typedef float sens_vel_t;
 
 struct sens_data {
     sens_dist_t dist_front;
     sens_dist_t dist_right;
     sens_odom_t distance;
+    sens_vel_t velocity;
 };
 
 struct bus_cmd {
