@@ -14,8 +14,8 @@
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
-#define SLOW_VEL 0.8
-#define FULL_VEL 0.8
+#define SLOW_VEL 0.4
+#define FULL_VEL 0.7
 
 /* initial positions */
 
