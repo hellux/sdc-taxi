@@ -41,6 +41,7 @@ static double weight_lx;
 static double weight_sd;
 
 static int thresh_stop_vis;
+static int lane_center;
 static int max_lane_error;
 static int lane_width_min;
 static int lane_width_max;
@@ -71,6 +72,7 @@ static void set_constants() {
 
     /* limits */
     thresh_stop_vis = 10;
+    lane_center = 0.48*WIDTH;
     max_lane_error = 0.17*WIDTH;
     lane_width_min = 0.55*WIDTH;
     lane_width_max = 0.8*WIDTH;
@@ -106,7 +108,7 @@ struct ip {
 };
 
 void ip_reset(struct ip *ip) {
-    ip->lane = cv::Point(WIDTH/2, mask_end_y);
+    ip->lane = cv::Point(lane_center, mask_end_y);
     ip->lane_dir = cv::Point(0, -1);
     ip->lane_width = 0.8*WIDTH;
 
@@ -540,7 +542,7 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
     ip->stop_vis = std::min(std::max(ip->stop_vis, 0), thresh_stop_vis*2);
 
     /* write to result struct */
-    res->lane_offset = (float)(ip->lane.x-WIDTH/2)/(max_lane_error);
+    res->lane_offset = (float)(ip->lane.x-lane_center)/(max_lane_error);
     res->lane_right_visible = right.size() > 0;
     res->lane_left_visible = left.size() > 0;
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
@@ -636,16 +638,16 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
              cv::Point(lane_right_x, ip->lane.y), 3,
              cv::Scalar(255,0,0), CV_FILLED);
     cv::circle(*ip->frame,
-             cv::Point(WIDTH/2, ip->lane.y), 2,
+             cv::Point(lane_center, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(*ip->frame,
              cv::Point(ip->lane.x, ip->lane.y), 2,
              cv::Scalar(255, 0, 255), CV_FILLED);
     cv::circle(*ip->frame,
-             cv::Point(WIDTH/2+max_lane_error, ip->lane.y), 2,
+             cv::Point(lane_center+max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
     cv::circle(*ip->frame,
-             cv::Point(WIDTH/2-max_lane_error, ip->lane.y), 2,
+             cv::Point(lane_center-max_lane_error, ip->lane.y), 2,
              cv::Scalar(0, 0, 0), CV_FILLED);
     if (stopline_passed) {
         cv::circle(*ip->frame, cv::Point(WIDTH/2, HEIGHT/2),
