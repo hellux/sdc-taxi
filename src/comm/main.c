@@ -130,10 +130,6 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* bus signal handler, called by bus thread when transmission finished */
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
-    static float distance_prev = 0;
-    static double time_prev = 0;
-    static float velocity_prev = 0;
-
     struct sens_data *sd = (struct sens_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
@@ -143,21 +139,11 @@ void bsh_sens_recv(void *received, void *data) {
                                ts_now.tv_nsec - ts_start.tv_nsec};
     double time = ts_diff.tv_sec + ts_diff.tv_nsec/1e9;
 
-    float velocity = 0;
-    if (time-time_prev > 0.5) {
-        velocity = (sd->distance-distance_prev)/(time-time_prev);
-        time_prev = time;
-        distance_prev = sd->distance;
-        velocity_prev = velocity;
-    } else {
-        velocity = velocity_prev;
-    }
-
     struct sens_val sens_new = {
         .dist_front = sd->dist_front,
         .dist_right = sd->dist_right,
         .distance = sd->distance,
-        .velocity = velocity,
+        .velocity = sd->velocity,
         .time = time,
     };
 
@@ -261,8 +247,10 @@ int main(int argc, char* args[]) {
         bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL);
     }
 
+    /*
     bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
     bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
+    */
 
     goto exit;
 fail:
