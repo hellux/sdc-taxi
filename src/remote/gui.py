@@ -392,7 +392,8 @@ class GUI():
     def display_info(self, sensor_data):
         self.map.total_distance = float(sensor_data[3])
         self.info_list.delete(0, 'end')
-        info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
+        info_labels = ["Front", "Right", "Speed", "Distance", "Error",
+                       "set speed", "set rotation"]
         for info in info_labels:
             self.info_list.insert(info_labels.index(info), info + ": " + sensor_data[info_labels.index(info)])
         
