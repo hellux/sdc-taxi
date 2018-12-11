@@ -130,7 +130,7 @@ bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
-        i->ignore_left;
+        i->ignore_left = true;
     } else if (s->pos >= AFTER_STOP) {
         if (s->posdist < 1) {
             i->ignore_left = true;
@@ -243,7 +243,7 @@ struct obj *obj_create(void) {
     struct obj *obj = calloc(1, sizeof(*obj));
     pthread_mutex_init(&obj->lock, 0);
     obj->ip = ip;
-    obj_set_mission(obj, 0, NULL);
+    obj_set_mission(obj, 0, NULL, false);
 
     return obj;
 }
@@ -289,14 +289,24 @@ int obj_remaining(obj_t *obj) {
     return remaining;
 }
 
-bool obj_set_mission(obj_t *obj, int cmdc, char **cmds) {
+bool obj_set_mission(obj_t *obj, int cmdc, char **cmds, bool append) {
     struct obj_item *queue = queue_create(cmdc, cmds);
 
     if (cmdc == 0 || queue) {
         pthread_mutex_lock(&obj->lock);
-        queue_destroy(obj->queue);
-        obj->current = NULL;
-        obj->queue = queue;
+        if (append) {
+            if (obj->queue) {
+                struct obj_item *last = obj->queue;
+                while (last->next) last = last->next;
+                last->next = queue;
+            } else {
+                obj->queue = queue;
+            }
+        } else {
+            obj->current = NULL;
+            queue_destroy(obj->queue);
+            obj->queue = queue;
+        }
         obj->passtime = 0;
         obj->passdist = 0;
         obj->pos = BEFORE_STOP;

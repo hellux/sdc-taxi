@@ -60,8 +60,14 @@ bool sc_get_mission(struct srv_cmd_args *a) {
 }
 
 bool sc_set_mission(struct srv_cmd_args *a) {
-    bool success = obj_set_mission((obj_t*)a->data1, a->argc-1, a->args+1);
+    bool success = obj_set_mission((obj_t*)a->data1, a->argc-1, a->args+1, false);
     a->resp = str_create((success ? "mission set" : "invalid mission"));
+    return success;
+}
+
+bool sc_append_mission(struct srv_cmd_args *a) {
+    bool success = obj_set_mission((obj_t*)a->data1, a->argc-1, a->args+1, true);
+    a->resp = str_create((success ? "mission appended" : "invalid mission"));
     return success;
 }
 
@@ -183,8 +189,9 @@ int main(int argc, char* args[]) {
 
     struct srv_cmd cmds[] = {
     {"get_sensor",  0, &sens_data,        NULL,            *sc_get_sens},
-    {"get_mission", 0, obj,               NULL,            *sc_get_mission},
-    {"set_mission", 0, obj,               NULL,            *sc_set_mission},
+    {"get_miss",    0, obj,               NULL,            *sc_get_mission},
+    {"set_miss",    0, obj,               NULL,            *sc_set_mission},
+    {"app_miss",    0, obj,               NULL,            *sc_append_mission},
     {"set_state",   1, obj,               NULL,            *sc_set_state},
     {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
     {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
