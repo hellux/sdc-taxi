@@ -55,9 +55,9 @@ static void set_constants() {
     line_max_gap = 40;
 
     /* masking */
-    mask_width_top = 0.75*WIDTH;
+    mask_width_top = 0.55*WIDTH;
     mask_start_y = 0.9*HEIGHT;
-    mask_end_y = 0.52*HEIGHT;
+    mask_end_y = 0.5*HEIGHT;
 
     /* classificication */
     thresh_angle_lane = 0.3*CV_PI;
@@ -73,9 +73,9 @@ static void set_constants() {
     /* limits */
     thresh_stop_vis = 10;
     lane_center = 0.48*WIDTH;
-    max_lane_error = 0.17*WIDTH;
-    lane_width_min = 0.55*WIDTH;
-    lane_width_max = 0.8*WIDTH;
+    max_lane_error = 0.4*WIDTH;
+    lane_width_min = 0.45*WIDTH;
+    lane_width_max = 0.75*WIDTH;
 }
 
 extern "C" struct ip *ip_init(void);
@@ -108,11 +108,11 @@ struct ip {
 };
 
 void ip_reset(struct ip *ip) {
-    ip->lane = cv::Point(lane_center, mask_end_y);
+    ip->lane = cv::Point(lane_center, 0.5*HEIGHT);
     ip->lane_dir = cv::Point(0, -1);
     ip->lane_width = 0.8*WIDTH;
 
-    ip->stop = cv::Point(WIDTH/2, mask_width_top);
+    ip->stop = cv::Point(lane_center, mask_width_top);
     ip->stop_dir = cv::Point(1, 0);
     ip->stop_diff = 0;
     ip->stop_vis = 0;
@@ -446,7 +446,7 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
     }
 
     lw = std::min(std::max(lane_width_min, lw), lane_width_max);
-    ip->lane_width = (ip->lane_width +lw*weight_lw)/(1.0+weight_lw);
+    ip->lane_width = lw;
     
     /* determine x position of lane */
     int lane_x = 0;
@@ -458,16 +458,16 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
         lane_x = lane_left_x + ip->lane_width/2;
     } else {
         if (ip->opt.ignore_right) {
-            lane_x = WIDTH/2 - max_lane_error;
+            lane_x = lane_center - max_lane_error;
         } else if (ip->opt.ignore_left) {
-            lane_x = WIDTH/2 + max_lane_error;
+            lane_x = lane_center + max_lane_error;
         } else {
             lane_x = ip->lane.x;
         }
     }
-    lane_x = std::min(std::max(WIDTH/2-max_lane_error, lane_x),
-                      WIDTH/2+max_lane_error);
-    ip->lane.x = (ip->lane.x+lane_x*weight_lx)/(1.0+weight_lx);
+    lane_x = std::min(std::max(lane_center-max_lane_error, lane_x),
+                      lane_center+max_lane_error);
+    ip->lane.x = lane_x;
 
     /* determine lane direction */
     cv::Point lane_dir(0, 0);
@@ -503,8 +503,7 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
     int stop_y = line_pos_y(stop, stop_x);
 
     if (stop_y != -1) {
-        int diff = std::max(ip->stop.y-stop_y, 0);
-        ip->stop_diff = (ip->stop_diff+diff*weight_sd)/(1+weight_sd);
+        ip->stop_diff = std::max(ip->stop.y-stop_y, 0);
         ip->stop_vis++;
         if (!ip->stop_valid) {
             /* stop must appear near top of mask */
