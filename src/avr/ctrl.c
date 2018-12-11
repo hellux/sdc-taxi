@@ -30,9 +30,9 @@
 #define VEL_KI_DEF 0
 #define VEL_KD_DEF 0
 
-#define ROT_KP_DEF 1.5
+#define ROT_KP_DEF 2.5
 #define ROT_KI_DEF 0
-#define ROT_KD_DEF 0.2
+#define ROT_KD_DEF 1.9
 
 /* killswitch */
 #define KS_OCR OCR3A

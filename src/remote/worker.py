@@ -2,7 +2,7 @@ import threading
 from remote import Client, Command
 from tasks import Task
 
-import time
+VEL = 1.3
 
 class Worker(threading.Thread):
     def __init__(self, tasks, client):
@@ -62,7 +62,7 @@ class Worker(threading.Thread):
     def task_move(self, keys, schedule_time):
         if self.move_time < schedule_time:
             self.move_time = schedule_time
-            vel = int(keys["FORWARD"]) - int(keys["REVERSE"])
+            vel = VEL*int(keys["FORWARD"]) - VEL*int(keys["REVERSE"])
             rot = int(keys["RIGHT"]) - int(keys["LEFT"])
 
             self.send_fmt(Command.SET_VEL, vel)
@@ -89,18 +89,12 @@ class Worker(threading.Thread):
     
     def get_mission(self):
         response = self.send_fmt(Command.GET_MISSION)
-
-        if response and response.isdigit():
-            return int(response)
+        if response:
+            remaining = response.split(' ')
         else:
-            return None
-        """
-        self.counter -= 1
-        time.sleep(2)
-        if self.counter <= 0:
-            self.counter = 5
-        return self.counter
-        """
+            remaining = []
+
+        return len(remaining)
 
     def send_mission(self, mission):
         self.send_fmt(Command.APPEND_MISSION, *mission)
