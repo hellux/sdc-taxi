@@ -5,7 +5,7 @@ import pickle
 import time
 import tkinter as tk
 
-from course import Edge, Node, NodeType, closest_path, create_mission
+from course import *
 from tasks import Task
 
 class Map():
@@ -87,6 +87,7 @@ class Map():
             print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
+            self.path = clear_empty(self.path)
             
             self.tasks.put(Task.SEND_MISSION, create_mission(self.path))
             
@@ -391,7 +392,8 @@ class GUI():
     def display_info(self, sensor_data):
         self.map.total_distance = float(sensor_data[3])
         self.info_list.delete(0, 'end')
-        info_labels = ["Front", "Right", "Speed", "Distance", "Error"]
+        info_labels = ["Front", "Right", "Speed", "Distance", "Error",
+                       "set speed", "set rotation"]
         for info in info_labels:
             self.info_list.insert(info_labels.index(info), info + ": " + sensor_data[info_labels.index(info)])
         

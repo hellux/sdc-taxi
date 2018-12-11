@@ -24,6 +24,8 @@ static struct timespec ts_start;
 struct data_sensors {
     struct sens_val val;
     struct ip_res ip;
+    float vel;
+    float rot;
     
     pthread_mutex_t lock;
 };
@@ -41,14 +43,17 @@ bool sc_get_sens(struct srv_cmd_args *a) {
 
     struct sens_val sens;
     struct ip_res ip;
+    float vel, rot;
     pthread_mutex_lock(&sens_data->lock);
     sens = sens_data->val;
     ip = sens_data->ip;
+    vel = sens_data->vel;
+    rot = sens_data->rot;
     pthread_mutex_unlock(&sens_data->lock);
 
-    a->resp = str_create("%f %f %f %f %f",
+    a->resp = str_create("%.2f %.2f %.2f %.2f %.2f %.2f %.2f",
         sens.dist_front, sens.dist_right, sens.velocity,
-        sens.distance, ip.lane_offset);
+        sens.distance, ip.lane_offset, vel, rot);
 
     return true;
 }
@@ -247,14 +252,17 @@ int main(int argc, char* args[]) {
         int bcc_vel = BBC_VEL_VAL;
         int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
 
+        pthread_mutex_lock(&sens_data.lock);
+        sens_data.vel = ctrl.vel.value;
+        sens_data.rot = ctrl.rot.value;
+        pthread_mutex_unlock(&sens_data.lock);
+
         bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL);
         bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL);
     }
 
-    /*
     bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
     bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
-    */
 
     goto exit;
 fail:

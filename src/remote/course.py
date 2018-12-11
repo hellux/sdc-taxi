@@ -96,8 +96,6 @@ def clear_empty(path):
 
 
 def create_mission(path):
-    path = clear_empty(path)
-
     mission = []
     rest = path[1:]
 
