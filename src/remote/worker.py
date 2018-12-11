@@ -20,7 +20,8 @@ class Worker(threading.Thread):
             Task.SET_VEL    : self.set_vel,
             Task.SET_ROT    : self.set_rot,
             Task.GET_MISSION: self.get_mission,
-            Task.SEND_MISSION: self.send_mission
+            Task.SEND_MISSION: self.send_mission,
+            Task.CLEAR_MISSION: self.clear_mission
         }
 
         self.move_time = 0
@@ -29,10 +30,11 @@ class Worker(threading.Thread):
 
     def send(self, msg):
         print('worker: sending cmd: ', msg)
-        if self.client.connected():
+        if self.client.socket:
             return self.client.send_cmd_retry(msg)[1]
-        return None
-            
+        else:
+           return None
+
     def send_fmt(self, cmd, *args):
         return self.send(Client.create_msg(cmd, *args))
 
@@ -90,7 +92,7 @@ class Worker(threading.Thread):
             return int(response)
         else:
             return None
-        
+
         """
         self.counter -= 1
         if self.counter <= 0:
@@ -98,9 +100,12 @@ class Worker(threading.Thread):
         return self.counter
         """
     def send_mission(self, mission):
-        #print(mission)
-        self.send_fmt(Command.SET_MISSION, *mission)
+        self.send_fmt(Command.APPEND_MISSION, *mission)
     
+    def clear_mission(self):
+        self.send_fmt(Command.SET_MISSION)
+        print("MISSION CLEAR")
+
     def run(self):
         while not self.terminate:
             task, args = self.tasks.get(block=True)
