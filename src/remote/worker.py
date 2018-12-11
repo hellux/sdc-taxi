@@ -84,9 +84,12 @@ class Worker(threading.Thread):
         return None
     
     def get_mission(self):
-        response = int(self.send_fmt(Command.GET_MISSION))
-        if response:
-            return response
+        response = self.send_fmt(Command.GET_MISSION)
+
+        if response and response.isdigit():
+            return int(response)
+        else:
+            return None
         
         """
         self.counter -= 1
