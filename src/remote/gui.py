@@ -255,6 +255,7 @@ class GUI():
         
         mission_menu = tk.Menu(menuBar, tearoff=False)
         mission_menu.add_command(label="Set mission", command=self.set_mission)
+        mission_menu.add_command(label="Clear mission", command=self.clear_mission)
         
         menuBar.add_cascade(label="Map", menu=map_menu)
         menuBar.add_cascade(label="Mission", menu=mission_menu)
@@ -358,7 +359,10 @@ class GUI():
     def set_mission(self):
         print("SELECT START AND DESTINATION")
         self.map.select_mission = True
-        
+    
+    def clear_mission(self): 
+        self.tasks.put(Task.CLEAR_MISSION)
+
     def button_down(self, direction):
         self.keys[direction] = True
         self.tasks.put(Task.MOVE, self.keys.copy(), time.time())
