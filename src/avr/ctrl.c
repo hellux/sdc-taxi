@@ -1,10 +1,9 @@
-#include "bus.h"
-
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>
 
 #include "protocol.h"
+#include "bus.h"
 
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
@@ -117,16 +116,17 @@ int main(void) {
 
     reset();
 
-    sei();
+    /* sei(); */
 
     while (1) {
         ctrl_val_t value_retrieved;
-        uint8_t command = spi_accept((uint8_t*)&value_retrieved, false);
+        uint8_t command = spi_accept((uint8_t*)&value_retrieved,
+                                     SPI_OUTSIDE_ISR);
 
         if (command == BB_INVALID) {
-            continue; /* synchronize */
+            continue;
         } else {
-            KS_TCNT = 0; /* reset killswitch */
+            KS_TCNT = 0;
         }
         
         volatile struct pd_values *pdv = (command & BF_VEL_ROT) ? &vel : &rot;
@@ -162,7 +162,6 @@ int main(void) {
                 float min = (command & BF_VEL_ROT) ? VEL_MIN : ROT_MIN;
                 float max = (command & BF_VEL_ROT) ? VEL_MAX : ROT_MAX;
 
-                /* limit value to valid interval */
                 value_new = MIN(MAX(min, value_new), max);
 
                 float duty = DUTY_NEUTRAL + value_new*(DUTY_MAX-DUTY_NEUTRAL);
