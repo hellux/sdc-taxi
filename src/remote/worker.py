@@ -30,10 +30,11 @@ class Worker(threading.Thread):
 
     def send(self, msg):
         print('worker: sending cmd: ', msg)
-        if self.client.connected():
+        if self.client.socket:
             return self.client.send_cmd_retry(msg)[1]
-        return None
-            
+        else:
+           return None
+
     def send_fmt(self, cmd, *args):
         return self.send(Client.create_msg(cmd, *args))
 
