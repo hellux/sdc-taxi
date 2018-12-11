@@ -55,11 +55,13 @@ void wheel_init(){
     WL_TCNT = 0;
     WL_OCR = WT_TOP;
 
+    /*
     TIMSK3 = (1<<OCIE3A);
     TCCR3B = (1<<WGM32)|(0<<CS32)|(1<<CS31)|(1<<CS30);
     TCCR3A = 0;
     WR_TCNT = 0;
     WR_OCR = WT_TOP;
+    */
 
     /* enable external interrupts */
     EIMSK = (1<<INT0)|(1<<INT1);
@@ -101,18 +103,18 @@ ISR(INT0_vect) {
     cli();
     wheel_left_count++;
     wheel_left_period = WL_TCNT;
-    sei();
     WL_TCNT = 0;
+    sei();
 }
 
-/* right wheel has stopped */
+/*
 ISR(TIMER3_COMPA_vect) {
     cli();
     wheel_right_period = WT_TOP;
     sei();
 }
+*/
 
-/* right wheel sensor detect */
 ISR(INT1_vect) {
     cli();
     wheel_right_count++;
@@ -157,7 +159,7 @@ int main(void) {
         /* get new sensor values */
         cli();
         uint16_t wheel_count = wheel_left_count + wheel_right_count;
-        uint32_t wheel_period = (wheel_left_period + wheel_right_period) / 2;
+        uint32_t wheel_period = wheel_left_period;
         sei();
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
