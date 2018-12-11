@@ -51,10 +51,6 @@ static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
     spi_tranceive(fd, (void*)&cs, NULL, 1);
     spi_tranceive(fd, NULL, (void*)&ack, 1);
     if (ack == ACKS[bc->slave]) {
-        /*
-        struct timespec ts_delay = {0, RECV_DELAY};
-        nanosleep(&ts_delay, NULL);
-        */
         spi_tranceive(fd, NULL, (void*)&cs_recv, 1);
         spi_tranceive(fd, NULL, dst, bc->len);
         success = cs_check(cs_recv, dst, bc->len);
@@ -165,9 +161,11 @@ static void *bus_thread(void *b) {
                 order_destroy(order);
             } else {
                 packets_lost++;
+                /*
                 printf("slave: %d, cmd: %01x, packets lost: %d, packet loss: %.1f\n",
                        order->bc->slave, order->bc->cmd, packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
+                */
                 order_queue(bus, order, true);
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
