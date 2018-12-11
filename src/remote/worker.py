@@ -95,12 +95,6 @@ class Worker(threading.Thread):
         else:
             return None
 
-        """
-        self.counter -= 1
-        if self.counter <= 0:
-            self.counter = 5
-        return self.counter
-        """
     def send_mission(self, mission):
         self.send_fmt(Command.APPEND_MISSION, *mission)
     

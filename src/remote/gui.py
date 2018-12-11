@@ -9,7 +9,7 @@ from course import *
 from tasks import Task
 
 class Map():
-    NODE_SIZE = 5
+    NODE_SIZE = 7
     
     def __init__(self, window, map_frame, tasks):
         self.window = window
@@ -24,6 +24,8 @@ class Map():
         self.select_mission = False
         self.mission_node = None
         self.path = []
+        self.cur_path = []
+        self.mission = []
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -39,7 +41,7 @@ class Map():
      
     def draw(self):
         self.map_frame.delete("all")
-        mission_edge = self.get_current_edge_mission()
+        mission_edges = self.get_current_edge_mission()
         
         for edge in self.edges:
             if(edge == self.selected_edge):
@@ -47,8 +49,9 @@ class Map():
             else:
                 self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2, arrow=tk.LAST)
         
-        if mission_edge:
-            self.map_frame.create_line(mission_edge.start.pos_x, mission_edge.start.pos_y, mission_edge.end.pos_x, mission_edge.end.pos_y, fill="purple", width=2)
+        if mission_edges:
+            for edge in mission_edges:
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="deep pink", width=2)
                 
                 
         for node in self.nodes:
@@ -87,9 +90,10 @@ class Map():
             print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
-            self.path = clear_empty(self.path)
+            #self.path = clear_empty(self.path)
+            self.mission = create_mission(clear_empty(self.path))
             
-            self.tasks.put(Task.SEND_MISSION, create_mission(self.path))
+            self.tasks.put(Task.SEND_MISSION, self.mission) 
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -121,18 +125,44 @@ class Map():
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
         self.cost_entry.focus_force()
             
+    def split_path(self):
+        print("path: ", len(self.path))
+        if len(self.path) > 1:
+            self.cur_path = [self.path[0]]
+            self.path = self.path[1:]
+            while (self.path[0].type == NodeType.EMPTY):
+                self.cur_path += [self.path[0]]
+                self.path = self.path[1:]
+            self.cur_path += [self.path[0]]
+        else:
+            self.cur_path = []
+
+        print("cur_path: ", len(self.cur_path))
+        # self.mission[len(self.mission)-get_mission()]
+
     def get_current_edge_mission(self):
+        highlight_edges = []
+        if self.cur_path:
+            rest = self.cur_path
+            while rest:
+                node, rest = rest[0], rest[1:]
+                if rest:
+                    for edge in node.outgoing:
+                        if edge.end == rest[0]:
+                            highlight_edges.append(edge)
+        print("edges: ", len(highlight_edges))
+        return highlight_edges
+        
+        """
         if self.mission_node:
             for edge in self.mission_node.outgoing:
                 if edge.start == self.path[self.current_pos]:
                     return edge
         return None
-
+        """
     def get_current_node_mission(self, index):
-        if int(index) <= len(self.path):
-            self.current_pos = len(self.path)-int(index)
-            self.mission_node = self.path[self.current_pos]
-            self.draw()
+        self.split_path()
+        self.draw()
 
     def create_edge(self, node_start, node_end, cost):
         if cost < 0:

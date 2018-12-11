@@ -14,7 +14,7 @@
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
-#define SLOW_VEL 0.5
+#define SLOW_VEL 0.8
 #define FULL_VEL 0.8
 
 /* initial positions */
@@ -22,6 +22,8 @@
 #define BEFORE_PREV 0
 #define BEFORE_STOP 1
 #define AFTER_STOP 2
+
+#define abs(a) ((a) >= 0 ? (a) : (-a))
 
 struct state {
     const struct sens_val *sens; 
@@ -365,7 +367,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     ctrl->rot.regulate = true;
 
     if (o->current) {
-        ctrl->vel.value = FULL_VEL;
+        ctrl->vel.value = FULL_VEL-(FULL_VEL-SLOW_VEL)*abs(ip_res.lane_offset);
 
         struct state state;
         state.sens = sens;
