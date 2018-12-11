@@ -232,12 +232,9 @@ int main(int argc, char* args[]) {
             ctrl.rot.regulate = false;
         }
 
-        /*
-        if (sens.distance < 1) {
-            ctrl.vel.value = (1+.3-sens.distance)*sens.velocity;
-            ctrl.vel.regulate = true;
+        if (sens.dist_front < 0.7 && ctrl.vel.value > 0) {
+            ctrl.vel.value = -sens.velocity;
         }
-        */
 
         /* send new ctrl commands */
         int bcc_vel = BBC_VEL_VAL;
