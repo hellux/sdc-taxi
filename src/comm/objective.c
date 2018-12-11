@@ -149,8 +149,10 @@ bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     return false;
 }
 
+#define NAME_LEN 5
+
 struct obj_cmd {
-    const char name[5];
+    const char name[NAME_LEN];
     bool (*func)(struct state *s, struct ctrl_val *c, struct ip_opt *i);
 };
 
@@ -249,6 +251,7 @@ struct obj *obj_create(void) {
     struct obj *obj = calloc(1, sizeof(*obj));
     pthread_mutex_init(&obj->lock, 0);
     obj->ip = ip;
+    obj->current = NULL;
     obj_set_mission(obj, 0, NULL, false);
 
     return obj;
@@ -280,16 +283,35 @@ void obj_set_state(obj_t *obj, bool state) {
     pthread_mutex_unlock(&obj->lock);
 }
 
-int obj_remaining(obj_t *obj) {
-    int remaining = 0;
+char* obj_remaining(obj_t *obj) {
+    int count = 0;
 
     pthread_mutex_lock(&obj->lock);
     if (obj->current)
-        remaining++;
+        count++;
     struct obj_item *current = obj->queue;
     while (current) {
         current = current->next;
-        remaining++;
+        count++;
+    }
+
+    char *remaining;
+    if (count > 0) {
+        current = obj->queue;
+        remaining = malloc(count*NAME_LEN);
+        int i = 0;
+        if (obj->current) {
+            strcpy(remaining, obj->current->name);
+            i++;
+        }
+        for (; i < count; i++) {
+            strcpy(remaining+NAME_LEN*i, current->cmd->name);
+            remaining[NAME_LEN*(i+1)-1] = ' ';
+            current = current->next;
+        }
+        remaining[NAME_LEN*(count)-1] = '\0';
+    } else {
+        remaining = NULL;
     }
     pthread_mutex_unlock(&obj->lock);
 

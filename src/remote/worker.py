@@ -89,11 +89,12 @@ class Worker(threading.Thread):
     
     def get_mission(self):
         response = self.send_fmt(Command.GET_MISSION)
-
-        if response and response.isdigit():
-            return int(response)
+        if response:
+            remaining = response.split(' ')
         else:
-            return None
+            remaining = []
+
+        return len(remaining)
 
     def send_mission(self, mission):
         self.send_fmt(Command.APPEND_MISSION, *mission)

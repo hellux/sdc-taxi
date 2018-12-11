@@ -12,7 +12,7 @@ obj_t *obj_create(void);
 void obj_destroy(obj_t *obj);
 bool obj_active(obj_t *obj);
 void obj_set_state(obj_t *obj, bool state);
-int obj_remaining(obj_t *obj);
+char *obj_remaining(obj_t *obj);
 bool obj_set_mission(obj_t *obj, int cmdc, char **cmds, bool append);
 void obj_execute(obj_t *obj, const struct sens_val *sens,
                                    struct ctrl_val *ctrl,

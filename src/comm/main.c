@@ -65,8 +65,7 @@ bool sc_get_sens(struct srv_cmd_args *a) {
 }
 
 bool sc_get_mission(struct srv_cmd_args *a) {
-    int rem = obj_remaining((obj_t*)a->data1);
-    a->resp = str_create("%d", rem);
+    a->resp = obj_remaining((obj_t*)a->data1);
     return true;
 }
 
