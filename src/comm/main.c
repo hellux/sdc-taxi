@@ -52,15 +52,20 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     pthread_mutex_unlock(&sens_data->lock);
 
     a->resp = str_create("%.2f %.2f %.2f %.2f %.2f %.2f %.2f",
-        sens.dist_front, sens.dist_right, sens.velocity,
-        sens.distance, ip.lane_offset, vel, rot);
+        sens.dist_front,
+        sens.dist_right,
+        sens.velocity,
+        sens.distance,
+        ip.lane_offset,
+        vel,
+        rot
+    );
 
     return true;
 }
 
 bool sc_get_mission(struct srv_cmd_args *a) {
-    int rem = obj_remaining((obj_t*)a->data1);
-    a->resp = str_create("%d", rem);
+    a->resp = obj_remaining((obj_t*)a->data1);
     return true;
 }
 
