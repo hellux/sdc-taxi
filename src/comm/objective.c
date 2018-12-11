@@ -302,6 +302,7 @@ char* obj_remaining(obj_t *obj) {
         int i = 0;
         if (obj->current) {
             strcpy(remaining, obj->current->name);
+            remaining[NAME_LEN-1] = ' ';
             i++;
         }
         for (; i < count; i++) {
