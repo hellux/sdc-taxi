@@ -31,7 +31,9 @@ class Map():
         node_options.add_cascade(label="Create", menu=node_create)
         node_create.add_command(label="Stopline", command=lambda: self.create_node(NodeType.STOPLINE, event.x, event.y, "red"))
         node_create.add_command(label="Parking", command=lambda: self.create_node(NodeType.PARKING, event.x, event.y, "yellow"))
-        node_create.add_command(label="Roundabout", command=lambda: self.create_node(NodeType.ROUNDABOUT, event.x, event.y, "blue"))
+        node_create.add_command(label="Inner", command=lambda: self.create_node(NodeType.INNER, event.x, event.y, "navy"))
+        node_create.add_command(label="Outer", command=lambda: self.create_node(NodeType.OUTER, event.x, event.y, "RoyalBlue2"))
+        node_create.add_command(label="Empty", command=lambda: self.create_node(NodeType.EMPTY, event.x, event.y, "white"))
         node_options.add_command(label="Delete", command=lambda:self.delete())
         node_options.tk_popup(int(self.map_frame.canvasx(self.map_frame.winfo_pointerx())), int(self.map_frame.canvasx(self.map_frame.winfo_pointery())))
      
