@@ -17,7 +17,9 @@ import heapq
 class NodeType:
     STOPLINE = 1
     PARKING = 2
-    ROUNDABOUT = 3
+    INNER = 3
+    OUTER = 4
+    EMPTY = 5
 
 class Command:
     IGNORE = 'ignr'
@@ -28,7 +30,7 @@ class Command:
     EXIT = 'exit'
 
 class Node:
-    def __init__(self, type=NodeType.STOPLINE):
+    def __init__(self, type=NodeType.EMPTY):
         self.type = type
         self.outgoing = []
 
@@ -84,7 +86,18 @@ def closest_path(course, src, dst):
 
     return path
 
+def clear_empty(path):
+    new_path = []
+    for node in path:
+        if node.type is not NodeType.EMPTY:
+            new_path.append(node)
+    
+    return new_path
+
+
 def create_mission(path):
+    path = clear_empty(path)
+
     mission = []
     rest = path[1:]
 
@@ -96,12 +109,18 @@ def create_mission(path):
         elif node.type is NodeType.PARKING:
             if rest: mission.append(Command.IGNORE)
             else: mission.append(Command.PARK)
+        elif node.type is NodeType.OUTER:
+            mission += [Command.ENTER]
         else:
+            if rest[0].type is NodeType.INNER: mission.append(Command.CONTINUE)
+            else: mission.append(Command.EXIT)
+            """
             cont_count = 0
             rest = rest[1:]
-            while(rest[0].type == NodeType.ROUNDABOUT):
+            while(rest[0].type == NodeType.INNER):
                 rest = rest[1:]
                 cont_count += 1
-            mission += [Command.ENTER] + cont_count*[Command.CONTINUE] + [Command.EXIT]
+            mission += cont_count*[Command.CONTINUE] + [Command.EXIT]
+            """
     
     return mission
