@@ -42,6 +42,8 @@
 #define KS_PSC 64
 #define KS_TOP F_CPU*KS_T/KS_PSC
 
+#define CTRL_SLAVE 1
+
 struct pd_values {
     ctrl_val_t kp;
     ctrl_val_t ki;
@@ -121,7 +123,7 @@ int main(void) {
     while (1) {
         ctrl_val_t value_retrieved;
         uint8_t command = spi_accept((uint8_t*)&value_retrieved,
-                                     SPI_OUTSIDE_ISR);
+                                     SPI_OUTSIDE_ISR, CTRL_SLAVE);
 
         if (command == BB_INVALID) {
             continue;

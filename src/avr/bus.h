@@ -7,5 +7,5 @@
 #define SPI_DISABLE_INT 0
 
 void spi_init(int interrupt);
-uint8_t spi_accept(uint8_t *data, int interrupt);
+uint8_t spi_accept(uint8_t *data, int interrupt, int slave);
 void spi_return(uint8_t cmd, uint8_t *data, int len);

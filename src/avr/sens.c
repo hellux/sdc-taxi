@@ -34,6 +34,8 @@
 #define WT_PSC 64
 #define WT_TOP 65535
 
+#define SENS_SLAVE 0
+
 const struct sens_data SENS_EMPTY = {0};
 
 volatile struct sens_data sensors; 
@@ -125,7 +127,7 @@ ISR(INT1_vect) {
 
 ISR(SPI_STC_vect) {
     cli();
-    uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR);
+    uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR, SENS_SLAVE);
 
     struct sens_data sensors_copy;
     switch (command) {
