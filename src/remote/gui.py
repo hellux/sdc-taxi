@@ -272,6 +272,7 @@ class GUI():
         self.window.bind('<KeyPress-Control_L>', self.show_edge_cost)
         self.console.bind('<Return>', lambda e:self.send_command())
         self.console.bind('<Up>', self.send_prev_cmd)
+        self.console.bind('<Down>', self.send_next_cmd)
         
     def main_loop(self):
         task_pair = self.tasks.get_completed(block=False)
@@ -332,10 +333,20 @@ class GUI():
         self.console.delete(0, 'end')
  
     def send_prev_cmd(self, event):
-        self.cmd_index += 1
-        if self.cmd_index >= len(self.prev_cmd):
+        if self.cmd_index >= len(self.prev_cmd)-1:
             self.cmd_index = 0
-                    
+        else:            
+            self.cmd_index += 1
+
+        self.console.delete(0, 'end')
+        self.console.insert(0, self.prev_cmd[self.cmd_index])
+    
+    def send_next_cmd(self, event):
+        if self.cmd_index <= 0:
+            self.cmd_index = len(self.prev_cmd)-1
+        else:
+            self.cmd_index -= 1
+
         self.console.delete(0, 'end')
         self.console.insert(0, self.prev_cmd[self.cmd_index])
             
