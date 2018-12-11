@@ -2,6 +2,8 @@ import threading
 from remote import Client, Command
 from tasks import Task
 
+import time
+
 class Worker(threading.Thread):
     def __init__(self, tasks, client):
         threading.Thread.__init__(self)
@@ -92,13 +94,14 @@ class Worker(threading.Thread):
             return int(response)
         else:
             return None
-
         """
         self.counter -= 1
+        time.sleep(2)
         if self.counter <= 0:
             self.counter = 5
         return self.counter
         """
+
     def send_mission(self, mission):
         self.send_fmt(Command.APPEND_MISSION, *mission)
     
