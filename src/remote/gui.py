@@ -25,8 +25,6 @@ class Map():
         self.mission_node = None
         self.path = []
         self.sub_path = []
-        self.mission = []
-        self.prev_remaining = 0
         
     def node_options(self, event):
         node_options = tk.Menu(self.window, tearoff=False)
@@ -95,8 +93,10 @@ class Map():
             #self.path = clear_empty(self.path)
             
             self.tasks.put(Task.SEND_MISSION, new_mission) 
-            self.path += new_path
-            self.mission += new_mission
+            if self.path:
+                self.path += new_path[1:]
+            else:
+                self.path += new_path
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -128,20 +128,6 @@ class Map():
         self.cost_popup.geometry("+%d+%d" % ((int(self.cost_popup.winfo_pointerx()), int((self.cost_popup.winfo_pointery())))))
         self.cost_entry.focus_force()
             
-    def split_path(self, path):
-        print("path: ", len(self.path))
-        if len(self.path) > 1:
-            self.sub_path = [self.path[0]]
-            self.path = self.path[1:]
-            while (self.path[0].type == NodeType.EMPTY):
-                self.sub_path += [self.path[0]]
-                self.path = self.path[1:]
-            self.sub_path += [self.path[0]]
-        else:
-            self.sub_path = []
-
-        # self.mission[len(self.mission)-get_mission()]
-
     def edges_to_highlight(self):
         highlight_edges = []
         print("subpath: ", len(self.sub_path))
@@ -156,9 +142,25 @@ class Map():
         return highlight_edges
 
     def highlight_pos(self, remaining):
-        if remaining < self.prev_remaining or self.prev_remaining == 0:
-            self.split_path()
-            self.prev_remaining = remaining
+        nodes = clear_empty(self.path)
+        print("remaining:", remaining)
+        print("nodes: ", len(nodes))
+        remaining_nodes = nodes[-(remaining+1):]
+        print("rem:", len(remaining_nodes))
+
+        if len(remaining_nodes) >= 2:
+            current_node = remaining_nodes[0]
+            next_node = remaining_nodes[1]
+            self.sub_path = []
+            curr = self.path.index(current_node)
+            while current_node != next_node:
+                self.sub_path.append(current_node)
+                current_node = self.path[curr]
+                curr += 1
+            self.sub_path.append(next_node);
+        else:
+            self.sub_path = []
+
         self.draw()
 
     def create_edge(self, node_start, node_end, cost):
@@ -392,7 +394,6 @@ class GUI():
         self.map.path = []
         self.map.mission = []
         self.map.sub_path = []
-        self.map.prev_remaining = 0
         self.tasks.put(Task.CLEAR_MISSION)
         self.map.draw()
 
