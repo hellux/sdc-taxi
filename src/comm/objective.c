@@ -19,8 +19,9 @@
 
 /* initial positions */
 
-#define BEFORE_STOP 0
-#define AFTER_STOP 1
+#define BEFORE_PREV 0
+#define BEFORE_STOP 1
+#define AFTER_STOP 2
 
 struct state {
     const struct sens_val *sens; 
@@ -49,7 +50,10 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
-        c->vel.value = -s->sens->velocity;
+        c->vel.value = -s->sens->velocity/3;
+        if (s->sens->velocity < 0.3) {
+            c->vel.value = 0.3;
+        }
     } else if (s->pos >= AFTER_STOP) {
         c->vel.value = 0;
         if (s->last_cmd || s->postime >= PICKUP_TIME) {
@@ -276,10 +280,11 @@ void obj_set_state(obj_t *obj, bool state) {
 
 int obj_remaining(obj_t *obj) {
     int remaining = 0;
-    struct obj_item *current;
 
     pthread_mutex_lock(&obj->lock);
-    current = obj->queue;
+    if (obj->current)
+        remaining++;
+    struct obj_item *current = obj->queue;
     while (current) {
         current = current->next;
         remaining++;
@@ -385,7 +390,11 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         }
 
         if (cmd_finished) {
-            o->pos = BEFORE_STOP;
+            if (o->pos <= AFTER_STOP) {
+                o->pos--;
+            } else {
+                o->pos = BEFORE_STOP;
+            }
             o->current = NULL;
         }
 
