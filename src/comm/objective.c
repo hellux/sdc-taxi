@@ -65,36 +65,36 @@ bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     switch (s->pos) {
-        case BEFORE_STOP:
-            if (s->stop_visible)
-                i->ignore_left = true;
-            break;
-        case AFTER_STOP:
-            c->vel.value = SLOW_VEL;
+    case BEFORE_STOP:
+        if (s->stop_visible)
             i->ignore_left = true;
-            if (s->posdist < 0.3) {
-                c->rot.value = RIGHT;
-            } else if (s->posdist > 0.8) {
-                if (s->last_cmd || s->postime >= PICKUP_TIME) {
-                    return true;
-                } else {
-                    s->pos = PARKED;
-                }
-            }
-            break;
-        case PARKED:
-            c->vel.value = 0;
-            if (s->postime >= PICKUP_TIME)
-                s->pos = UNPARKING;
-            break;
-        case UNPARKING:
-            i->ignore_left = true;
-            if (s->posdist < 0.2) {
-                c->rot.value = LEFT;
-            } else if (s->posdist > 1) {
+        break;
+    case AFTER_STOP:
+        c->vel.value = SLOW_VEL;
+        i->ignore_left = true;
+        if (s->posdist < 0.3) {
+            c->rot.value = RIGHT;
+        } else if (s->posdist > 0.8) {
+            if (s->last_cmd) {
                 return true;
+            } else {
+                s->pos = PARKED;
             }
-            break;
+        }
+        break;
+    case PARKED:
+        c->vel.value = 0;
+        if (s->postime >= PICKUP_TIME)
+            s->pos = UNPARKING;
+        break;
+    case UNPARKING:
+        i->ignore_left = true;
+        if (s->posdist < 0.2) {
+            c->rot.value = LEFT;
+        } else if (s->posdist > 1) {
+            return true;
+        }
+        break;
     }
     return false;
 }
