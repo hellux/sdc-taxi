@@ -14,6 +14,7 @@
 
 #define WAIT_SLEEP 1 /* seconds before wake up if nothing scheduled */
 #define WAIT_DELAY 20e3 /* nanoseconds between orders */
+#define RECV_DELAY 20e3 /* nanoseconds between orders */
 
 static unsigned packets_sent = 0;
 static unsigned packets_lost = 0;
@@ -46,10 +47,20 @@ static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
 #ifdef PI
     cs_t cs = cs_create(bc->cmd, NULL, 0);
     cs_t cs_recv;
+    uint8_t ack;
     spi_tranceive(fd, (void*)&cs, NULL, 1);
-    spi_tranceive(fd, NULL, (void*)&cs_recv, 1);
-    spi_tranceive(fd, NULL, dst, bc->len);
-    success = cs_check(cs_recv, dst, bc->len);
+    spi_tranceive(fd, NULL, (void*)&ack, 1);
+    if (ack == ACKS[bc->slave]) {
+        /*
+        struct timespec ts_delay = {0, RECV_DELAY};
+        nanosleep(&ts_delay, NULL);
+        */
+        spi_tranceive(fd, NULL, (void*)&cs_recv, 1);
+        spi_tranceive(fd, NULL, dst, bc->len);
+        success = cs_check(cs_recv, dst, bc->len);
+    } else {
+        success = false;
+    }
 #else
     success = true;
 #endif
@@ -153,12 +164,11 @@ static void *bus_thread(void *b) {
                     order->handler(order->src_dst, order->handler_data);
                 order_destroy(order);
             } else {
-                order_queue(bus, order, true);
                 packets_lost++;
-                /*
-                printf("packets lost: %d, packet loss: %.1f\n", packets_lost,
+                printf("slave: %d, cmd: %01x, packets lost: %d, packet loss: %.1f\n",
+                       order->bc->slave, order->bc->cmd, packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
-                */
+                order_queue(bus, order, true);
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
 

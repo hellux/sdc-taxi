@@ -45,6 +45,7 @@ uint8_t spi_accept(uint8_t *data, int interrupt) {
         return BB_INVALID;
     }
 
+    uint8_t ack = ACKS[SLAVE];
     /* retrieve data, if any */
     if (bc->write) {
         spi_tranceive(data, bc->len);
@@ -55,7 +56,8 @@ uint8_t spi_accept(uint8_t *data, int interrupt) {
         }
 
         /* acknowledge to master, return retrieved command */
-        uint8_t ack = ACKS[SLAVE];
+        spi_tranceive(&ack, sizeof(ack));
+    } else {
         spi_tranceive(&ack, sizeof(ack));
     }
     return cmd;
