@@ -49,7 +49,7 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
-        c->vel.value = -1;
+        c->vel.value = -s->sens->velocity;
     } else if (s->pos >= AFTER_STOP) {
         c->vel.value = 0;
         if (s->last_cmd || s->postime >= PICKUP_TIME) {
@@ -72,9 +72,9 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     case AFTER_STOP:
         c->vel.value = SLOW_VEL;
         i->ignore_left = true;
-        if (s->posdist < 0.3) {
+        if (s->posdist < 0.45) {
             c->rot.value = RIGHT;
-        } else if (s->posdist > 0.8) {
+        } else if (s->posdist > 1) {
             if (s->last_cmd) {
                 return true;
             } else {
@@ -91,7 +91,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         i->ignore_left = true;
         if (s->posdist < 0.2) {
             c->rot.value = LEFT;
-        } else if (s->posdist > 1) {
+        } else {
             return true;
         }
         break;
@@ -129,7 +129,9 @@ bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 }
 
 bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
-    if (s->pos >= AFTER_STOP) {
+    if (s->pos == BEFORE_STOP && s->stop_visible) {
+        i->ignore_left;
+    } else if (s->pos >= AFTER_STOP) {
         if (s->posdist < 1) {
             i->ignore_left = true;
             return false;
@@ -384,7 +386,9 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     }
 
     if (finished) {
+       /*
        o->active = false;
+       */
     }
 
     if (ip_save) {
