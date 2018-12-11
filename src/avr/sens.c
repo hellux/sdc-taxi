@@ -124,11 +124,15 @@ ISR(SPI_STC_vect) {
     cli();
     uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR);
 
-    if (command == BBS_GET) {
-        struct sens_data sensors_copy = sensors;
+    struct sens_data sensors_copy;
+    switch (command) {
+    case BBS_GET:
+        sensors_copy = sensors;
         spi_return(command, (uint8_t*)&sensors_copy, sizeof(sensors_copy));
-    } else if (command == BBS_RST) {
+        break;
+    case BBS_RST:
         reset();
+        break;
     }
     sei();
 }
