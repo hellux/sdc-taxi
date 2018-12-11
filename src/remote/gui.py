@@ -128,9 +128,6 @@ class Map():
         return None
 
     def get_current_node_mission(self, index):
-        if self.mission_node:
-            self.restore_node_color(self.mission_node)
-
         if int(index) <= len(self.path):
             self.current_pos = len(self.path)-int(index)
             self.mission_node = self.path[self.current_pos]
