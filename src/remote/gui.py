@@ -5,7 +5,7 @@ import pickle
 import time
 import tkinter as tk
 
-from course import Edge, Node, NodeType, closest_path, create_mission
+from course import *
 from tasks import Task
 
 class Map():
@@ -87,6 +87,7 @@ class Map():
             print("MISSION SET")
             self.select_mission = False
             self.path = closest_path(self.nodes, self.selected_node, current_node)
+            self.path = clear_empty(self.path)
             
             self.tasks.put(Task.SEND_MISSION, create_mission(self.path))
             
