@@ -9,7 +9,7 @@
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 /* PWM */
-#define VEL_K 0.067
+#define VEL_K 0.058
 #define DUTY_MAX 0.10
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
@@ -41,6 +41,8 @@
 #define KS_T 0.2
 #define KS_PSC 64
 #define KS_TOP F_CPU*KS_T/KS_PSC
+
+#define CTRL_SLAVE 1
 
 struct pd_values {
     ctrl_val_t kp;
@@ -121,7 +123,7 @@ int main(void) {
     while (1) {
         ctrl_val_t value_retrieved;
         uint8_t command = spi_accept((uint8_t*)&value_retrieved,
-                                     SPI_OUTSIDE_ISR);
+                                     SPI_OUTSIDE_ISR, CTRL_SLAVE);
 
         if (command == BB_INVALID) {
             continue;

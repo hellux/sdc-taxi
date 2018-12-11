@@ -31,17 +31,19 @@
 #define WR_OCR OCR3A
 #define WR_TCNT TCNT3
 
-#define WT_PSC 1024
+#define WT_PSC 64
 #define WT_TOP 65535
+
+#define SENS_SLAVE 0
 
 const struct sens_data SENS_EMPTY = {0};
 
 volatile struct sens_data sensors; 
 
 volatile uint16_t wheel_left_count = 0;
-volatile uint16_t wheel_left_period = WT_TOP;
+volatile uint32_t wheel_left_period = WT_TOP;
 volatile uint16_t wheel_right_count = 0;
-volatile uint16_t wheel_right_period = WT_TOP;
+volatile uint32_t wheel_right_period = WT_TOP;
 
 void reset(void) {
     sensors = SENS_EMPTY;
@@ -50,16 +52,18 @@ void reset(void) {
 void wheel_init(){
     /* setup timer for velocity calculation */
     TIMSK1 = (1<<OCIE1A);
-    TCCR1B = (1<<WGM12)|(1<<CS12)|(1<<CS10);
+    TCCR1B = (1<<WGM12)|(0<<CS12)|(1<<CS11)|(1<<CS10);
     TCCR1A = 0;
     WL_TCNT = 0;
     WL_OCR = WT_TOP;
 
+    /*
     TIMSK3 = (1<<OCIE3A);
-    TCCR3B = (1<<WGM32)|(1<<CS32)|(1<<CS30);
+    TCCR3B = (1<<WGM32)|(0<<CS32)|(1<<CS31)|(1<<CS30);
     TCCR3A = 0;
     WR_TCNT = 0;
     WR_OCR = WT_TOP;
+    */
 
     /* enable external interrupts */
     EIMSK = (1<<INT0)|(1<<INT1);
@@ -101,28 +105,29 @@ ISR(INT0_vect) {
     cli();
     wheel_left_count++;
     wheel_left_period = WL_TCNT;
+    WL_TCNT = 0;
     sei();
 }
 
-/* right wheel has stopped */
+/*
 ISR(TIMER3_COMPA_vect) {
     cli();
     wheel_right_period = WT_TOP;
     sei();
 }
+*/
 
-/* right wheel sensor detect */
 ISR(INT1_vect) {
     cli();
     wheel_right_count++;
     wheel_right_period = WR_TCNT;
-    WR_TCNT = 0;
     sei();
+    WR_TCNT = 0;
 }
 
 ISR(SPI_STC_vect) {
     cli();
-    uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR);
+    uint8_t command = spi_accept(NULL, SPI_INSIDE_ISR, SENS_SLAVE);
 
     struct sens_data sensors_copy;
     switch (command) {
@@ -156,16 +161,21 @@ int main(void) {
         /* get new sensor values */
         cli();
         uint16_t wheel_count = wheel_left_count + wheel_right_count;
-        uint32_t wheel_period = wheel_left_period + wheel_right_period;
+        uint32_t wheel_period = wheel_left_period;
         sei();
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
+
+        float velocity = 0;
+        if (wheel_period < WT_TOP) {
+            velocity = F_CPU*WHEEL_N_DIST/WT_PSC/wheel_period;
+        }
 
         /* write to local struct */
         sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
         sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
         sens_local.distance = WHEEL_CIRCUM/WHEEL_N*wheel_count / 2;
-        sens_local.velocity = 2.0*F_CPU*WHEEL_N_DIST/WT_PSC/wheel_period;
+        sens_local.velocity = velocity;
 
         /* save local struct to global one */
         cli();
@@ -188,7 +198,6 @@ int main(void) {
         lcd_send_string(buf);
         lcd_send_string(" V:");
         dtostrf(sens_local.velocity, 5, 2, buf);
-        //ltoa(wheel_right_period, buf, 10);
         lcd_send_string(buf);
 #endif
     }

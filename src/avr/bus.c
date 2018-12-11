@@ -28,7 +28,7 @@ void spi_tranceive(uint8_t *data, int len) {
 }
 
 /* accept command from master */
-uint8_t spi_accept(uint8_t *data, int interrupt) {
+uint8_t spi_accept(uint8_t *data, int interrupt, int slave) {
     /* retrieve command and checksum */
     cs_t cs;
     if (interrupt == SPI_INSIDE_ISR) {
@@ -38,14 +38,14 @@ uint8_t spi_accept(uint8_t *data, int interrupt) {
         spi_tranceive((uint8_t*)&cs, 1);
     }
     int cmd = cs_cmd(cs);
-    const struct bus_cmd *bc = &BCMDS[SLAVE][cmd];
+    const struct bus_cmd *bc = &BCMDS[slave][cmd];
 
     /* synchronize if invalid cmd */
     if (!bc->valid) {
         return BB_INVALID;
     }
 
-    uint8_t ack = ACKS[SLAVE];
+    uint8_t ack = ACKS[slave];
     /* retrieve data, if any */
     if (bc->write) {
         spi_tranceive(data, bc->len);
