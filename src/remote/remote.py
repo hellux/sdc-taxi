@@ -8,13 +8,14 @@ class Command:
     GET_MISSION     = 'get_miss'
     SET_MISSION     = 'set_miss'
     APPEND_MISSION  = 'app_miss'
-    SET_STATE       = 'set_state'
+    SET_STATE       = 'set_auto'
     SET_VEL         = 'set_vel'
     SET_ROT         = 'set_rot'
     SET_VEL_KP      = 'set_vel_kp'
     SET_VEL_KD      = 'set_vel_kd'
     SET_ROT_KP      = 'set_rot_kp'
     SET_ROT_KD      = 'set_rot_kd'
+    SHUTDOWN        = 'shutdown'
 
 class Client():
     BUFSIZE = 4096
