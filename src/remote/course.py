@@ -34,8 +34,8 @@ class Node:
         self.type = type
         self.outgoing = []
 
-    def addEdge(self, end, cost):
-        self.outgoing.append(Edge(self, end, cost))
+    def addEdge(self, edge):
+        self.outgoing.append(edge)
 
     def clearEdges(self):
         self.outgoing = []
