@@ -81,22 +81,20 @@ bool sc_append_mission(struct srv_cmd_args *a) {
     return success;
 }
 
-bool sc_set_state(struct srv_cmd_args *a) {
+bool sc_set_auto(struct srv_cmd_args *a) {
     bool state = a->args[1][0] == 'T';
     obj_set_state((obj_t*)a->data1, state);
+    a->resp = str_create("setting %s mode", (state ? "auto" : "manual"));
     return true;
 }
 
-bool sc_set_bool(struct srv_cmd_args *a) {
-    bool *dst = (bool*)a->data1;
+bool sc_shutdown(struct srv_cmd_args *a) {
+    bool *shutdown = (bool*)a->data1;
     pthread_mutex_t *lock = (pthread_mutex_t*)a->data2;
-
-    bool value = a->args[1][0] == 'T';
     pthread_mutex_lock(lock);
-    *dst = value;
+    *shutdown = true;
     pthread_mutex_unlock(lock);
-
-    a->resp = str_create("setting value to %d", value);
+    a->resp = str_create("shutting down");
     return true;
 }
 
@@ -202,8 +200,8 @@ int main(int argc, char* args[]) {
     {"get_miss",    0, obj,               NULL,            *sc_get_mission},
     {"set_miss",    0, obj,               NULL,            *sc_set_mission},
     {"app_miss",    0, obj,               NULL,            *sc_append_mission},
-    {"set_state",   1, obj,               NULL,            *sc_set_state},
-    {"shutdown",    1, &quit,             &quit_lock,      *sc_set_bool},
+    {"set_auto",   1, obj,               NULL,             *sc_set_auto},
+    {"shutdown",    0, &quit,             &quit_lock,      *sc_shutdown},
     {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
     {"set_rot",     1, &rc_data.rot,      &rc_data.lock,   *sc_set_float},
     {"set_vel_kp",  1, &BCCS[BBC_VEL_KP], bus,             *sc_bus_send_float},

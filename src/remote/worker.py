@@ -31,7 +31,6 @@ class Worker(threading.Thread):
         self.terminate = False
 
     def send(self, msg):
-        print('worker: sending cmd: ', msg)
         if self.client.socket:
             return self.client.send_cmd_retry(msg)[1]
         else:
@@ -46,7 +45,6 @@ class Worker(threading.Thread):
 
     def task_send(self, msg):
         response = self.send(msg)
-        print(response)
         return response
 
     def task_kill(self):
