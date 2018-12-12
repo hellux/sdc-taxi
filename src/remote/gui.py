@@ -44,9 +44,9 @@ class Map():
         
         for edge in self.edges:
             if(edge == self.selected_edge):
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=8, arrow=tk.LAST)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=8, arrow=tk.LAST, arrowshape=(20, 35, 7))
             else:
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=8, arrow=tk.LAST)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=8, arrow=tk.LAST, arrowshape=(20, 35, 7))
         
         if mission_edges:
             print("sub_path: ", len(self.sub_path))
