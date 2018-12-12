@@ -44,14 +44,14 @@ class Map():
         
         for edge in self.edges:
             if(edge == self.selected_edge):
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=2, arrow=tk.LAST)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="green", width=8, arrow=tk.LAST, arrowshape=(20, 35, 7))
             else:
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=2, arrow=tk.LAST)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill=edge.color, width=8, arrow=tk.LAST, arrowshape=(20, 35, 7))
         
         if mission_edges:
             print("sub_path: ", len(self.sub_path))
             for edge in mission_edges:
-                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="deep pink", width=2)
+                self.map_frame.create_line(edge.start.pos_x, edge.start.pos_y, edge.end.pos_x, edge.end.pos_y, fill="deep pink", width=8, arrow=tk.LAST, arrowshape=(20, 35, 7))
                 
         for node in self.nodes:
             if(node == self.selected_node):
@@ -67,11 +67,18 @@ class Map():
         
     def get_edge_pos(self, x, y):
         for edge in self.edges:
-            if min(edge.start.pos_x, edge.end.pos_x)+2 < x < max(edge.end.pos_x, edge.start.pos_x)-2:
-                if(edge.end.pos_x-edge.start.pos_x != 0):
+            if (min(edge.start.pos_x, edge.end.pos_x)+8 < x < max(edge.start.pos_x, edge.end.pos_x)-8):
+                if (edge.end.pos_x-edge.start.pos_x != 0):
                     k = (edge.end.pos_y-edge.start.pos_y)/(edge.end.pos_x-edge.start.pos_x)
                     m = edge.start.pos_y-k*edge.start.pos_x
                     if abs(y-(x*k + m)) < Map.NODE_SIZE:
+                        return edge
+
+            if (min(edge.start.pos_y, edge.end.pos_y)+8 < y < max(edge.start.pos_y, edge.end.pos_y)-8):
+                if edge.end.pos_y-edge.start.pos_x != 0:
+                    k = (edge.end.pos_x-edge.start.pos_x)/(edge.end.pos_y-edge.start.pos_y)
+                    m = edge.start.pos_x-k*edge.start.pos_y
+                    if abs(x-(y*k + m)) < Map.NODE_SIZE:
                         return edge
         return None
         
@@ -97,6 +104,14 @@ class Map():
                 self.path += new_path[1:]
             else:
                 self.path += new_path
+
+            path_type = []
+            for node in self.path:
+                path_type += [node.type]
+
+            print("mission: ", new_mission)
+            
+            print("path: ", path_type)
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -111,6 +126,7 @@ class Map():
         if(self.selected_node in self.nodes):
             self.nodes.remove(self.selected_node)
         if self.selected_edge in self.edges:
+            self.selected_edge.start.outgoing.remove(self.selected_edge)
             self.edges.remove(self.selected_edge)
         for edge in self.edges:
                 if edge.start not in self.nodes and edge.end not in self.nodes:
@@ -157,7 +173,7 @@ class Map():
                 self.sub_path.append(current_node)
                 current_node = self.path[curr]
                 curr += 1
-            self.sub_path.append(next_node);
+            self.sub_path.append(next_node)
         else:
             self.sub_path = []
 
@@ -172,7 +188,7 @@ class Map():
         elif(node_start and node_end):
             edge = GraphEdge(node_start, node_end, cost)
             self.edges.append(edge)
-            node_start.addEdge(node_end, cost)
+            node_start.addEdge(edge)
             self.selected_node = None
             self.draw()
             
@@ -389,12 +405,16 @@ class GUI():
     def set_mission(self):
         print("SELECT START AND DESTINATION")
         self.map.select_mission = True
+        self.map.selected_node = None
+        self.mao.selected_node = None
     
     def clear_mission(self): 
         self.map.path = []
         self.map.mission = []
         self.map.sub_path = []
         self.tasks.put(Task.CLEAR_MISSION)
+        self.map.selected_node = None
+        self.map.selected_edge = None
         self.map.draw()
 
     def button_down(self, direction):

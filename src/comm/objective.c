@@ -138,7 +138,7 @@ bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
         i->ignore_left = true;
     } else if (s->pos >= AFTER_STOP) {
-        if (s->posdist < 1) {
+        if (s->posdist < 0.5) {
             i->ignore_left = true;
             return false;
         } else {
