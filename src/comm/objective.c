@@ -390,7 +390,8 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     ctrl->rot.regulate = true;
 
     if (o->current) {
-        ctrl->vel.value = FULL_VEL-(FULL_VEL-SLOW_VEL)*abs(ip_res.lane_offset);
+        ctrl->vel.value = FULL_VEL;
+        /*-(FULL_VEL-SLOW_VEL)*abs(ip_res.lane_offset);*/
 
         struct state state;
         state.sens = sens;
