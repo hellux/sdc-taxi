@@ -93,7 +93,6 @@ class Map():
         current_node = self.get_node(event.x, event.y)
         
         if self.select_mission and self.selected_node:
-            print("MISSION SET")
             self.select_mission = False
             new_path = closest_path(self.nodes, self.selected_node, current_node)
             new_mission = create_mission(clear_empty(new_path))
@@ -109,8 +108,10 @@ class Map():
             for node in self.path:
                 path_type += [node.type]
 
+            self.selected_node = None
+            self.selected_edge = None
+            print("MISSION SET")
             print("mission: ", new_mission)
-            
             print("path: ", path_type)
             
         elif self.selected_node and current_node:
@@ -131,7 +132,9 @@ class Map():
         for edge in self.edges:
                 if edge.start not in self.nodes and edge.end not in self.nodes:
                     self.edges.remove(edge)
-            
+
+        self.selected_node = None
+        self.selected_edge = None
         self.draw()
     
     def get_edge_cost(self, node_start, node_end):
@@ -405,8 +408,6 @@ class GUI():
     def set_mission(self):
         print("SELECT START AND DESTINATION")
         self.map.select_mission = True
-        self.map.selected_node = None
-        self.mao.selected_node = None
     
     def clear_mission(self): 
         self.map.path = []
