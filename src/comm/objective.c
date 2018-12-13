@@ -15,7 +15,7 @@
 #define RIGHT 1
 #define STOP_VEL 0
 #define SLOW_VEL 0.4
-#define FULL_VEL 0.7
+#define FULL_VEL 0.6
 
 /* initial positions */
 
@@ -78,9 +78,9 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     case AFTER_STOP:
         c->vel.value = SLOW_VEL;
         i->ignore_left = true;
-        if (s->posdist < 0.45) {
-            c->rot.value = RIGHT;
-        } else if (s->posdist > 1) {
+        if (s->posdist < 0.4) {
+            c->rot.value = 0.90;
+        } else if (s->posdist > 0.8) {
             if (s->last_cmd) {
                 return true;
             } else {
@@ -95,7 +95,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         break;
     case UNPARKING:
         i->ignore_left = true;
-        if (s->posdist < 0.2) {
+        if (s->posdist < 0.25) {
             c->rot.value = LEFT;
         } else {
             return true;
