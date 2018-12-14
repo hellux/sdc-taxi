@@ -12,7 +12,7 @@
 #endif
 
 #define F_SPI 1000000
-#define SLAVE "1"
+#define SLAVE "0"
 
 static void spi_tranceive(int fd, void *src, void *dst, int len) {
     struct spi_ioc_transfer transfer = {0};

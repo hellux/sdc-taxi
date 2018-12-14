@@ -15,9 +15,11 @@
 
 #define CNV_FRONT_MUL 173.91
 #define CNV_FRONT_EXP 1.071
+#define MAX_FRONT 1.5
 
 #define CNV_RIGHT_MUL 26.80
 #define CNV_RIGHT_EXP 1.018
+#define MAX_RIGHT 0.8
 
 #define CHN_SENS_FRONT 0
 #define CHN_SENS_RIGHT 1
@@ -33,6 +35,8 @@
 #define WT_TOP 65535
 
 #define SENS_SLAVE 0
+
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
 
 const struct sens_data SENS_EMPTY = {0};
 
@@ -129,8 +133,10 @@ int main(void) {
         /* get new sensor values */
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
-        float dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
-        float dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
+        float dist_front = MIN(CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP),
+                               MAX_FRONT);
+        float dist_right = MIN(CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP),
+                               MAX_RIGHT);
         
         /* save local struct to global one */
         cli();

@@ -13,8 +13,8 @@
 #define SPI_DEVICE "/dev/spidev0."
 
 #define WAIT_SLEEP 1 /* seconds before wake up if nothing scheduled */
-#define WAIT_DELAY 20e3 /* nanoseconds between orders */
-#define RECV_DELAY 20e3 /* nanoseconds between orders */
+#define WAIT_DELAY 40e3 /* nanoseconds between orders */
+#define ACK_DELAY 20e3 /* nanoseconds waiting for ACK */
 
 static unsigned packets_sent = 0;
 static unsigned packets_lost = 0;
@@ -50,6 +50,8 @@ static bool receive(int fd, const struct bus_cmd *bc, void *dst) {
     cs_t cs_recv;
     uint8_t ack;
     spi_tranceive(fd, (void*)&cs, NULL, 1);
+    struct timespec ts_delay = {0, ACK_DELAY};
+    nanosleep(&ts_delay, NULL);
     spi_tranceive(fd, NULL, (void*)&ack, 1);
     if (ack == ACKS[bc->slave]) {
         spi_tranceive(fd, NULL, (void*)&cs_recv, 1);
@@ -96,7 +98,6 @@ static void order_destroy(struct order *o) {
 static void order_queue(struct bus *bus, struct order *o, bool requeue) {
     o->next = NULL;
 
-    pthread_mutex_lock(&bus->lock);
     struct order **prev_ptr = &bus->queue;
     struct order *curr = bus->queue;
     bool insert = true;
@@ -121,7 +122,6 @@ static void order_queue(struct bus *bus, struct order *o, bool requeue) {
             order_destroy(curr);
         }
     }
-    pthread_mutex_unlock(&bus->lock);
 }
 
 /* bus thread function */
@@ -160,7 +160,9 @@ static void *bus_thread(void *b) {
                 if (order->handler)
                     order->handler(order->src_dst, order->handler_data);
                 if (order->recurring) {
+                    pthread_mutex_lock(&bus->lock);
                     order_queue(bus, order, true);
+                    pthread_mutex_unlock(&bus->lock);
                 } else {
                     order_destroy(order);
                 }
@@ -169,7 +171,9 @@ static void *bus_thread(void *b) {
                 printf("slave: %d, cmd: %01x, packets lost: %d, packet loss: %.1f\n",
                        order->bc->slave, order->bc->cmd, packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
+                pthread_mutex_lock(&bus->lock);
                 order_queue(bus, order, true);
+                pthread_mutex_unlock(&bus->lock);
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
 
@@ -264,7 +268,12 @@ void bus_schedule(struct bus *bus, const struct bus_cmd *bc, void *msg,
     order->handler = handler;
     order->handler_data = handler_data;
 
+    if (pthread_self() != bus->thread)
+        pthread_mutex_lock(&bus->lock);
     order_queue(bus, (struct order*)order, false);
-    
-    pthread_cond_signal(&bus->wake_up);
+
+    if (pthread_self() != bus->thread) {
+        pthread_mutex_unlock(&bus->lock);
+        pthread_cond_signal(&bus->wake_up);
+    }
 }

@@ -9,13 +9,13 @@
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 /* PWM */
-#define VEL_K 0.058
+#define VEL_K 0.062
 #define DUTY_MAX 0.10
 #define DUTY_NEUTRAL 0.075
 #define DUTY_MIN 0.050
 #define VEL_MIN -0.2
 #define VEL_NEUTRAL 0.06
-#define VEL_MAX 0.2
+#define VEL_MAX 0.5
 #define ROT_MIN -1
 #define ROT_MAX 1
 
@@ -26,9 +26,9 @@
 #define OCR_VEL OCR1B
 #define OCR_ROT OCR1A
 
-#define VEL_KP_DEF 1
-#define VEL_KI_DEF 0
-#define VEL_KD_DEF 0
+#define VEL_KP_DEF 0.5
+#define VEL_KI_DEF 0.03
+#define VEL_KD_DEF 0.1
 
 #define ROT_KP_DEF 2.5
 #define ROT_KI_DEF 0

@@ -169,14 +169,28 @@ void bsh_sens_recv(void *received, void *data) {
     sens_data->val = sens_new;
     pthread_mutex_unlock(&sens_data->lock);
 
-#ifdef PLOT_VEL
     if (sd->updated) {
-        fprintf(vel_log, "%f %f %f\n",
+        pthread_mutex_lock(&sens_data->lock);
+        float vel = sens_data->vel;
+        pthread_mutex_unlock(&sens_data->lock);
+        static float vel_smooth = 0;
+        vel_smooth = (vel_smooth+0.3*sd->velocity)/(1+.3);
+        float err = vel - vel_smooth;
+        bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
+                     NULL, NULL, false);
+        /*
+        bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &vel,
+                     NULL, NULL, false);
+        */
+#ifdef PLOT_VEL
+        fprintf(vel_log, "%f %f %f %f %f\n",
                 sens_new.time,
                 sens_new.velocity,
-                sens_new.distance);
-    }
+                vel,
+                sens_new.dist_front,
+                vel_smooth);
 #endif
+    }
 }
 
 int main(int argc, char* args[]) {
@@ -207,6 +221,7 @@ int main(int argc, char* args[]) {
 
     bus = bus_create(F_SPI);
     if (!bus) goto fail;
+    sens_data.bus = bus;
 
     obj = obj_create();
     if (!obj) goto fail;
@@ -264,9 +279,15 @@ int main(int argc, char* args[]) {
             ctrl.rot.regulate = false;
         }
 
-        if (sens.dist_front < 0.7 && ctrl.vel.value > 0) {
-            ctrl.vel.value = -sens.velocity;
+        /*
+        if (sens.dist_front < 1.5 && ctrl.vel.value > 0) {
+            float new_vel = sens.dist_front-0.5;
+            if (new_vel < 0)
+                new_vel = 0;
+            if (ctrl.vel.value > new_vel)
+                ctrl.vel.value = new_vel;
         }
+        */
 
         /* send new ctrl commands */
         int bcc_vel = BBC_VEL_VAL;
@@ -277,8 +298,6 @@ int main(int argc, char* args[]) {
         sens_data.rot = ctrl.rot.value;
         pthread_mutex_unlock(&sens_data.lock);
 
-        bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL,
-                     false);
         bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL,
                      false);
     }
