@@ -6,7 +6,7 @@ int main(int argc, char* args[]) {
     ip_t *ip = ip_init();
     struct ip_res result;
     while (ip) {
-        ip_process(ip, &result);
+        ip_process(ip, &result, NULL);
     }
     ip_destroy(ip);
 
