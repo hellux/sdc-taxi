@@ -86,7 +86,9 @@ comm.remote: comm.push
 comm.pull_video:
 	ssh $(PI_REMOTE) -t 'cd module; ffmpeg -i opencv.avi -vcodec libx265 -crf 24 lowrate.mp4'
 	scp $(PI_REMOTE):module/lowrate.mp4 .
-
+comm.plot_vel:
+	scp $(PI_REMOTE):module/vel.dat .
+	gnuplot -p -e 'plot "vel.dat" with lines'
 
 # avr modules
 sens: $(BINDIR)/sens
