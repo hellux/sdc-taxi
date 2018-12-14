@@ -35,6 +35,7 @@ struct bus {
 struct order {
     const struct bus_cmd *bc;
     void *src_dst;
+    bool recurring;
 
     void (*handler)(void *src_dst, void *data);
     void *handler_data;
@@ -158,14 +159,16 @@ static void *bus_thread(void *b) {
             if (success) {
                 if (order->handler)
                     order->handler(order->src_dst, order->handler_data);
-                order_destroy(order);
+                if (order->recurring) {
+                    order_queue(bus, order, true);
+                } else {
+                    order_destroy(order);
+                }
             } else {
                 packets_lost++;
-                /*
                 printf("slave: %d, cmd: %01x, packets lost: %d, packet loss: %.1f\n",
                        order->bc->slave, order->bc->cmd, packets_lost,
                     ((float)packets_lost/(float)packets_sent)*100);
-                */
                 order_queue(bus, order, true);
                 spi_sync(fd, MAX_DATA_LENGTH+2);
             }
@@ -242,14 +245,16 @@ void bus_sync(struct bus *bus) {
 }
 
 void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg) {
-    bus_schedule(bus, bc, msg, NULL, NULL);
+    /*bus_schedule(bus, bc, msg, NULL, NULL);*/
 }
 
 void bus_schedule(struct bus *bus, const struct bus_cmd *bc, void *msg,
                   void (*handler)(void *src, void *data),
-                  void *handler_data) {
+                  void *handler_data,
+                  bool recurring) {
     struct order *order = malloc(sizeof(*order));
     order->bc = bc;
+    order->recurring = recurring;
 
     order->src_dst = malloc(bc->len);
     if (bc->write) {

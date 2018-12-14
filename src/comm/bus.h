@@ -24,6 +24,7 @@ void bus_tranceive(struct bus *bus, const struct bus_cmd *bc, void *msg);
 /* input data is copied and can thus be freed immediately after call */
 void bus_schedule(bus_t *bus, const struct bus_cmd *bc, void *msg,
                            void (*handler)(void *src, void *data),
-                           void *handler_data);
+                           void *handler_data,
+                           bool recurring);
 
 #endif

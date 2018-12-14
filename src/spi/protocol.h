@@ -33,6 +33,7 @@ struct sens_data {
     sens_dist_t dist_right;
     sens_odom_t distance;
     sens_vel_t velocity;
+    bool updated;
 };
 
 struct bus_cmd {
@@ -101,7 +102,7 @@ const static struct bus_cmd BCSS[16] = {
     {0}, {0}, {0}, {0},
 };
 
-#define MAX_DATA_LENGTH 16
+#define MAX_DATA_LENGTH sizeof(struct sens_data)
 
 /* SYN/ACK magic values */
 #define CTRL_ACK 0xc7

@@ -28,8 +28,6 @@
 
 #define WL_OCR OCR1A
 #define WL_TCNT TCNT1
-#define WR_OCR OCR3A
-#define WR_TCNT TCNT3
 
 #define WT_PSC 64
 #define WT_TOP 65535
@@ -39,11 +37,6 @@
 const struct sens_data SENS_EMPTY = {0};
 
 volatile struct sens_data sensors; 
-
-volatile uint16_t wheel_left_count = 0;
-volatile uint32_t wheel_left_period = WT_TOP;
-volatile uint16_t wheel_right_count = 0;
-volatile uint32_t wheel_right_period = WT_TOP;
 
 void reset(void) {
     sensors = SENS_EMPTY;
@@ -57,16 +50,8 @@ void wheel_init(){
     WL_TCNT = 0;
     WL_OCR = WT_TOP;
 
-    /*
-    TIMSK3 = (1<<OCIE3A);
-    TCCR3B = (1<<WGM32)|(0<<CS32)|(1<<CS31)|(1<<CS30);
-    TCCR3A = 0;
-    WR_TCNT = 0;
-    WR_OCR = WT_TOP;
-    */
-
     /* enable external interrupts */
-    EIMSK = (1<<INT0)|(1<<INT1);
+    EIMSK = (1<<INT0)|(0<<INT1);
     /* Trigger on rising edge */
     EICRA = (1<<ISC01)|(1<<ISC00)|(1<<ISC11)|(1<<ISC10);
 }
@@ -95,34 +80,23 @@ uint16_t adc_read(uint8_t channel) {
     return (ADC); //ADCL-ADCH
 }
 
+/* left wheel timer expired */
 ISR(TIMER1_COMPA_vect) {
     cli();
-    wheel_left_period = WT_TOP;
+    sensors.velocity = 0;
+    WL_TCNT = 0;
+    sensors.updated = true;
     sei();
 }
 
+/* left wheel register */
 ISR(INT0_vect) {
     cli();
-    wheel_left_count++;
-    wheel_left_period = WL_TCNT;
+    sensors.distance += WHEEL_CIRCUM/WHEEL_N;
+    sensors.velocity = F_CPU*WHEEL_N_DIST/WT_PSC/WL_TCNT;
+    sensors.updated = true;
     WL_TCNT = 0;
     sei();
-}
-
-/*
-ISR(TIMER3_COMPA_vect) {
-    cli();
-    wheel_right_period = WT_TOP;
-    sei();
-}
-*/
-
-ISR(INT1_vect) {
-    cli();
-    wheel_right_count++;
-    wheel_right_period = WR_TCNT;
-    sei();
-    WR_TCNT = 0;
 }
 
 ISR(SPI_STC_vect) {
@@ -134,6 +108,7 @@ ISR(SPI_STC_vect) {
     case BBS_GET:
         sensors_copy = sensors;
         spi_return(command, (uint8_t*)&sensors_copy, sizeof(sensors_copy));
+        sensors.updated = false;
         break;
     case BBS_RST:
         reset();
@@ -148,58 +123,21 @@ int main(void) {
     adc_init();
     reset();
 
-#ifdef DEBUG
-    DDRA = 0xFC;
-    lcd_init();
-    lcd_clear();
-#endif
-
     sei();
 
-    struct sens_data sens_local;
     while (1) {
         /* get new sensor values */
-        cli();
-        uint16_t wheel_count = wheel_left_count + wheel_right_count;
-        uint32_t wheel_period = wheel_left_period;
-        sei();
         uint16_t adc_front = adc_read(CHN_SENS_FRONT);
         uint16_t adc_right = adc_read(CHN_SENS_RIGHT);
-
-        float velocity = 0;
-        if (wheel_period < WT_TOP) {
-            velocity = F_CPU*WHEEL_N_DIST/WT_PSC/wheel_period;
-        }
-
-        /* write to local struct */
-        sens_local.dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
-        sens_local.dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
-        sens_local.distance = WHEEL_CIRCUM/WHEEL_N*wheel_count / 2;
-        sens_local.velocity = velocity;
-
+        float dist_front = CNV_FRONT_MUL*pow(adc_front, -CNV_FRONT_EXP);
+        float dist_right = CNV_RIGHT_MUL*pow(adc_right, -CNV_RIGHT_EXP);
+        
         /* save local struct to global one */
         cli();
-        sensors = sens_local;
+        sensors.dist_front = dist_front;
+        sensors.dist_right = dist_right;
         sei();
-        
-#ifdef DEBUG
-        /* write values to lcd */
-        char buf[16];
-        lcd_set_ddram(0);
-        lcd_send_string("F:");
-        dtostrf(sens_local.dist_front, 5, 2, buf);
-        lcd_send_string(buf);
-        dtostrf(sens_local.dist_right, 5, 2, buf);
-        lcd_send_string(" R:");
-        lcd_send_string(buf);
-        lcd_set_ddram(ROW2ADR);
-        lcd_send_string("D:");
-        dtostrf(sens_local.distance, 5, 2, buf);
-        lcd_send_string(buf);
-        lcd_send_string(" V:");
-        dtostrf(sens_local.velocity, 5, 2, buf);
-        lcd_send_string(buf);
-#endif
     }
+
     return 0;
 }

@@ -20,8 +20,12 @@
 #define WAIT_RC 1e7
 
 static struct timespec ts_start;
+#ifdef PLOT_VEL
+static FILE *vel_log;
+#endif
 
 struct data_sensors {
+    bus_t *bus;
     struct sens_val val;
     struct ip_res ip;
     float vel;
@@ -132,7 +136,7 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
         success = true;
         const struct bus_cmd *bc = (struct bus_cmd*)a->data1;
         bus_t *bus = (bus_t*)a->data2;
-        bus_schedule(bus, bc, (unsigned char*)&value, NULL, NULL);
+        bus_schedule(bus, bc, (unsigned char*)&value, NULL, NULL, false);
         a->resp = str_create("sending value %f", value);
     } else {
         a->resp = str_create("invalid arg -- \"%s\"", float_str);
@@ -164,10 +168,22 @@ void bsh_sens_recv(void *received, void *data) {
     pthread_mutex_lock(&sens_data->lock);
     sens_data->val = sens_new;
     pthread_mutex_unlock(&sens_data->lock);
+
+#ifdef PLOT_VEL
+    if (sd->updated) {
+        fprintf(vel_log, "%f %f %f\n",
+                sens_new.time,
+                sens_new.velocity,
+                sens_new.distance);
+    }
+#endif
 }
 
 int main(int argc, char* args[]) {
     clock_gettime(CLOCK_MONOTONIC, &ts_start);
+#ifdef PLOT_VEL
+    vel_log = fopen("vel.dat", "w");
+#endif
 
     int success = EXIT_SUCCESS;
     bool quit = false;
@@ -215,16 +231,17 @@ int main(int argc, char* args[]) {
     if (!srv) goto fail;
 
     bus_sync(bus);
-    bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
-    bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
+    bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL, false);
+    bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL, false);
+
+    bus_schedule(bus, &BCSS[BBS_GET], NULL, bsh_sens_recv, &sens_data,
+                 true);
 
     while (!quit) {
         struct ctrl_val ctrl = {0};
         pthread_mutex_lock(&sens_data.lock);
         struct sens_val sens = sens_data.val;
         pthread_mutex_unlock(&sens_data.lock);
-
-        bus_schedule(bus, &BCSS[BBS_GET], NULL, bsh_sens_recv, &sens_data);
 
         /* determine new ctrl values */
         if (obj_active(obj)) {
@@ -260,12 +277,14 @@ int main(int argc, char* args[]) {
         sens_data.rot = ctrl.rot.value;
         pthread_mutex_unlock(&sens_data.lock);
 
-        bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL);
-        bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL);
+        bus_schedule(bus, &BCCS[bcc_vel], (void*)&ctrl.vel.value, NULL, NULL,
+                     false);
+        bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL,
+                     false);
     }
 
-    bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL);
-    bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL);
+    bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL, false);
+    bus_schedule(bus, &BCCS[BBC_RST], NULL, NULL, NULL, false);
 
     goto exit;
 fail:
@@ -277,6 +296,9 @@ exit:
     srv_destroy(srv);
     obj_destroy(obj);
     bus_destroy(bus);
+#ifdef PLOT_VEL
+    fclose(vel_log);
+#endif
 
     return success;
 }

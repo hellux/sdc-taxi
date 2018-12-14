@@ -44,7 +44,7 @@ CTRL_OBJS = $(patsubst %.c, $(OBJDIR)/%.o, $(CTRL_SRC))
 
 # communication module
 comm.gdb: CXXFLAGS += $(CXXFLAGS.debug)
-comm.gdb: CFLAGS += $(CFLAGS.debug)
+comm.gdb: CFLAGS += $(CFLAGS.debug) -DPLOT_VEL
 comm.gdb: $(BINDIR)/comm
 	gdb -ex run --args $(BINDIR)/$(COMM_BIN) 127.0.0.1
 comm.sample.visual: CFLAGS += -DVISUAL
@@ -57,7 +57,7 @@ comm.sample: $(BINDIR)/comm
 comm.pi.release: CXXFLAGS += $(CXXFLAGS.release)
 comm.pi.release: CFLAGS += $(CFLAGS.release)
 comm.pi.release: comm.pi
-comm.pi.record: CFLAGS += -DRECORD
+comm.pi.record: CFLAGS += -DRECORD -DPLOT_VEL
 comm.pi.record: CXXFLAGS += -DRECORD
 comm.pi.record: comm.pi
 comm.pi.visual: CFLAGS += -DVISUAL
@@ -88,7 +88,7 @@ comm.pull_video:
 	scp $(PI_REMOTE):module/lowrate.mp4 .
 comm.plot_vel:
 	scp $(PI_REMOTE):module/vel.dat .
-	gnuplot -p -e 'plot "vel.dat" with lines'
+	gnuplot -p -e 'plot "vel.dat" using 1:2 with lines'
 
 # avr modules
 sens: $(BINDIR)/sens
