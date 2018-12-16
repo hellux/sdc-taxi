@@ -46,7 +46,7 @@ void reset(void) {
     sensors = SENS_EMPTY;
 }
 
-void wheel_init(){
+void wheel_init(void) {
     /* setup timer for velocity calculation */
     TIMSK1 = (1<<OCIE1A);
     TCCR1B = (1<<WGM12)|(0<<CS12)|(1<<CS11)|(1<<CS10);
@@ -84,22 +84,33 @@ uint16_t adc_read(uint8_t channel) {
     return (ADC); //ADCL-ADCH
 }
 
-/* left wheel timer expired */
-ISR(TIMER1_COMPA_vect) {
-    cli();
-    sensors.velocity = 0;
-    WL_TCNT = 0;
-    sensors.updated = true;
-    sei();
-}
-
+#define PERIOD 10
+static float vel_hist[PERIOD] = {0};
+static float vel_sum = 0;
+static int vel_index = 0;
 /* left wheel register */
 ISR(INT0_vect) {
     cli();
-    sensors.distance += WHEEL_CIRCUM/WHEEL_N;
-    sensors.velocity = F_CPU*WHEEL_N_DIST/WT_PSC/WL_TCNT;
-    sensors.updated = true;
+    float vel = F_CPU*WHEEL_N_DIST/WT_PSC/WL_TCNT;
     WL_TCNT = 0;
+    vel_sum += vel-vel_hist[vel_index];
+    vel_hist[vel_index] = vel;
+    vel_index = (vel_index+1) % PERIOD;
+    sensors.distance += WHEEL_CIRCUM/WHEEL_N;
+    sensors.velocity = vel_sum / 10.0;
+    sensors.updated = true;
+    sei();
+}
+/* left wheel timer expired */
+ISR(TIMER1_COMPA_vect) {
+    cli();
+    WL_TCNT = 0;
+    vel_sum = 0;
+    for (int i = 0; i < PERIOD; i++)
+        vel_hist[i] = 0;
+    vel_index = 0;
+    sensors.velocity = 0;
+    sensors.updated = true;
     sei();
 }
 
