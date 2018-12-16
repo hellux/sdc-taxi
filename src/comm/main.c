@@ -148,6 +148,8 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* bus signal handler, called by bus thread when transmission finished */
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
+    static float velocity_prev = 0;
+
     struct sens_data *sd = (struct sens_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
     
@@ -162,8 +164,10 @@ void bsh_sens_recv(void *received, void *data) {
         .dist_right = sd->dist_right,
         .distance = sd->distance,
         .velocity = sd->velocity,
+        .acceleration = sd->velocity-velocity_prev,
         .time = time,
     };
+    velocity_prev = sd->velocity;
 
     pthread_mutex_lock(&sens_data->lock);
     sens_data->val = sens_new;
@@ -171,11 +175,9 @@ void bsh_sens_recv(void *received, void *data) {
 
     if (sd->updated) {
         pthread_mutex_lock(&sens_data->lock);
-        float vel = sens_data->vel;
+        float wanted_vel = sens_data->vel;
         pthread_mutex_unlock(&sens_data->lock);
-        static float vel_smooth = 0;
-        vel_smooth = (vel_smooth+0.3*sd->velocity)/(1+.3);
-        float err = vel - vel_smooth;
+        float err = wanted_vel - sd->velocity;
         bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
                      NULL, NULL, false);
         /*
@@ -186,9 +188,9 @@ void bsh_sens_recv(void *received, void *data) {
         fprintf(vel_log, "%f %f %f %f %f\n",
                 sens_new.time,
                 sens_new.velocity,
-                vel,
+                wanted_vel,
                 sens_new.dist_front,
-                vel_smooth);
+                sens_new.acceleration);
 #endif
     }
 }
@@ -290,9 +292,7 @@ int main(int argc, char* args[]) {
         */
 
         /* send new ctrl commands */
-        int bcc_vel = BBC_VEL_VAL;
         int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
-
         pthread_mutex_lock(&sens_data.lock);
         sens_data.vel = ctrl.vel.value;
         sens_data.rot = ctrl.rot.value;

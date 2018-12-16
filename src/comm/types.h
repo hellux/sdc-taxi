@@ -6,6 +6,7 @@ struct sens_val {
     float dist_right;
     float distance;
     float velocity;
+    float acceleration;
     double time; /* monotonic seconds, accuracy <= nanosecond */
 };
 
