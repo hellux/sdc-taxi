@@ -10,7 +10,6 @@
 
 typedef std::vector<cv::Vec4i> lines_t;
 
-
 static int WIDTH = 256;
 static int HEIGHT = 144;
 
@@ -55,14 +54,14 @@ static void set_constants() {
     line_max_gap = 40;
 
     /* masking */
-    mask_width_top = 0.55*WIDTH;
+    mask_width_top = 0.9*WIDTH;
     mask_start_y = 0.9*HEIGHT;
-    mask_end_y = 0.5*HEIGHT;
+    mask_end_y = 0.75*HEIGHT;
 
     /* classificication */
     thresh_angle_lane = 0.3*CV_PI;
     thresh_angle_stop = 0.3*CV_PI;
-    max_stop_diff = 0.2*HEIGHT;
+    max_stop_diff = 0.15*HEIGHT;
 
     /* weights */
     weight_lt = 0.3;
@@ -108,7 +107,7 @@ struct ip {
 };
 
 void ip_reset(struct ip *ip) {
-    ip->lane = cv::Point(lane_center, 0.5*HEIGHT);
+    ip->lane = cv::Point(lane_center, 0.6*HEIGHT);
     ip->lane_dir = cv::Point(0, -1);
     ip->lane_width = 0.8*WIDTH;
 
