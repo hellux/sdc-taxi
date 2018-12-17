@@ -159,6 +159,19 @@ void bsh_sens_recv(void *received, void *data) {
                                ts_now.tv_nsec - ts_start.tv_nsec};
     double time = ts_diff.tv_sec + ts_diff.tv_nsec/1e9;
 
+    if (sd->dist_front > 1.5
+     || sd->dist_front < 0
+     || sd->distance < 0
+     || sd->velocity > 100
+     || sd->velocity < -100) {
+        printf("invalid sensor values: %f %f %f %f %f\n",
+                sd->dist_front,
+                sd->dist_right,
+                sd->distance,
+                sd->velocity);
+        return;
+    }
+
     struct sens_val sens_new = {
         .dist_front = sd->dist_front,
         .dist_right = sd->dist_right,
@@ -181,9 +194,9 @@ void bsh_sens_recv(void *received, void *data) {
         bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
                      NULL, NULL, false);
         /*
-        bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &vel,
+        bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &wanted_vel,
                      NULL, NULL, false);
-        */
+                     */
 #ifdef PLOT_VEL
         fprintf(vel_log, "%f %f %f %f %f\n",
                 sens_new.time,
