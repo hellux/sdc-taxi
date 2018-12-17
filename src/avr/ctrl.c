@@ -27,12 +27,12 @@
 #define OCR_ROT OCR1A
 
 /* Cohen Coon tuning */
-#define CC_A 1.3
-#define CC_B 1.32
+#define CC_A 1.0
+#define CC_B 1.0
 #define CC_K (CC_B/CC_A)
-#define CC_T0 5.3
-#define CC_T2 5.71
-#define CC_T3 5.78
+#define CC_T0 3.4
+#define CC_T2 3.9
+#define CC_T3 4.02
 #define CC_T1 ((CC_T2-.693*CC_T3)/.306)
 #define CC_T (CC_T3-CC_T1)
 #define CC_TDEL (CC_T1-CC_T0)
@@ -48,9 +48,9 @@
 #define ZN_KI (1.2*ZN_KU/ZN_TU)
 #define ZN_KD (3.0*ZN_KU/ZN_TU/40.0)
 
-#define VEL_KP 0.5
-#define VEL_KI 0.03
-#define VEL_KD 0.1
+#define VEL_KP 0.1
+#define VEL_KI 0.004
+#define VEL_KD 0
 
 #define ROT_KP 2.5
 #define ROT_KI 0
