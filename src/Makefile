@@ -57,8 +57,8 @@ comm.sample: $(BINDIR)/comm
 comm.pi.release: CXXFLAGS += $(CXXFLAGS.release)
 comm.pi.release: CFLAGS += $(CFLAGS.release)
 comm.pi.release: comm.pi
-comm.pi.record: CFLAGS += -DRECORD
-comm.pi.record: CXXFLAGS += -DRECORD
+comm.pi.record: CFLAGS += -DRECORD -O3
+comm.pi.record: CXXFLAGS += -DRECORD -O3
 comm.pi.record: comm.pi
 comm.pi.visual: CFLAGS += -DVISUAL
 comm.pi.visual: CXXFLAGS += -DVISUAL
