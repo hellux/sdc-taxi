@@ -54,9 +54,9 @@ static void set_constants() {
     line_max_gap = 40;
 
     /* masking */
-    mask_width_top = 0.9*WIDTH;
+    mask_width_top = 0.55*WIDTH;
     mask_start_y = 0.9*HEIGHT;
-    mask_end_y = 0.75*HEIGHT;
+    mask_end_y = 0.6*HEIGHT;
 
     /* classificication */
     thresh_angle_lane = 0.3*CV_PI;
