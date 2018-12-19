@@ -12,6 +12,7 @@
 
 #define SPI_DEVICE "/dev/spidev0."
 
+#define F_SPI 1e6
 #define WAIT_SLEEP 1 /* seconds before wake up if nothing scheduled */
 #define WAIT_DELAY 40e3 /* nanoseconds between orders */
 #define ACK_DELAY 20e3 /* nanoseconds waiting for ACK */
@@ -194,7 +195,7 @@ static void *bus_thread(void *b) {
 
 /* external API functions */
 
-struct bus *bus_create(int freq) {
+struct bus *bus_create(void) {
     struct bus *bus = calloc(1, sizeof(struct bus));
     bus->terminate = false;
     bus->queue = NULL;
@@ -206,8 +207,8 @@ struct bus *bus_create(int freq) {
 
 #ifdef PI
     /* setup spi for each slave */
-    bus->fds[0] = spi_create(SPI_DEVICE "0", freq);
-    bus->fds[1] = spi_create(SPI_DEVICE "1", freq);
+    bus->fds[0] = spi_create(SPI_DEVICE "0", F_SPI);
+    bus->fds[1] = spi_create(SPI_DEVICE "1", F_SPI);
 #endif
 
     /* start bus thread */

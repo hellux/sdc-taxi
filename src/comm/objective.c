@@ -52,12 +52,12 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
-        c->vel.value = -s->sens->velocity/3;
+        c->vel = -s->sens->velocity/3;
         if (s->sens->velocity < 0.3) {
-            c->vel.value = 0.3;
+            c->vel = 0.3;
         }
     } else if (s->pos >= AFTER_STOP) {
-        c->vel.value = 0;
+        c->vel = 0;
         if (s->last_cmd || s->postime >= PICKUP_TIME) {
             return true;
         }
@@ -72,14 +72,16 @@ bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     switch (s->pos) {
     case BEFORE_STOP:
-        if (s->stop_visible)
+        if (s->stop_visible) {
+            c->vel = SLOW_VEL;
             i->ignore_left = true;
+        }
         break;
     case AFTER_STOP:
-        c->vel.value = SLOW_VEL;
+        c->vel = SLOW_VEL;
         i->ignore_left = true;
         if (s->posdist < 0.4) {
-            c->rot.value = 0.90;
+            c->rot = 0.90;
         } else if (s->posdist > 1.2) {
             if (s->last_cmd) {
                 return true;
@@ -89,14 +91,15 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         }
         break;
     case PARKED:
-        c->vel.value = 0;
+        c->vel = 0;
         if (s->postime >= PICKUP_TIME)
             s->pos = UNPARKING;
         break;
     case UNPARKING:
+        c->vel = SLOW_VEL;
         i->ignore_left = true;
         if (s->posdist < 0.25) {
-            c->rot.value = LEFT;
+            c->rot = LEFT;
         } else {
             return true;
         }
@@ -384,13 +387,11 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         o->passdist = sens->distance;
     }
 
-    ctrl->vel.value = 0;
-    ctrl->vel.regulate = false;
-    ctrl->rot.value = ip_res.lane_offset;
-    ctrl->rot.regulate = true;
+    ctrl->vel = 0;
+    ctrl->rot = ip_res.lane_offset;
 
     if (o->current) {
-        ctrl->vel.value = FULL_VEL-(FULL_VEL-SLOW_VEL)*abs(ip_res.lane_offset);
+        ctrl->vel = FULL_VEL-(FULL_VEL-SLOW_VEL)*abs(ip_res.lane_offset);
 
         struct state state;
         state.sens = sens;
@@ -426,7 +427,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         finished = cmd_finished && !o->queue;
     } else {
         finished = true;
-        ctrl->vel.value = 0;
+        ctrl->vel = 0;
     }
 
     if (finished) {

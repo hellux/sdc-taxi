@@ -11,8 +11,8 @@ struct sens_val {
 };
 
 struct ctrl_val {
-    struct {float value; float regulate;} vel;
-    struct {float value; float regulate;} rot;
+    float vel;
+    float rot;
 };
 
 #endif

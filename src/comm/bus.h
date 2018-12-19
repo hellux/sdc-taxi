@@ -8,7 +8,7 @@
 typedef struct bus bus_t;
 
 /* allocate resources and start bus thread */
-bus_t *bus_create(int freq);
+bus_t *bus_create(void);
 
 /* deallocate resources and terminate thread, blocks until dead */
 void bus_destroy(bus_t *bus);

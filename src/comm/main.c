@@ -12,12 +12,13 @@
 #include "ip/img_proc.h"
 #include "protocol.h"
 
-#define F_SPI 1e6
-
 #define SERVER_PORT_START 9000
 #define SERVER_PORT_END 9100
 
 #define WAIT_RC 1e7
+
+#define MAX(a,b) (((a) < (b)) ? (a) : (b))
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
 
 static struct timespec ts_start;
 #ifdef PLOT_VEL
@@ -191,7 +192,8 @@ void bsh_sens_recv(void *received, void *data) {
         pthread_mutex_lock(&sens_data->lock);
         float wanted_vel = sens_data->vel;
         pthread_mutex_unlock(&sens_data->lock);
-        if (sd->velocity <= 0.2 && sens_new.acceleration <= 0) {
+        if (wanted_vel < 0 ||
+            (sd->velocity <= 0.2 && sens_new.acceleration <= 0)) {
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &wanted_vel,
                          NULL, NULL, false);
         } else {
@@ -237,7 +239,7 @@ int main(int argc, char* args[]) {
         goto fail;
     }
 
-    bus = bus_create(F_SPI);
+    bus = bus_create();
     if (!bus) goto fail;
     sens_data.bus = bus;
 
@@ -291,34 +293,22 @@ int main(int argc, char* args[]) {
             rc = rc_data;
             pthread_mutex_unlock(&rc_data.lock);
 
-            ctrl.vel.value = rc.vel;
-            ctrl.rot.value = rc.rot;
-            ctrl.vel.regulate = false;
-            ctrl.rot.regulate = false;
+            ctrl.vel = rc.vel;
+            ctrl.rot = rc.rot;
         }
 
-        /*
-        if (sens.dist_front < 1.5 && ctrl.vel.value > 0) {
-            float new_vel = sens.dist_front-0.5;
-            if (new_vel < 0)
-                new_vel = 0;
-            if (ctrl.vel.value > new_vel)
-                ctrl.vel.value = new_vel;
+        if (sens.dist_front < 1.5) {
+            float max_vel = MAX(0, sens.dist_front-0.5);
+            ctrl.vel = MIN(max_vel, ctrl.vel);
         }
-        */
 
         /* send new ctrl commands */
-        int bcc_rot = ctrl.rot.regulate ? BBC_ROT_ERR : BBC_ROT_VAL;
         pthread_mutex_lock(&sens_data.lock);
-        sens_data.vel = ctrl.vel.value;
-        sens_data.rot = ctrl.rot.value;
+        sens_data.vel = ctrl.vel;
+        sens_data.rot = ctrl.rot;
         pthread_mutex_unlock(&sens_data.lock);
 
-        /*
-        bus_schedule(bus, &BCCS[BBC_VEL_VAL], (void*)&ctrl.vel.value, NULL, NULL,
-                     false);
-                     */
-        bus_schedule(bus, &BCCS[bcc_rot], (void*)&ctrl.rot.value, NULL, NULL,
+        bus_schedule(bus, &BCCS[BBC_ROT_ERR], (void*)&ctrl.rot, NULL, NULL,
                      false);
     }
 
