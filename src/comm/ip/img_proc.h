@@ -12,6 +12,7 @@
 
 struct ip_res {
     float lane_offset;
+    float lane_angle;
     float stopline_dist;
 
     bool stopline_visible;

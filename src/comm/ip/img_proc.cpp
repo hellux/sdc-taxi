@@ -285,15 +285,14 @@ bool is_stopline(struct ip *ip, cv::Point s, cv::Point e,
     /* must be close to estimated pos */
     double dis_s = std::abs(distance(ip->stop, ip->stop+ip->stop_dir, s)) /
                    norm(ip->stop_dir);
-    if (dis_s > max_stop_diff)
-        return false;
-
+    if (dis_s < max_stop_diff)
+        return true;
     double dis_e = std::abs(distance(ip->stop, ip->stop+ip->stop_dir, e)) /
                    norm(ip->stop_dir);
-    if (dis_e > max_stop_diff)
-        return false;
+    if (dis_e < max_stop_diff)
+        return true;
 
-    return true;
+    return false;
 }
 
 /* -1: left, 0: none, 1: right */
@@ -524,7 +523,7 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
         ip->stop_vis = 0;
     }
 
-    if (stop_y > 0.9*HEIGHT) {
+    if (stop_y > 0.86*HEIGHT) {
         stop_y = mask_end_y;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
@@ -541,6 +540,7 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
 
     /* write to result struct */
     res->lane_offset = (float)(ip->lane.x-lane_center)/(max_lane_error);
+    res->lane_angle = (float)angle(0, -1, ip->lane_dir.x, ip->lane_dir.y);
     res->lane_right_visible = right.size() > 0;
     res->lane_left_visible = left.size() > 0;
     res->stopline_dist = 1-(float)ip->stop.y/HEIGHT; /* TODO calc in meters */
@@ -567,9 +567,12 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
 	std::string fpsstr = std::to_string((int)(1/period));
     osd_text(ip, fpsstr.c_str(), 0, 13*1);
 
-    char errstr[10];
+
+    char errstr[10], angstr[10];
     sprintf(errstr, "%.2f", res->lane_offset);
+    sprintf(angstr, "%.2f", res->lane_angle);
     osd_text(ip, errstr, 0, 13*2);
+    osd_text(ip, angstr, 0, 13*3);
 
     if (osd) {
         char osdstr1[64], osdstr2[64], osdstr3[64];

@@ -27,6 +27,8 @@ class Worker(threading.Thread):
         }
 
         self.move_time = 0
+        self.sens_time = 0
+        self.miss_time = 0
 
         self.terminate = False
 
@@ -51,10 +53,24 @@ class Worker(threading.Thread):
         self.terminate = True
         return None
         
-    def get_sensor(self):
-        response = self.send_fmt(Command.GET_DATA)
-        if response:
-            return response.split(' ')
+    def get_sensor(self, schedule_time):
+        if self.sens_time < schedule_time:
+            self.sens_time = schedule_time
+            response = self.send_fmt(Command.GET_DATA)
+            if response:
+                return response.split(' ')
+        return None
+    
+    def get_mission(self, schedule_time):
+        if self.miss_time < schedule_time:
+            self.miss_time = schedule_time
+            response = self.send_fmt(Command.GET_MISSION)
+            if response:
+                remaining = response.split(' ')
+            else:
+                remaining = []
+
+            return len(remaining)
         return None
             
     def task_move(self, keys, schedule_time):
@@ -84,15 +100,6 @@ class Worker(threading.Thread):
         if kp:
             self.send_fmt(Command.SET_ROT_KP, float(kp))
         return None
-    
-    def get_mission(self):
-        response = self.send_fmt(Command.GET_MISSION)
-        if response:
-            remaining = response.split(' ')
-        else:
-            remaining = []
-
-        return len(remaining)
 
     def send_mission(self, mission):
         self.send_fmt(Command.APPEND_MISSION, *mission)

@@ -186,21 +186,21 @@ void bsh_sens_recv(void *received, void *data) {
 
     if (sd->updated || time-update_time > 0.01) {
         update_time = time;
-        /*
-        if (ctrl.vel < 0 || (ctrl.vel < sd->velocity &&
+        if (ctrl.vel < 0 || (ctrl.vel <= sd->velocity &&
             sd->velocity <= 0.3 && sens_new.acceleration <= 0)) {
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &ctrl.vel,
                          NULL, NULL, false);
+            /*
             printf("direct: wanted %f, vel %f\n", ctrl.vel, sd->velocity);
+            */
         } else {
-        */
             float err = ctrl.vel - sd->velocity;
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
                          NULL, NULL, false);
-            printf("regulate: wanted %f, vel %f, err %f\n", ctrl.vel, sd->velocity, err);
             /*
+            printf("regulate: wanted %f, vel %f, err %f\n", ctrl.vel, sd->velocity, err);
+            */
         }
-        */
 #ifdef PLOT_VEL
         fprintf(vel_log, "%f %f %f %f %f %f\n",
                 sens_new.time,

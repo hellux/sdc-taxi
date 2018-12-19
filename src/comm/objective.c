@@ -14,7 +14,7 @@
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
-#define SLOW_VEL 0.4
+#define SLOW_VEL 0.6
 #define FULL_VEL 1.0
 
 /* initial positions */
@@ -29,6 +29,7 @@ struct state {
     const struct sens_val *sens; 
 
     float lane_offset;
+    float lane_angle;
 
     bool stop_visible; /* stopline is visible */
     float stop_dist; /* distance to visible stopline */
@@ -66,41 +67,46 @@ bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     return false;
 }
 
-#define PARKED AFTER_STOP+1
+#define PARKING AFTER_STOP+1
+#define PARKED PARKING+1
 #define UNPARKING PARKED+1
 
 bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     switch (s->pos) {
     case BEFORE_STOP:
         if (s->stop_visible) {
-            c->vel = SLOW_VEL;
             i->ignore_left = true;
         }
         break;
     case AFTER_STOP:
+        i->ignore_stop = true;
         c->vel = SLOW_VEL;
         i->ignore_left = true;
-        if (s->posdist < 0.4) {
-            c->rot = 0.90;
-        } else if (s->posdist > 1.2) {
-            if (s->last_cmd) {
-                return true;
-            } else {
-                s->pos = PARKED;
-            }
-        }
+        c->rot = 0.7;
+        if (s->posdist > 0.5 && s->lane_offset > -0.2)
+            s->pos = PARKING;
+        break;
+    case PARKING:
+        i->ignore_stop = true;
+        c->vel = SLOW_VEL;
+        if (s->posdist > 1 ||
+            (abs(s->lane_angle) < 0.17 && abs(s->lane_offset) < 0.06))
+            s->pos = PARKED;
         break;
     case PARKED:
+        i->ignore_stop = true;
         c->vel = 0;
-        if (s->postime >= PICKUP_TIME)
+        if (s->last_cmd) {
+            return true;
+        } else if (s->postime >= PICKUP_TIME) {
             s->pos = UNPARKING;
+        }
         break;
     case UNPARKING:
         c->vel = SLOW_VEL;
         i->ignore_left = true;
-        if (s->posdist < 0.25) {
-            c->rot = LEFT;
-        } else {
+        i->ignore_stop = true;
+        if (s->posdist > 0.5) {
             return true;
         }
         break;
@@ -392,17 +398,18 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
     ctrl->rot = ip_res.lane_offset;
 
     if (o->current) {
-        if (abs(ip_res.lane_offset) > 0.3) {
-            ctrl->vel = FULL_VEL-(0.3)*abs(ip_res.lane_offset);
+        if (abs(ip_res.lane_offset) > 0.2 || abs(ip_res.lane_angle > 0.2)) {
+            ctrl->vel = FULL_VEL -
+                (FULL_VEL-SLOW_VEL)*(abs(ip_res.lane_offset) +
+                                     abs(ip_res.lane_angle))/2;
         } else {
-            printf("prev vel: %f\n", ctrl->vel);
             ctrl->vel = MIN(MAX(SLOW_VEL, ctrl->vel+0.01), FULL_VEL);
-            printf("obj vel: %f\n", ctrl->vel);
         }
 
         struct state state;
         state.sens = sens;
         state.lane_offset = ip_res.lane_offset;
+        state.lane_angle = ip_res.lane_angle;
         state.stop_visible = ip_res.stopline_visible;
         state.stop_dist = ip_res.stopline_dist;
         state.postime = sens->time - o->passtime;

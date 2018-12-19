@@ -111,8 +111,6 @@ class Map():
             self.selected_node = None
             self.selected_edge = None
             print("MISSION SET")
-            print("mission: ", new_mission)
-            print("path: ", path_type)
             
         elif self.selected_node and current_node:
             if not self.edge_exists(self.selected_node, current_node) and self.selected_node != current_node:
@@ -149,7 +147,6 @@ class Map():
             
     def edges_to_highlight(self):
         highlight_edges = []
-        print("subpath: ", len(self.sub_path))
         if self.sub_path:
             rest = self.sub_path
             while rest:
@@ -162,10 +159,7 @@ class Map():
 
     def highlight_pos(self, remaining):
         nodes = clear_empty(self.path)
-        print("remaining:", remaining)
-        print("nodes: ", len(nodes))
         remaining_nodes = nodes[-(remaining+1):]
-        print("rem:", len(remaining_nodes))
 
         if len(remaining_nodes) >= 2:
             current_node = remaining_nodes[0]
@@ -184,7 +178,6 @@ class Map():
 
     def create_edge(self, node_start, node_end, cost):
         if cost < 0:
-            print("INPUT POSITIVE COST")
             self.cost_popup.destroy()
             self.get_edge_cost(node_start, node_end)
             
@@ -398,11 +391,11 @@ class GUI():
         self.console.insert(0, self.prev_cmd[self.cmd_index])
             
     def get_sensor_data(self):
-        self.tasks.put(Task.GET_SENSOR)
+        #self.tasks.put(Task.GET_SENSOR, time.time())
         self.window.after(GUI.SENSOR_DELAY, self.get_sensor_data)
         
     def update_current_node_mission(self):
-        self.tasks.put(Task.GET_MISSION)
+        #self.tasks.put(Task.GET_MISSION, time.time())
         self.window.after(GUI.SENSOR_DELAY, self.update_current_node_mission)
         
     def set_mission(self):

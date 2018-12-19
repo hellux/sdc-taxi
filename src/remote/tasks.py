@@ -24,6 +24,7 @@ class TaskQueue():
     """
 
     def put(self, task, *args):
+        print("tasks:", self.tasks.qsize(), task)
         if not type(task) is Task:
             raise ValueError('wrong type for task')
         self.tasks.put((task, args))
