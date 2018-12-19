@@ -14,8 +14,8 @@
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
-#define SLOW_VEL 0.6
-#define FULL_VEL 1.3
+#define SLOW_VEL 0.4
+#define FULL_VEL 1.0
 
 /* initial positions */
 
@@ -139,8 +139,10 @@ bool cmd_continue(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_exit(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
+        c->vel = SLOW_VEL;
         i->ignore_left = true;
     } else if (s->pos >= AFTER_STOP) {
+        c->vel = SLOW_VEL;
         if (s->posdist < 1) {
             i->ignore_left = true;
             return false;
@@ -387,11 +389,16 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
         o->passdist = sens->distance;
     }
 
-    ctrl->vel = 0;
     ctrl->rot = ip_res.lane_offset;
 
     if (o->current) {
-        ctrl->vel = FULL_VEL-(FULL_VEL-SLOW_VEL)*abs(ip_res.lane_offset);
+        if (abs(ip_res.lane_offset) > 0.3) {
+            ctrl->vel = FULL_VEL-(0.3)*abs(ip_res.lane_offset);
+        } else {
+            printf("prev vel: %f\n", ctrl->vel);
+            ctrl->vel = MIN(MAX(SLOW_VEL, ctrl->vel+0.01), FULL_VEL);
+            printf("obj vel: %f\n", ctrl->vel);
+        }
 
         struct state state;
         state.sens = sens;

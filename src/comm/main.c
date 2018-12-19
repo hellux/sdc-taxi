@@ -17,9 +17,6 @@
 
 #define WAIT_RC 1e7
 
-#define MAX(a,b) (((a) < (b)) ? (a) : (b))
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-
 static struct timespec ts_start;
 #ifdef PLOT_VEL
 static FILE *vel_log;
@@ -148,6 +145,7 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
     static float velocity_prev = 0;
+    static double update_time = 0;
 
     struct sens_data *sd = (struct sens_data*)received;
     struct data_sensors *sens_data = (struct data_sensors*)data;
@@ -186,16 +184,23 @@ void bsh_sens_recv(void *received, void *data) {
     struct ctrl_val ctrl = sens_data->ctrl;
     pthread_mutex_unlock(&sens_data->lock);
 
-    if (sd->updated) {
-        if (ctrl.vel < 0 ||
-            (sd->velocity <= 0.2 && sens_new.acceleration <= 0)) {
+    if (sd->updated || time-update_time > 0.01) {
+        update_time = time;
+        /*
+        if (ctrl.vel < 0 || (ctrl.vel < sd->velocity &&
+            sd->velocity <= 0.3 && sens_new.acceleration <= 0)) {
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &ctrl.vel,
                          NULL, NULL, false);
+            printf("direct: wanted %f, vel %f\n", ctrl.vel, sd->velocity);
         } else {
+        */
             float err = ctrl.vel - sd->velocity;
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
                          NULL, NULL, false);
+            printf("regulate: wanted %f, vel %f, err %f\n", ctrl.vel, sd->velocity, err);
+            /*
         }
+        */
 #ifdef PLOT_VEL
         fprintf(vel_log, "%f %f %f %f %f %f\n",
                 sens_new.time,
@@ -267,8 +272,9 @@ int main(int argc, char* args[]) {
     bus_schedule(bus, &BCSS[BBS_GET], NULL, bsh_sens_recv, &sens_data,
                  true);
 
+    struct ctrl_val ctrl_prev = {0};
     while (!quit) {
-        struct ctrl_val ctrl = {0};
+        struct ctrl_val ctrl = ctrl_prev;
         pthread_mutex_lock(&sens_data.lock);
         struct sens_val sens = sens_data.val;
         pthread_mutex_unlock(&sens_data.lock);
@@ -292,10 +298,12 @@ int main(int argc, char* args[]) {
             ctrl.rot = rc.rot;
         }
 
-        if (sens.dist_front < 1.5) {
+        /*
+        if (sens.dist_front < 1) {
             float max_vel = MAX(0, sens.dist_front-0.5);
             ctrl.vel = MIN(max_vel, ctrl.vel);
         }
+        */
 
         /* send new ctrl commands */
         pthread_mutex_lock(&sens_data.lock);
@@ -303,6 +311,7 @@ int main(int argc, char* args[]) {
         pthread_mutex_unlock(&sens_data.lock);
         bus_schedule(bus, &BCCS[BBC_ROT_ERR], (void*)&ctrl.rot, NULL, NULL,
                      false);
+        ctrl_prev = ctrl;
     }
 
     bus_schedule(bus, &BCSS[BBS_RST], NULL, NULL, NULL, false);

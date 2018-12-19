@@ -88,7 +88,7 @@ comm.pull_video:
 	scp $(PI_REMOTE):module/lowrate.mp4 .
 comm.plot_vel:
 	scp $(PI_REMOTE):module/vel.dat .
-	gnuplot -p -e 'plot "vel.dat" using 1:2 with lines, "vel.dat" using 1:3 with lines, "vel.dat" using 1:5 with lines'
+	gnuplot -p -e 'plot "vel.dat" using 1:2 with lines, "vel.dat" using 1:3 with lines'
 
 # avr modules
 sens: $(BINDIR)/sens
