@@ -29,8 +29,7 @@ struct data_sensors {
     bus_t *bus;
     struct sens_val val;
     struct ip_res ip;
-    float vel;
-    float rot;
+    struct ctrl_val ctrl;
     
     pthread_mutex_t lock;
 };
@@ -47,13 +46,12 @@ bool sc_get_sens(struct srv_cmd_args *a) {
     struct data_sensors *sens_data = (struct data_sensors*)a->data1;
 
     struct sens_val sens;
+    struct ctrl_val ctrl;
     struct ip_res ip;
-    float vel, rot;
     pthread_mutex_lock(&sens_data->lock);
     sens = sens_data->val;
     ip = sens_data->ip;
-    vel = sens_data->vel;
-    rot = sens_data->rot;
+    ctrl = sens_data->ctrl;
     pthread_mutex_unlock(&sens_data->lock);
 
     a->resp = str_create("%.2f %.2f %.2f %.2f %.2f %.2f %.2f",
@@ -62,8 +60,8 @@ bool sc_get_sens(struct srv_cmd_args *a) {
         sens.velocity,
         sens.distance,
         ip.lane_offset,
-        vel,
-        rot
+        ctrl.vel,
+        ctrl.rot
     );
 
     return true;
@@ -185,19 +183,16 @@ void bsh_sens_recv(void *received, void *data) {
 
     pthread_mutex_lock(&sens_data->lock);
     sens_data->val = sens_new;
-    float rot = sens_data->rot;
+    struct ctrl_val ctrl = sens_data->ctrl;
     pthread_mutex_unlock(&sens_data->lock);
 
     if (sd->updated) {
-        pthread_mutex_lock(&sens_data->lock);
-        float wanted_vel = sens_data->vel;
-        pthread_mutex_unlock(&sens_data->lock);
-        if (wanted_vel < 0 ||
+        if (ctrl.vel < 0 ||
             (sd->velocity <= 0.2 && sens_new.acceleration <= 0)) {
-            bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &wanted_vel,
+            bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &ctrl.vel,
                          NULL, NULL, false);
         } else {
-            float err = wanted_vel - sd->velocity;
+            float err = ctrl.vel - sd->velocity;
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
                          NULL, NULL, false);
         }
@@ -205,10 +200,10 @@ void bsh_sens_recv(void *received, void *data) {
         fprintf(vel_log, "%f %f %f %f %f %f\n",
                 sens_new.time,
                 sens_new.velocity,
-                wanted_vel,
+                ctrl.vel,
                 sens_new.dist_front,
                 sens_new.acceleration,
-                rot);
+                ctrl.rot);
 #endif
     }
 }
@@ -304,10 +299,8 @@ int main(int argc, char* args[]) {
 
         /* send new ctrl commands */
         pthread_mutex_lock(&sens_data.lock);
-        sens_data.vel = ctrl.vel;
-        sens_data.rot = ctrl.rot;
+        sens_data.ctrl = ctrl;
         pthread_mutex_unlock(&sens_data.lock);
-
         bus_schedule(bus, &BCCS[BBC_ROT_ERR], (void*)&ctrl.rot, NULL, NULL,
                      false);
     }

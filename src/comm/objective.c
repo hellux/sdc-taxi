@@ -52,8 +52,8 @@ bool cmd_ignore(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
 
 bool cmd_stop(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
     if (s->pos == BEFORE_STOP && s->stop_visible) {
-        c->vel = -s->sens->velocity/3;
-        if (s->sens->velocity < 0.3) {
+        c->vel = 0;
+        if (s->sens->velocity == 0) {
             c->vel = 0.3;
         }
     } else if (s->pos >= AFTER_STOP) {
@@ -355,7 +355,7 @@ bool obj_set_mission(obj_t *obj, int cmdc, char **cmds, bool append) {
 
 /* execute objective command */
 void obj_execute(struct obj *o, const struct sens_val *sens,
-        struct ctrl_val *ctrl, struct ip_res *ip_save) {
+                 struct ctrl_val *ctrl, struct ip_res *ip_save) {
     bool finished = false;
 
     pthread_mutex_lock(&o->lock);
