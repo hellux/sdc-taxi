@@ -145,6 +145,9 @@ bool sc_bus_send_float(struct srv_cmd_args *a) {
 /* write received values to struct reachable from main thread */
 void bsh_sens_recv(void *received, void *data) {
     static float velocity_prev = 0;
+    static float acc_hist[10] = {0};
+    static int acc_index = 0;
+    static float acc_sum = 0;
     static double update_time = 0;
 
     struct sens_data *sd = (struct sens_data*)received;
@@ -169,12 +172,17 @@ void bsh_sens_recv(void *received, void *data) {
         return;
     }
 
+    float accel = sd->velocity-velocity_prev;
+    acc_sum += accel - acc_hist[acc_index];
+    acc_hist[acc_index] = accel;
+    acc_index = (acc_index + 1) % 10;
+
     struct sens_val sens_new = {
         .dist_front = sd->dist_front,
         .dist_right = sd->dist_right,
         .distance = sd->distance,
         .velocity = sd->velocity,
-        .acceleration = sd->velocity-velocity_prev,
+        .acceleration = acc_sum/10.0,
         .time = time,
     };
     velocity_prev = sd->velocity;
@@ -186,25 +194,22 @@ void bsh_sens_recv(void *received, void *data) {
 
     if (sd->updated || time-update_time > 0.01) {
         update_time = time;
-        if (ctrl.vel < 0 || (ctrl.vel <= sd->velocity &&
-            sd->velocity <= 0.3 && sens_new.acceleration <= 0)) {
-            bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &ctrl.vel,
-                         NULL, NULL, false);
-            /*
-            printf("direct: wanted %f, vel %f\n", ctrl.vel, sd->velocity);
-            */
-        } else {
+        printf("acc: %f\n", sens_new.acceleration);
+        if (ctrl.vel < sd->velocity) {
             float err = ctrl.vel - sd->velocity;
             bus_schedule(sens_data->bus, &BCCS[BBC_VEL_ERR], &err,
                          NULL, NULL, false);
-            /*
             printf("regulate: wanted %f, vel %f, err %f\n", ctrl.vel, sd->velocity, err);
-            */
+        } else {
+            printf("direct: wanted %f, vel %f\n", ctrl.vel, sd->velocity);
+            bus_schedule(sens_data->bus, &BCCS[BBC_VEL_VAL], &ctrl.vel,
+                         NULL, NULL, false);
         }
 #ifdef PLOT_VEL
         fprintf(vel_log, "%f %f %f %f %f %f\n",
                 sens_new.time,
                 sens_new.velocity,
+                sens_new.acceleration,
                 ctrl.vel,
                 sens_new.dist_front,
                 sens_new.acceleration,

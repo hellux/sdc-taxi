@@ -49,8 +49,8 @@
 #define ZN_KD (3.0*ZN_KU/ZN_TU/40.0)
 
 #define VEL_KP 0.1
-#define VEL_KI 0.0033
-#define VEL_KD 0
+#define VEL_KI 0.002
+#define VEL_KD 0.01
 
 #define ROT_KP 1.8
 #define ROT_KI 0

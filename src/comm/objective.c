@@ -14,8 +14,9 @@
 #define LEFT -1
 #define RIGHT 1
 #define STOP_VEL 0
-#define SLOW_VEL 0.6
+#define SLOW_VEL 0.8
 #define FULL_VEL 1.0
+#define MAX_VEL 1.3
 
 /* initial positions */
 
@@ -90,7 +91,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         i->ignore_stop = true;
         c->vel = SLOW_VEL;
         if (s->posdist > 1 ||
-            (abs(s->lane_angle) < 0.17 && abs(s->lane_offset) < 0.06))
+            (s->posdist > 0.4 && abs(s->lane_angle) < 0.17 && abs(s->lane_offset) < 0.06))
             s->pos = PARKED;
         break;
     case PARKED:
@@ -103,7 +104,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         }
         break;
     case UNPARKING:
-        c->vel = SLOW_VEL;
+        c->vel = 0.8*SLOW_VEL;
         i->ignore_left = true;
         i->ignore_stop = true;
         if (s->posdist > 0.5) {
@@ -403,7 +404,7 @@ void obj_execute(struct obj *o, const struct sens_val *sens,
                 (FULL_VEL-SLOW_VEL)*(abs(ip_res.lane_offset) +
                                      abs(ip_res.lane_angle))/2;
         } else {
-            ctrl->vel = MIN(MAX(SLOW_VEL, ctrl->vel+0.01), FULL_VEL);
+            ctrl->vel = MIN(MAX(SLOW_VEL, ctrl->vel+0.008), MAX_VEL);
         }
 
         struct state state;
