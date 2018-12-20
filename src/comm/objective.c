@@ -81,7 +81,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         break;
     case AFTER_STOP:
         i->ignore_stop = true;
-        c->vel = SLOW_VEL;
+        c->vel = 0.7*SLOW_VEL;
         i->ignore_left = true;
         c->rot = 0.7;
         if (s->posdist > 0.5 && s->lane_offset > -0.2)
@@ -89,7 +89,7 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         break;
     case PARKING:
         i->ignore_stop = true;
-        c->vel = SLOW_VEL;
+        c->vel = 0.7*SLOW_VEL;
         if (s->posdist > 1 ||
             (s->posdist > 0.4 && abs(s->lane_angle) < 0.17 && abs(s->lane_offset) < 0.06))
             s->pos = PARKED;
@@ -104,10 +104,10 @@ bool cmd_park(struct state *s, struct ctrl_val *c, struct ip_opt *i) {
         }
         break;
     case UNPARKING:
-        c->vel = 0.8*SLOW_VEL;
+        c->vel = 0.6*SLOW_VEL;
         i->ignore_left = true;
         i->ignore_stop = true;
-        if (s->posdist > 0.5) {
+        if (s->posdist > 0.75) {
             return true;
         }
         break;
