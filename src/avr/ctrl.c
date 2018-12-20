@@ -52,7 +52,7 @@
 #define VEL_KI 0.002
 #define VEL_KD 0.01
 
-#define ROT_KP 1.8
+#define ROT_KP 2
 #define ROT_KI 0
 #define ROT_KD 2
 
