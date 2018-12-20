@@ -61,7 +61,7 @@ static void set_constants() {
     /* classificication */
     thresh_angle_lane = 0.3*CV_PI;
     thresh_angle_stop = 0.3*CV_PI;
-    max_stop_diff = 0.2*HEIGHT;
+    max_stop_diff = 0.3*HEIGHT;
 
     /* weights */
     weight_lt = 0.3;
