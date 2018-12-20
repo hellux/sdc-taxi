@@ -180,10 +180,10 @@ static void *bus_thread(void *b) {
 
             nanosleep(&ts_delay, NULL);
         } else {
-            pthread_mutex_lock(&bus->wake_up_mutex);
+            /* use timedwait to prevent deadlocks */
             clock_gettime(CLOCK_REALTIME, &ts_sleep);
             ts_sleep.tv_sec += WAIT_SLEEP;
-            /* use timedwait to prevent deadlocks */
+            pthread_mutex_lock(&bus->wake_up_mutex);
             pthread_cond_timedwait(&bus->wake_up, &bus->wake_up_mutex,
                                    &ts_sleep);
             pthread_mutex_unlock(&bus->wake_up_mutex);

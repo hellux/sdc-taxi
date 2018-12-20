@@ -256,7 +256,7 @@ int main(int argc, char* args[]) {
     {"get_miss",    0, obj,               NULL,            *sc_get_mission},
     {"set_miss",    0, obj,               NULL,            *sc_set_mission},
     {"app_miss",    0, obj,               NULL,            *sc_append_mission},
-    {"set_auto",   1, obj,               NULL,             *sc_set_auto},
+    {"set_auto",    1, obj,               NULL,            *sc_set_auto},
     {"shutdown",    0, &quit,             &quit_lock,      *sc_shutdown},
     {"set_vel",     1, &rc_data.vel,      &rc_data.lock,   *sc_set_float},
     {"set_rot",     1, &rc_data.rot,      &rc_data.lock,   *sc_set_float},
