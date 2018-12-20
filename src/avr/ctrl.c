@@ -34,14 +34,6 @@
 #define ROT_KI_DEF 0
 #define ROT_KD_DEF 1.9
 
-/* killswitch */
-#define KS_OCR OCR3A
-#define KS_TCNT TCNT3
-
-#define KS_T 0.2
-#define KS_PSC 64
-#define KS_TOP F_CPU*KS_T/KS_PSC
-
 #define CTRL_SLAVE 1
 
 struct pd_values {
@@ -82,24 +74,6 @@ float pd_ctrl(volatile struct pd_values *v){
     return proportion + integration + derivative;
 }
 
-/* killswitch */
-ISR(TIMER3_COMPA_vect) {
-    reset();
-}
-
-void ks_init(void) {
-    /* enable interrupt on ocr3 match */
-    TIMSK3 = (1<<OCIE3A);
-
-    TCCR3A = 0;
-
-    /* set prescaling */
-    TCCR3B = (1<<WGM32)|(1<<CS31)|(1<<CS30);
-
-    KS_OCR = KS_TOP;
-    KS_TCNT = 0;
-}
-
 void pwm_init(void) {
     /* Initialize to phase and frequency correct PWM */
     TCCR1A |= (1<<COM1A1)|(1<<COM1B1);
@@ -112,13 +86,10 @@ void pwm_init(void) {
 }
 
 int main(void) {
-    /* ks_init(); */
     pwm_init();
     spi_init(0);
 
     reset();
-
-    /* sei(); */
 
     while (1) {
         ctrl_val_t value_retrieved;
