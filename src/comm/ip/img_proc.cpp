@@ -54,14 +54,14 @@ static void set_constants() {
     line_max_gap = 40;
 
     /* masking */
-    mask_width_top = 0.55*WIDTH;
+    mask_width_top = 0.5*WIDTH;
     mask_start_y = 0.9*HEIGHT;
     mask_end_y = 0.6*HEIGHT;
 
     /* classificication */
     thresh_angle_lane = 0.3*CV_PI;
     thresh_angle_stop = 0.3*CV_PI;
-    max_stop_diff = 0.15*HEIGHT;
+    max_stop_diff = 0.2*HEIGHT;
 
     /* weights */
     weight_lt = 0.3;
@@ -70,7 +70,7 @@ static void set_constants() {
     weight_sd = 0.6;
 
     /* limits */
-    thresh_stop_vis = 10;
+    thresh_stop_vis = 4;
     lane_center = 0.5*WIDTH;
     max_lane_error = 0.4*WIDTH;
     lane_width_min = 0.45*WIDTH;
@@ -505,7 +505,10 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
         ip->stop_vis++;
         if (!ip->stop_valid) {
             /* stop must appear near top of mask */
+            /*
             ip->stop_valid = stop_y < mask_end_y + 0.2*HEIGHT;
+            */
+            ip->stop_valid = true;
         }
     } else {
         ip->stop_vis--;
@@ -523,7 +526,7 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
         ip->stop_vis = 0;
     }
 
-    if (stop_y > 0.86*HEIGHT) {
+    if (stop_y > 0.85*HEIGHT) {
         stop_y = mask_end_y;
         ip->stop_diff = 0;
         ip->stop_vis = 0;
@@ -573,6 +576,10 @@ void ip_process(struct ip *ip, struct ip_res *res, struct ip_osd *osd) {
     sprintf(angstr, "%.2f", res->lane_angle);
     osd_text(ip, errstr, 0, 13*2);
     osd_text(ip, angstr, 0, 13*3);
+
+    char visstr[10];
+    sprintf(visstr, "%d %d", ip->stop_vis, ip->stop_valid);
+    osd_text(ip, visstr, 0, 13*4);
 
     if (osd) {
         char osdstr1[64], osdstr2[64], osdstr3[64];
