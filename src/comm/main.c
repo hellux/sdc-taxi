@@ -303,12 +303,10 @@ int main(int argc, char* args[]) {
             ctrl.rot = rc.rot;
         }
 
-        /*
-        if (sens.dist_front < 1) {
-            float max_vel = MAX(0, sens.dist_front-0.5);
+        if (sens.dist_front < 0.8) {
+            float max_vel = MAX(0, sens.dist_front-0.4);
             ctrl.vel = MIN(max_vel, ctrl.vel);
         }
-        */
 
         /* send new ctrl commands */
         pthread_mutex_lock(&sens_data.lock);
