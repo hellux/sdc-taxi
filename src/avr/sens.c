@@ -57,14 +57,6 @@ void wheel_init(){
     WL_TCNT = 0;
     WL_OCR = WT_TOP;
 
-    /*
-    TIMSK3 = (1<<OCIE3A);
-    TCCR3B = (1<<WGM32)|(0<<CS32)|(1<<CS31)|(1<<CS30);
-    TCCR3A = 0;
-    WR_TCNT = 0;
-    WR_OCR = WT_TOP;
-    */
-
     /* enable external interrupts */
     EIMSK = (1<<INT0)|(1<<INT1);
     /* Trigger on rising edge */
@@ -84,8 +76,8 @@ void adc_init(void) {
 
 uint16_t adc_read(uint8_t channel) {
     //Set multiplexer for given channel (0-7) (front or back sensor)
-    ADMUX = (ADMUX & 0xF8) | channel; //ADMUX &= 0xE0; //Clear the older channel that was read?
-
+    ADMUX = (ADMUX & 0xF8) | channel; 
+    
     // start single convertion
     ADCSRA |= (1 << ADSC);
 
@@ -108,14 +100,6 @@ ISR(INT0_vect) {
     WL_TCNT = 0;
     sei();
 }
-
-/*
-ISR(TIMER3_COMPA_vect) {
-    cli();
-    wheel_right_period = WT_TOP;
-    sei();
-}
-*/
 
 ISR(INT1_vect) {
     cli();
